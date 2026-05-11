@@ -107,6 +107,31 @@ export class SentryClient {
   }
 
   /**
+   * Get issues from a saved view
+   * @param {string} viewId - Sentry saved view ID (e.g., "201661")
+   * @param {string} environment - optional environment filter (e.g., "production")
+   * @returns {Promise<Array>} issues
+   */
+  async getIssuesFromView(viewId, environment = 'production') {
+    // Sentry saved views endpoint
+    // Note: This fetches issues matching the view's query
+    const query = `is:unresolved environment:${environment}`;
+    const endpoint = `organizations/${this.orgSlug}/issues/?query=${encodeURIComponent(query)}&limit=100&view=${viewId}`;
+    return this.request(endpoint);
+  }
+
+  /**
+   * Get issues count from a saved view
+   * @param {string} viewId - Sentry saved view ID
+   * @param {string} environment - optional environment filter
+   * @returns {Promise<number>} count
+   */
+  async getViewIssuesCount(viewId, environment = 'production') {
+    const issues = await this.getIssuesFromView(viewId, environment);
+    return issues.length;
+  }
+
+  /**
    * Get untriaged spikes older than 24h
    * @returns {Promise<Array>}
    */
