@@ -107,21 +107,30 @@ export class SentryClient {
   }
 
   /**
-   * Get issues from a saved view (correct approach)
-   * IMPORTANT: Do NOT pass a query parameter — it overrides the view's own
-   * project filter. Just pass view= and environment=, let Sentry apply the view.
+   * Get issues from a saved view with its project IDs
+   * The Sentry API view= parameter only applies the saved query,
+   * NOT the project filter (those are stored client-side in the browser URL).
+   * We must pass project IDs explicitly.
+   * 
    * @param {string} viewId - Sentry saved view ID (e.g., "201661")
-   * @param {string} environment - environment filter (e.g., "production")
+   * @param {string[]} projectIds - project IDs from the view URL
+   * @param {string} environment - environment filter
    * @returns {Promise<Array>} issues
    */
-  async getIssuesFromView(viewId, environment = 'production') {
-    // Let the view apply its own query/project filters
+  async getIssuesFromView(viewId, projectIds = [], environment = 'production') {
     const params = new URLSearchParams({
       limit: '100',
       view: viewId,
       environment,
-      statsPeriod: '7d'
+      statsPeriod: '7d',
+      query: 'is:unresolved'
     });
+    
+    // Append project IDs if provided (multiple &project= params)
+    if (projectIds.length > 0) {
+      projectIds.forEach(id => params.append('project', String(id)));
+    }
+    
     const endpoint = `organizations/${this.orgSlug}/issues/?${params.toString()}`;
     return this.request(endpoint);
   }

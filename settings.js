@@ -20,12 +20,15 @@
     document.getElementById('sentry-url').value = settings.sentry.baseUrl || 'https://zeal.sentry.io';
     document.getElementById('sentry-org').value = settings.sentry.org || '';
     
-    // Handle both old (project) and new (views) formats
+    // Handle both old (array of strings) and new (array with projectIds) formats
     if (settings.sentry.views && Array.isArray(settings.sentry.views)) {
-      document.getElementById('sentry-views').value = settings.sentry.views.join(', ');
-    } else if (settings.sentry.project) {
-      // Legacy: if they have a project, leave views empty for now
-      document.getElementById('sentry-views').value = '';
+      document.getElementById('sentry-views').value = settings.sentry.views
+        .map(v => {
+          if (typeof v === 'string') return v; // old format
+          if (v.projectIds?.length) return `${v.label}|${v.viewId}|${v.projectIds.join(',')}`;
+          return `${v.label}|${v.viewId}`;
+        })
+        .join('\n');
     }
     
     document.getElementById('sentry-token').value = settings.sentry.token || '';
@@ -161,9 +164,18 @@
           baseUrl: document.getElementById('sentry-url').value.trim(),
           org: document.getElementById('sentry-org').value.trim(),
           views: document.getElementById('sentry-views').value
-            .split(',')
-            .map(v => v.trim())
-            .filter(v => v), // Remove empty strings
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line)
+            .map(line => {
+              const parts = line.split('|');
+              const label = parts[0]?.trim() || 'View';
+              const viewId = parts[1]?.trim() || parts[0]?.trim();
+              const projectIds = parts[2]
+                ? parts[2].split(',').map(p => p.trim()).filter(Boolean)
+                : [];
+              return { label, viewId, projectIds };
+            }),
           token: document.getElementById('sentry-token').value.trim()
         },
         squad: {

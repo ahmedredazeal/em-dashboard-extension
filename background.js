@@ -318,21 +318,27 @@ async function fetchSentryData(settings) {
   const allIssues = []; // flat merged list (for alert rules)
   
   if (settings.sentry.views && settings.sentry.views.length > 0) {
-    for (const viewSpec of settings.sentry.views) {
-      let label, viewId;
-      if (viewSpec.includes('|')) {
-        [label, viewId] = viewSpec.split('|').map(s => s.trim());
+    for (const view of settings.sentry.views) {
+      // Handle both old string format and new object format
+      let label, viewId, projectIds = [];
+      if (typeof view === 'string') {
+        if (view.includes('|')) {
+          [label, viewId] = view.split('|').map(s => s.trim());
+        } else {
+          viewId = view.trim();
+          label = `View ${viewId}`;
+        }
       } else {
-        viewId = viewSpec.trim();
-        label = `View ${viewId}`;
+        label = view.label || `View ${view.viewId}`;
+        viewId = view.viewId;
+        projectIds = view.projectIds || [];
       }
       
-      console.log(`[background] Fetching Sentry view "${label}" (${viewId})...`);
+      console.log(`[background] Fetching Sentry view "${label}" (${viewId}) projects:[${projectIds.join(',')}]...`);
       
       try {
-        const issues = await client.getIssuesFromView(viewId, 'production');
+        const issues = await client.getIssuesFromView(viewId, projectIds, 'production');
         console.log(`[background] View "${label}" → ${issues.length} issues`);
-        
         viewResults.push({ label, viewId, issues, count: issues.length });
         allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));
       } catch (error) {

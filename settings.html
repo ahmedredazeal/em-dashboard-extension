@@ -75,12 +75,12 @@
       </div>
 
       <div class="field">
-        <label for="sentry-views">Saved view IDs (comma-separated, with optional labels)</label>
-        <input type="text" id="sentry-views" placeholder="All Issues|201661, High Frequency|205219, Backend|205221, Mobile|205220" autocomplete="off"/>
+        <label for="sentry-views">Sentry views (one per line)</label>
+        <textarea id="sentry-views" rows="5" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;" placeholder="HRM Issues|201661|5031746,5846291,6042935&#10;POS Issues|205219|5846291,4507680728416256&#10;BE Issues|205221|5031746,4506435424026624&#10;FE Issues|205220|6042935,6163086"></textarea>
         <span class="field-hint">
-          Format: <code>Label|ViewID</code> — separated by commas. Label is optional.<br/>
-          Example: <code>All Issues|201661, Backend|205221</code><br/>
-          View IDs come from your Sentry URL: <code>/issues/views/<strong>201661</strong>/</code>
+          Format: <code>Label|ViewID|projectId1,projectId2,...</code><br/>
+          Project IDs come from the Sentry view URL parameters: <code>&amp;project=5031746&amp;project=5846291</code><br/>
+          Example: <code>HRM Issues|201661|5031746,5846291,6042935</code>
         </span>
       </div>
 
