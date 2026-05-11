@@ -371,22 +371,84 @@ function renderTodayScreen() {
   const spikes = document.getElementById('sentry-spikes');
   const sentryEmpty = document.getElementById('sentry-empty');
   
-  const recentSpikes = state.sentryIssues.filter(issue => {
+  // Deduplicate by issue ID (same issue may appear in multiple views)
+  const uniqueIssuesMap = new Map();
+  state.sentryIssues.forEach(issue => {
+    const id = issue.id || issue.shortId;
+    if (id && !uniqueIssuesMap.has(id)) {
+      uniqueIssuesMap.set(id, issue);
+    }
+  });
+  const uniqueIssues = Array.from(uniqueIssuesMap.values());
+  
+  // Update total count badge
+  const totalBadge = document.getElementById('sentry-total');
+  if (totalBadge) {
+    const totalText = uniqueIssues.length > 0 ? `${uniqueIssues.length} unique issues` : '';
+    totalBadge.textContent = totalText;
+  }
+  
+  // Sort by most recent first
+  uniqueIssues.sort((a, b) => new Date(b.lastSeen || b.firstSeen) - new Date(a.lastSeen || a.firstSeen));
+  
+  // Show top 15 from last 7 days
+  const recentSpikes = uniqueIssues.filter(issue => {
     const age = (Date.now() - new Date(issue.firstSeen).getTime()) / (60 * 60 * 1000);
-    return age < 24;
-  }).slice(0, 5);
+    return age < 168; // 7 days
+  }).slice(0, 15);
   
   if (recentSpikes.length === 0) {
     spikes.innerHTML = '';
     sentryEmpty.classList.remove('hidden');
   } else {
     sentryEmpty.classList.add('hidden');
-    spikes.innerHTML = recentSpikes.map(issue => `
-      <div class="card">
-        <div class="card-title">${escapeHtml(issue.title || issue.culprit || 'Untitled')}</div>
-        <div class="card-subtitle">${Math.round((Date.now() - new Date(issue.firstSeen).getTime()) / (60 * 60 * 1000))}h old · ${issue.count || 0} events</div>
-      </div>
-    `).join('');
+    spikes.innerHTML = recentSpikes.map(issue => {
+      const ageHours = Math.round((Date.now() - new Date(issue.firstSeen).getTime()) / (60 * 60 * 1000));
+      const level = (issue.level || 'error').toLowerCase();
+      const permalink = issue.permalink || '#';
+      
+      // Color coding by severity
+      let borderColor = '#dc2626'; // red for error/fatal
+      let bgTint = 'rgba(220, 38, 38, 0.05)';
+      let levelBadge = '🔴 ERROR';
+      let levelColor = '#dc2626';
+      
+      if (level === 'fatal') {
+        borderColor = '#991b1b';
+        bgTint = 'rgba(153, 27, 27, 0.08)';
+        levelBadge = '⚠️ FATAL';
+        levelColor = '#991b1b';
+      } else if (level === 'warning') {
+        borderColor = '#f59e0b';
+        bgTint = 'rgba(245, 158, 11, 0.05)';
+        levelBadge = '⚠ WARNING';
+        levelColor = '#d97706';
+      } else if (level === 'info') {
+        borderColor = '#3b82f6';
+        bgTint = 'rgba(59, 130, 246, 0.05)';
+        levelBadge = 'ℹ INFO';
+        levelColor = '#2563eb';
+      }
+      
+      return `
+        <div class="card sentry-issue" style="border-left: 4px solid ${borderColor}; background: ${bgTint}; cursor: pointer;" data-url="${escapeHtml(permalink)}">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:10px; font-weight:700; color:${levelColor}; letter-spacing:0.5px;">${levelBadge}</span>
+            <span style="font-size:10px; color:var(--text-muted);">${issue.project?.slug || issue.project || ''}</span>
+          </div>
+          <div class="card-title" style="color: ${levelColor};">${escapeHtml(issue.title || issue.culprit || 'Untitled')}</div>
+          <div class="card-subtitle">${ageHours}h old · ${issue.count || 0} events · ${issue.userCount || 0} users affected</div>
+        </div>
+      `;
+    }).join('');
+    
+    // Make cards clickable to open Sentry
+    spikes.querySelectorAll('.sentry-issue').forEach(card => {
+      card.addEventListener('click', () => {
+        const url = card.getAttribute('data-url');
+        if (url && url !== '#') window.open(url, '_blank');
+      });
+    });
   }
 }
 
