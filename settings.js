@@ -170,6 +170,11 @@
       
       await chrome.storage.local.set({ settings: newSettings });
       
+      // Notify popup to reload
+      chrome.runtime.sendMessage({ type: 'settings-updated' }).catch(() => {
+        // Popup might not be open, ignore error
+      });
+      
       // Apply theme immediately
       document.documentElement.setAttribute('data-theme', newSettings.ui.theme);
       

@@ -470,5 +470,15 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+/**
+ * Listen for settings updates from settings page
+ */
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'settings-updated') {
+    console.log('[popup] Settings updated, reloading...');
+    location.reload();
+  }
+});
+
 // Boot on load
 boot();
