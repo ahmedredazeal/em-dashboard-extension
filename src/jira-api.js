@@ -1,185 +1,193 @@
 /**
  * jira-api.js
- * Jira REST API v3 client (read-only)
- * Atlassian Cloud API: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
+ * Jira REST API v3 + Agile API v1.0 client (read-only)
+ * 
+ * IMPORTANT: Boards and sprints are in the Agile API (/rest/agile/1.0/),
+ * NOT the regular REST API (/rest/api/3/).
  */
 
 export class JiraClient {
   constructor(baseUrl, email, apiToken) {
-    this.baseUrl = baseUrl.replace(/\/$/, ''); // remove trailing slash
+    this.baseUrl = baseUrl.replace(/\/$/, '');
     this.email = email;
     this.apiToken = apiToken;
     this.authHeader = 'Basic ' + btoa(`${email}:${apiToken}`);
+    this.headers = {
+      'Authorization': this.authHeader,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    };
   }
 
   /**
-   * Make authenticated request to Jira API
-   * @private
+   * GET request to any Jira API path
    */
-  async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}/rest/api/3/${endpoint}`;
+  async _get(path) {
+    const url = `${this.baseUrl}${path}`;
+    console.log(`[jira] GET ${path}`);
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': this.authHeader,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    });
+    const response = await fetch(url, { headers: this.headers });
     
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Jira API error (${response.status}): ${error}`);
+      const text = await response.text().catch(() => '');
+      throw new Error(`Jira API ${response.status}: ${response.statusText} — ${path}${text ? ' — ' + text.slice(0, 200) : ''}`);
     }
     
     return response.json();
   }
 
   /**
-   * Test connection (GET /myself)
-   * @returns {Promise<Object>} user info
+   * Search using new JQL endpoint (POST /rest/api/3/search/jql)
+   * The old GET /rest/api/3/search is deprecated.
    */
-  async testConnection() {
-    return this.request('myself');
+  async _search(body) {
+    const url = `${this.baseUrl}/rest/api/3/search/jql`;
+    console.log(`[jira] POST /rest/api/3/search/jql`, body.jql);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Jira API ${response.status}: ${response.statusText} — /rest/api/3/search/jql${text ? ' — ' + text.slice(0, 200) : ''}`);
+    }
+    
+    return response.json();
   }
 
   /**
-   * Get active sprint for a project
-   * @param {string} boardId - Jira board ID
+   * Legacy request method - kept for backwards compatibility with testConnection
+   */
+  async request(endpoint, options = {}) {
+    return this._get(`/rest/api/3/${endpoint}`);
+  }
+
+  /**
+   * Test connection (GET /myself)
+   */
+  async testConnection() {
+    return this._get('/rest/api/3/myself');
+  }
+
+  /**
+   * Find the board for a project key
+   * Returns the first scrum board found (prefers scrum over kanban)
+   * @param {string} projectKey - e.g. 'HRM'
+   * @returns {Promise<Object>} board info
+   */
+  async findBoardForProject(projectKey) {
+    console.log(`[jira] Finding board for project: ${projectKey}`);
+    
+    const boardData = await this._get(
+      `/rest/agile/1.0/board?projectKeyOrId=${projectKey}&maxResults=10`
+    );
+    
+    const boards = boardData.values || [];
+    if (!boards.length) {
+      throw new Error(`No board found for project ${projectKey}. Make sure the project has a board in Jira.`);
+    }
+    
+    // Prefer scrum boards (which have sprints)
+    const board = boards.find(b => b.type === 'scrum') || boards[0];
+    console.log(`[jira] Found board: ${board.name} (id=${board.id}, type=${board.type})`);
+    
+    return board;
+  }
+
+  /**
+   * Get active sprint for a board
+   * Uses the Agile API (NOT the regular REST API)
+   * @param {string|number} boardId
    * @returns {Promise<Object>} sprint info
    */
   async getActiveSprint(boardId) {
-    const endpoint = `board/${boardId}/sprint?state=active`;
-    const result = await this.request(endpoint);
+    console.log(`[jira] Fetching active sprint for board ${boardId}`);
+    
+    const result = await this._get(
+      `/rest/agile/1.0/board/${boardId}/sprint?state=active&maxResults=10`
+    );
     
     if (!result.values || result.values.length === 0) {
-      throw new Error('No active sprint found');
+      throw new Error(`No active sprint found for board ${boardId}`);
     }
     
+    console.log(`[jira] Found ${result.values.length} active sprint(s):`, result.values.map(s => s.name));
     return result.values[0];
   }
 
   /**
+   * Get active sprint by project key (auto-discovers board)
+   * @param {string} projectKey
+   * @returns {Promise<Object>} sprint with boardId/boardName attached
+   */
+  async getActiveSprintByProject(projectKey) {
+    const board = await this.findBoardForProject(projectKey);
+    const sprint = await this.getActiveSprint(board.id);
+    sprint.boardId = board.id;
+    sprint.boardName = board.name;
+    return sprint;
+  }
+
+  /**
    * Get all stories in a sprint
-   * @param {string} sprintId
-   * @param {string} projectKey - e.g. 'ATH'
-   * @returns {Promise<Array>} issues
+   * Uses the new POST /rest/api/3/search/jql endpoint
+   * @param {string|number} sprintId
+   * @param {string} projectKey
+   * @returns {Promise<Array>}
    */
   async getSprintStories(sprintId, projectKey) {
-    const jql = `project=${projectKey} AND sprint=${sprintId} AND type in (Story, Task, Bug)`;
-    const endpoint = `search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,status,assignee,customfield_10016,subtasks,created,updated`;
+    const jql = `project = ${projectKey} AND sprint = ${sprintId}`;
+    console.log(`[jira] Fetching stories: ${jql}`);
     
-    const result = await this.request(endpoint);
-    return result.issues || [];
-  }
-
-  /**
-   * Get subtasks for a list of parent issues
-   * @param {Array<string>} parentKeys - e.g. ['ATH-123', 'ATH-124']
-   * @returns {Promise<Array>} subtask issues
-   */
-  async getSubtasks(parentKeys) {
-    if (!parentKeys || parentKeys.length === 0) return [];
-    
-    const jql = `parent in (${parentKeys.join(',')})`;
-    const endpoint = `search?jql=${encodeURIComponent(jql)}&maxResults=500&fields=summary,status,assignee,timetracking,parent`;
-    
-    const result = await this.request(endpoint);
-    return result.issues || [];
-  }
-
-  /**
-   * Get worklogs for an engineer in a date range
-   * @param {string} accountId - Jira account ID
-   * @param {Date} from
-   * @param {Date} to
-   * @returns {Promise<Array>} worklogs
-   */
-  async getWorklogs(accountId, from, to) {
-    // Note: Jira worklog API is paginated and doesn't have a direct date filter
-    // This is a simplified implementation for Phase 1
-    // Production would need to fetch worklogs per issue and aggregate
-    
-    const jql = `worklogAuthor=${accountId} AND worklogDate >= "${from.toISOString().split('T')[0]}"`;
-    const endpoint = `search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=worklog`;
-    
-    const result = await this.request(endpoint);
-    
-    // Flatten worklogs from all issues
-    const worklogs = [];
-    for (const issue of result.issues || []) {
-      if (issue.fields.worklog?.worklogs) {
-        worklogs.push(...issue.fields.worklog.worklogs);
-      }
-    }
-    
-    return worklogs.filter(log => {
-      const logDate = new Date(log.started);
-      return logDate >= from && logDate <= to;
+    const result = await this._search({
+      jql,
+      fields: ['summary', 'status', 'assignee', 'issuetype', 'customfield_10016', 'subtasks', 'created', 'updated', 'priority'],
+      maxResults: 100
     });
-  }
-
-  /**
-   * Get sprint history (last N sprints)
-   * @param {string} boardId
-   * @param {number} count - how many sprints to fetch
-   * @returns {Promise<Array>} sprint objects
-   */
-  async getSprintHistory(boardId, count = 5) {
-    const endpoint = `board/${boardId}/sprint?state=closed&maxResults=${count}`;
-    const result = await this.request(endpoint);
     
-    return (result.values || []).reverse(); // oldest first
-  }
-
-  /**
-   * Get support tickets (issues with specific labels or custom field)
-   * @param {string} projectKey
-   * @param {string} labelOrField - e.g. 'support' or custom field query
-   * @returns {Promise<Array>}
-   */
-  async getSupportTickets(projectKey, labelOrField = 'support') {
-    const jql = `project=${projectKey} AND labels=${labelOrField} AND resolution=Unresolved`;
-    const endpoint = `search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,created,updated,assignee,priority`;
-    
-    const result = await this.request(endpoint);
+    console.log(`[jira] Found ${result.issues?.length || 0} stories in sprint`);
     return result.issues || [];
   }
 
   /**
-   * Get security tickets (issues with security label)
-   * @param {string} projectKey
-   * @returns {Promise<Array>}
+   * Get sprint history (last N closed sprints)
    */
-  async getSecurityTickets(projectKey) {
-    const jql = `project=${projectKey} AND labels=security AND resolution=Unresolved`;
-    const endpoint = `search?jql=${encodeURIComponent(jql)}&maxResults=100&fields=summary,created,duedate,assignee,priority`;
+  async getSprintHistory(boardId, limit = 5) {
+    console.log(`[jira] Fetching last ${limit} closed sprints for board ${boardId}`);
     
-    const result = await this.request(endpoint);
-    return result.issues || [];
+    const result = await this._get(
+      `/rest/agile/1.0/board/${boardId}/sprint?state=closed&maxResults=${limit}`
+    );
+    
+    return (result.values || []).slice(-limit);
   }
 
   /**
-   * Check if a ticket is stale (no update in 2+ days)
-   * @param {Object} issue - Jira issue object
-   * @returns {boolean}
+   * Get support tickets for a project
    */
-  static isTicketStale(issue) {
-    if (!issue.fields.updated) return false;
+  async getSupportTickets(projectKey) {
+    const jql = `project = ${projectKey} AND type = "Support Ticket" AND status != Done`;
+    console.log(`[jira] Fetching support tickets: ${jql}`);
     
-    const lastUpdate = new Date(issue.fields.updated);
-    const ageMs = Date.now() - lastUpdate.getTime();
-    const ageDays = ageMs / (24 * 60 * 60 * 1000);
-    
-    return ageDays > 2;
+    try {
+      const result = await this._search({
+        jql,
+        fields: ['summary', 'status', 'priority', 'created', 'updated'],
+        maxResults: 50
+      });
+      return result.issues || [];
+    } catch (err) {
+      console.warn(`[jira] No support tickets found (may not be configured):`, err.message);
+      return [];
+    }
   }
 }
 
 /**
  * Create a JiraClient from stored settings
- * @returns {Promise<JiraClient>}
  */
 export async function createClient() {
   const result = await chrome.storage.local.get(['settings']);

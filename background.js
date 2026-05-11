@@ -177,53 +177,85 @@ async function fetchJiraData(settings) {
   );
   
   const squadKey = settings.squad?.key;
-  const boardId = settings.squad?.boardId;
+  let boardId = settings.squad?.boardId;
   
-  if (!squadKey || !boardId) {
-    throw new Error('Squad not configured');
+  if (!squadKey) {
+    throw new Error('Squad project key not configured');
   }
   
-  // Fetch sprint history
-  const sprintHistory = await client.getSprintHistory(boardId, 5);
+  console.log(`[background] Jira fetch starting for project ${squadKey}${boardId ? `, board ${boardId}` : ' (auto-discover board)'}`);
   
-  // Get current sprint
+  // Get current sprint - auto-discover board if not configured
   let currentSprint = null;
   try {
-    console.log(`[background] Fetching active sprint for board ${boardId}...`);
-    const activeSprint = await client.getActiveSprint(boardId);
-    console.log('[background] Active sprint found:', activeSprint.name, activeSprint.id);
+    let activeSprint;
+    
+    if (boardId) {
+      // Use configured board ID
+      console.log(`[background] Using configured board ${boardId}`);
+      activeSprint = await client.getActiveSprint(boardId);
+    } else {
+      // Auto-discover board from project key
+      console.log(`[background] Auto-discovering board for ${squadKey}...`);
+      activeSprint = await client.getActiveSprintByProject(squadKey);
+      boardId = activeSprint.boardId;
+      console.log(`[background] Auto-discovered board: ${activeSprint.boardName} (id=${boardId})`);
+    }
+    
+    console.log('[background] Active sprint found:', activeSprint.name, 'id=' + activeSprint.id);
     
     const stories = await client.getSprintStories(activeSprint.id, squadKey);
     console.log(`[background] Fetched ${stories.length} stories from sprint`);
     
     // Calculate sprint metrics
     const totalPoints = stories.reduce((sum, s) => sum + (s.fields.customfield_10016 || 0), 0);
-    const completedStories = stories.filter(s => s.fields.status.name === 'Done');
+    const completedStories = stories.filter(s => s.fields.status?.name === 'Done');
     const completedPoints = completedStories.reduce((sum, s) => sum + (s.fields.customfield_10016 || 0), 0);
     
-    const startDate = new Date(activeSprint.startDate);
-    const endDate = new Date(activeSprint.endDate);
+    const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
+    const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
     const now = new Date();
     
-    const totalDays = Math.ceil((endDate - startDate) / (24 * 60 * 60 * 1000));
-    const daysElapsed = Math.ceil((now - startDate) / (24 * 60 * 60 * 1000));
+    const totalDays = Math.max(1, Math.ceil((endDate - startDate) / (24 * 60 * 60 * 1000)));
+    const daysElapsed = Math.max(0, Math.ceil((now - startDate) / (24 * 60 * 60 * 1000)));
     
     currentSprint = {
       id: activeSprint.id,
       name: activeSprint.name,
+      boardId,
+      boardName: activeSprint.boardName,
+      startDate: activeSprint.startDate,
+      endDate: activeSprint.endDate,
+      totalStories: stories.length,
+      completedStories: completedStories.length,
       totalPoints,
       completedPoints,
       totalDays,
       daysElapsed
     };
-    console.log('[background] Current sprint metrics:', currentSprint);
+    console.log('[background] Current sprint:', currentSprint);
   } catch (err) {
     console.error('[background] Failed to fetch active sprint:', err.message);
-    console.error('[background] Error details:', err);
+    console.error('[background] Full error:', err);
+  }
+  
+  // Fetch sprint history if we have a board ID
+  let sprintHistory = [];
+  if (boardId) {
+    try {
+      sprintHistory = await client.getSprintHistory(boardId, 5);
+    } catch (err) {
+      console.warn('[background] Failed to fetch sprint history:', err.message);
+    }
   }
   
   // Fetch support tickets
-  const supportTickets = await client.getSupportTickets(squadKey);
+  let supportTickets = [];
+  try {
+    supportTickets = await client.getSupportTickets(squadKey);
+  } catch (err) {
+    console.warn('[background] Failed to fetch support tickets:', err.message);
+  }
   
   return {
     sprintHistory,

@@ -166,7 +166,10 @@
         squad: {
           key: document.getElementById('squad-key').value.trim().toUpperCase(),
           name: document.getElementById('squad-name').value.trim(),
-          boardId: parseInt(document.getElementById('squad-board').value.trim(), 10)
+          boardId: (() => {
+            const v = document.getElementById('squad-board').value.trim();
+            return v ? parseInt(v, 10) : null;
+          })()
         },
         ui: {
           theme: document.querySelector('input[name="theme"]:checked')?.value || 'browser',

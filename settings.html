@@ -118,9 +118,9 @@
       </div>
 
       <div class="field">
-        <label for="squad-board">Jira board ID</label>
-        <input type="number" id="squad-board" placeholder="42" autocomplete="off"/>
-        <span class="field-hint">Your Jira board ID (found in the board URL)</span>
+        <label for="squad-board">Jira board ID <small style="color:var(--text-muted);font-weight:normal;">(optional)</small></label>
+        <input type="number" id="squad-board" placeholder="Leave empty to auto-discover" autocomplete="off"/>
+        <span class="field-hint">Leave empty and we'll find the scrum board for your project automatically. Or paste the board ID from the URL.</span>
       </div>
     </div>
 
