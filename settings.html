@@ -75,9 +75,12 @@
       </div>
 
       <div class="field">
-        <label for="sentry-project">Project slug</label>
-        <input type="text" id="sentry-project" placeholder="your-project" autocomplete="off"/>
-        <span class="field-hint">Your Sentry project slug</span>
+        <label for="sentry-views">Saved view IDs (comma-separated)</label>
+        <input type="text" id="sentry-views" placeholder="201661, 205219, 205221, 205220" autocomplete="off"/>
+        <span class="field-hint">
+          Sentry saved view IDs from your dashboard URLs.<br/>
+          Example: https://zeal.sentry.io/issues/views/<strong>201661</strong>/ → use "201661"
+        </span>
       </div>
 
       <div class="field">

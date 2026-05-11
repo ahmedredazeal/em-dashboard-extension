@@ -19,7 +19,15 @@
   if (settings.sentry) {
     document.getElementById('sentry-url').value = settings.sentry.baseUrl || 'https://zeal.sentry.io';
     document.getElementById('sentry-org').value = settings.sentry.org || '';
-    document.getElementById('sentry-project').value = settings.sentry.project || '';
+    
+    // Handle both old (project) and new (views) formats
+    if (settings.sentry.views && Array.isArray(settings.sentry.views)) {
+      document.getElementById('sentry-views').value = settings.sentry.views.join(', ');
+    } else if (settings.sentry.project) {
+      // Legacy: if they have a project, leave views empty for now
+      document.getElementById('sentry-views').value = '';
+    }
+    
     document.getElementById('sentry-token').value = settings.sentry.token || '';
   }
   
@@ -149,7 +157,10 @@
         sentry: {
           baseUrl: document.getElementById('sentry-url').value.trim(),
           org: document.getElementById('sentry-org').value.trim(),
-          project: document.getElementById('sentry-project').value.trim(),
+          views: document.getElementById('sentry-views').value
+            .split(',')
+            .map(v => v.trim())
+            .filter(v => v), // Remove empty strings
           token: document.getElementById('sentry-token').value.trim()
         },
         squad: {
