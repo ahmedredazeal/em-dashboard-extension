@@ -15,7 +15,9 @@ let state = {
   sprintHistory: [],
   currentSprint: null,
   sentryIssues: [],
-  supportTickets: []
+  sentryViews: [],   // per-view: [{label, viewId, issues, count}]
+  supportTickets: [],
+  isLoading: false
 };
 
 /**
@@ -130,16 +132,14 @@ async function loadData() {
   try {
     // Load from local cache first for instant render
     const cacheResult = await chrome.storage.local.get([
-      'sprintHistory',
-      'currentSprint',
-      'sentryIssues',
-      'supportTickets',
-      'alerts'
+      'sprintHistory', 'currentSprint', 'sentryIssues',
+      'sentryViews', 'supportTickets', 'alerts'
     ]);
     
     state.sprintHistory = cacheResult.sprintHistory || [];
     state.currentSprint = cacheResult.currentSprint || null;
     state.sentryIssues = cacheResult.sentryIssues || [];
+    state.sentryViews = cacheResult.sentryViews || [];
     state.supportTickets = cacheResult.supportTickets || [];
     state.alerts = cacheResult.alerts || [];
     
@@ -154,13 +154,22 @@ async function loadData() {
  */
 async function refreshDashboard() {
   console.log('[popup] Requesting dashboard refresh...');
+  state.isLoading = true;
   
-  // Show loading indicator on refresh button
+  // Show loading indicator on sprint glance
+  const glanceName = document.getElementById('sprint-glance-name');
+  const glanceSub = document.getElementById('sprint-glance-subtitle');
+  if (glanceName) glanceName.textContent = 'Loading…';
+  if (glanceSub) glanceSub.textContent = '';
+  
+  // Show loading in Sentry section
+  const spikes = document.getElementById('sentry-spikes');
+  const sentryTotal = document.getElementById('sentry-total');
+  if (spikes) spikes.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center;">Loading issues…</div>';
+  if (sentryTotal) sentryTotal.textContent = '…';
+  
   const refreshBtn = document.getElementById('context-refresh');
-  if (refreshBtn) {
-    refreshBtn.style.opacity = '0.5';
-    refreshBtn.style.pointerEvents = 'none';
-  }
+  if (refreshBtn) { refreshBtn.style.opacity = '0.4'; refreshBtn.style.pointerEvents = 'none'; }
   
   try {
     const response = await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
@@ -183,10 +192,8 @@ async function refreshDashboard() {
     console.error('[popup] Refresh request failed:', error);
     showErrorBanner(`Connection failed: ${error.message}`);
   } finally {
-    if (refreshBtn) {
-      refreshBtn.style.opacity = '1';
-      refreshBtn.style.pointerEvents = 'auto';
-    }
+    state.isLoading = false;
+    if (refreshBtn) { refreshBtn.style.opacity = '1'; refreshBtn.style.pointerEvents = 'auto'; }
   }
 }
 
@@ -367,77 +374,89 @@ function renderTodayScreen() {
     glanceSubtitle.textContent = '';
   }
   
-  // Recent Sentry issues
+  // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');
   const sentryEmpty = document.getElementById('sentry-empty');
-  
-  // Deduplicate by issue ID, keep track of which view(s) each issue came from
-  const uniqueIssuesMap = new Map();
-  state.sentryIssues.forEach(issue => {
-    const id = issue.id || issue.shortId;
-    if (!id) return;
-    
-    if (!uniqueIssuesMap.has(id)) {
-      uniqueIssuesMap.set(id, { ...issue, _viewLabels: new Set() });
-    }
-    if (issue._viewLabel) {
-      uniqueIssuesMap.get(id)._viewLabels.add(issue._viewLabel);
-    }
-  });
-  const uniqueIssues = Array.from(uniqueIssuesMap.values());
-  
-  // Update total count badge
   const totalBadge = document.getElementById('sentry-total');
-  if (totalBadge) {
-    totalBadge.textContent = uniqueIssues.length > 0 ? `${uniqueIssues.length} unique issues` : '';
+  
+  // Use per-view data if available, fall back to flat list
+  const views = state.sentryViews && state.sentryViews.length > 0
+    ? state.sentryViews
+    : (state.sentryIssues.length > 0 ? [{ label: 'Issues', viewId: null, issues: state.sentryIssues, count: state.sentryIssues.length }] : []);
+  
+  // Total unique count across all views
+  const allIds = new Set();
+  views.forEach(v => (v.issues || []).forEach(i => i.id && allIds.add(i.id)));
+  if (totalBadge) totalBadge.textContent = allIds.size > 0 ? `${allIds.size} total` : '';
+  
+  if (views.length === 0 || allIds.size === 0) {
+    if (spikes) spikes.innerHTML = '';
+    if (sentryEmpty) sentryEmpty.classList.remove('hidden');
+    return;
   }
   
-  // Sort by most recent first
-  uniqueIssues.sort((a, b) => new Date(b.lastSeen || b.firstSeen) - new Date(a.lastSeen || a.firstSeen));
+  if (sentryEmpty) sentryEmpty.classList.add('hidden');
   
-  if (uniqueIssues.length === 0) {
-    spikes.innerHTML = '';
-    sentryEmpty.classList.remove('hidden');
-  } else {
-    sentryEmpty.classList.add('hidden');
-    spikes.innerHTML = uniqueIssues.map(issue => {
-      const ageHours = Math.round((Date.now() - new Date(issue.firstSeen).getTime()) / (60 * 60 * 1000));
+  // Render one section per view
+  spikes.innerHTML = views.map((view, idx) => {
+    const issues = (view.issues || []);
+    const sorted = [...issues].sort((a, b) => new Date(b.lastSeen || b.firstSeen) - new Date(a.lastSeen || a.firstSeen));
+    
+    const issueCards = sorted.map(issue => {
+      const ageMs = Date.now() - new Date(issue.firstSeen).getTime();
+      const ageHours = Math.round(ageMs / (60 * 60 * 1000));
       const ageStr = ageHours < 24 ? `${ageHours}h` : `${Math.floor(ageHours / 24)}d`;
-      const permalink = issue.permalink || '#';
-      const projectSlug = issue.project?.slug || issue.project || '';
       const assignee = issue.assignedTo?.name || issue.assignedTo?.username || null;
-      const viewLabelsArray = Array.from(issue._viewLabels || []);
-      const viewBadges = viewLabelsArray.map(label => 
-        `<span style="font-size:10px; padding:2px 6px; background:var(--surface-2,#1f2937); color:var(--text-muted); border-radius:4px;">${escapeHtml(label)}</span>`
-      ).join(' ');
-      
-      const assigneeHtml = assignee 
-        ? `<span style="color:var(--text-muted);">· 👤 ${escapeHtml(assignee)}</span>` 
-        : '';
+      const project = issue.project?.slug || issue.project || '';
+      const permalink = issue.permalink || '#';
       
       return `
-        <div class="card sentry-issue" style="cursor: pointer;" data-url="${escapeHtml(permalink)}">
-          <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
-            ${viewBadges}
-            ${projectSlug ? `<span style="font-size:10px; color:var(--text-muted);">${escapeHtml(projectSlug)}</span>` : ''}
+        <div class="card sentry-issue" style="cursor:pointer; margin-bottom:6px;" data-url="${escapeHtml(permalink)}">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+            ${project ? `<span style="font-size:10px;color:var(--text-muted);">${escapeHtml(project)}</span>` : ''}
+            ${assignee ? `<span style="font-size:10px;color:var(--text-muted);">· 👤 ${escapeHtml(assignee)}</span>` : ''}
           </div>
-          <div class="card-title">${escapeHtml(issue.title || issue.culprit || 'Untitled')}</div>
-          <div class="card-subtitle">
-            ${ageStr} old · ${issue.count || 0} events · ${issue.userCount || 0} users
-            ${assigneeHtml}
-          </div>
-        </div>
-      `;
+          <div class="card-title" style="font-size:13px;">${escapeHtml(issue.title || issue.culprit || 'Untitled')}</div>
+          <div class="card-subtitle">${ageStr} old · ${issue.count || 0} events · ${issue.userCount || 0} users</div>
+        </div>`;
     }).join('');
     
-    // Make cards clickable to open Sentry
-    spikes.querySelectorAll('.sentry-issue').forEach(card => {
-      card.addEventListener('click', () => {
-        const url = card.getAttribute('data-url');
-        if (url && url !== '#') window.open(url, '_blank');
-      });
+    const sectionId = `sentry-view-${idx}`;
+    return `
+      <div class="sentry-view-section" style="margin-bottom:12px;">
+        <div class="sentry-view-header" data-section="${sectionId}"
+          style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
+          background:var(--surface-raised,#1f2937);border-radius:6px;cursor:pointer;user-select:none;">
+          <span style="font-size:12px;font-weight:600;color:var(--text);">${escapeHtml(view.label)}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;font-weight:700;color:var(--primary,#60a5fa);">${view.count}</span>
+            <span class="sentry-chevron" style="font-size:10px;color:var(--text-muted);">▼</span>
+          </div>
+        </div>
+        <div id="${sectionId}" style="margin-top:6px;">${issueCards}</div>
+      </div>`;
+  }).join('');
+  
+  // Wire up collapsible headers
+  spikes.querySelectorAll('.sentry-view-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const id = header.getAttribute('data-section');
+      const body = document.getElementById(id);
+      const chevron = header.querySelector('.sentry-chevron');
+      if (!body) return;
+      const collapsed = body.style.display === 'none';
+      body.style.display = collapsed ? '' : 'none';
+      if (chevron) chevron.textContent = collapsed ? '▼' : '▶';
     });
-  }
+  });
+  
+  // Wire up issue cards to open Sentry
+  spikes.querySelectorAll('.sentry-issue').forEach(card => {
+    card.addEventListener('click', () => {
+      const url = card.getAttribute('data-url');
+      if (url && url !== '#') window.open(url, '_blank');
+    });
+  });
 }
 
 /**

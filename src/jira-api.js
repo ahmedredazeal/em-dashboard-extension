@@ -119,6 +119,53 @@ export class JiraClient {
   }
 
   /**
+   * Get board configuration to find the story points field
+   * Uses GET /rest/agile/1.0/board/{boardId}/configuration
+   * The estimation field in board config tells us which custom field = story points
+   */
+  async getBoardConfiguration(boardId) {
+    console.log(`[jira] Fetching board configuration for board ${boardId}`);
+    const config = await this._get(`/rest/agile/1.0/board/${boardId}/configuration`);
+    
+    const estimationField = config.estimation?.field?.fieldId || null;
+    console.log(`[jira] Board estimation field: ${estimationField}`);
+    
+    return { estimationField, config };
+  }
+
+  /**
+   * Find the story points (estimation) field for a board
+   * Returns the field ID (e.g. "customfield_10016")
+   */
+  async getStoryPointsField(boardId) {
+    try {
+      const { estimationField } = await this.getBoardConfiguration(boardId);
+      if (estimationField) return estimationField;
+    } catch (err) {
+      console.warn('[jira] Could not get board config, trying common field names:', err.message);
+    }
+    
+    // Fallback: search /rest/api/3/field for "story points" by name
+    try {
+      const fields = await this._get('/rest/api/3/field');
+      const storyPointsField = fields.find(f => 
+        f.name?.toLowerCase().includes('story point') ||
+        f.name?.toLowerCase() === 'story points' ||
+        f.clauseNames?.some(c => c.toLowerCase().includes('storypoints'))
+      );
+      if (storyPointsField) {
+        console.log(`[jira] Found story points field: ${storyPointsField.id} (${storyPointsField.name})`);
+        return storyPointsField.id;
+      }
+    } catch (err) {
+      console.warn('[jira] Could not search fields:', err.message);
+    }
+    
+    // Last resort: common defaults
+    return 'customfield_10016';
+  }
+
+  /**
    * Get active sprint by project key (auto-discovers board)
    * @param {string} projectKey
    * @returns {Promise<Object>} sprint with boardId/boardName attached

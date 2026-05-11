@@ -98,6 +98,7 @@ async function checkDashboard() {
       currentSprint: null,
       supportTickets: [],
       sentryIssues: [],
+      sentryViews: [],
       slaHours: 48
     };
     
@@ -112,6 +113,7 @@ async function checkDashboard() {
     
     if (sentryData.status === 'fulfilled') {
       state.sentryIssues = sentryData.value.issues || [];
+      state.sentryViews = sentryData.value.viewResults || [];
     } else {
       console.error('[background] Sentry fetch failed:', sentryData.reason);
     }
@@ -133,7 +135,8 @@ async function checkDashboard() {
       sprintHistory: state.sprintHistory,
       currentSprint: state.currentSprint,
       supportTickets: state.supportTickets,
-      sentryIssues: state.sentryIssues
+      sentryIssues: state.sentryIssues,
+      sentryViews: state.sentryViews || []
     });
     console.log('[background] Saved data to storage:', {
       sprintHistory: state.sprintHistory.length,
@@ -194,24 +197,24 @@ async function fetchJiraData(settings) {
     console.log(`[background] Auto-discovered board: ${activeSprint.boardName} (id=${boardId})`);
     console.log('[background] Active sprint:', activeSprint.name, 'id=' + activeSprint.id);
     
+    // Auto-detect story points field from board configuration
+    const storyPointsField = await client.getStoryPointsField(boardId);
+    console.log(`[background] Story points field: ${storyPointsField}`);
+    
     const stories = await client.getSprintStories(activeSprint.id, squadKey);
     console.log(`[background] Fetched ${stories.length} stories from sprint`);
     
-    // Try multiple common story point fields (varies by Jira instance)
-    const POINT_FIELDS = ['customfield_10016', 'customfield_10026', 'customfield_10004', 'customfield_10002'];
+    // Use the detected story points field
     const getPoints = (story) => {
-      for (const field of POINT_FIELDS) {
-        const v = story.fields?.[field];
-        if (typeof v === 'number' && v > 0) return v;
+      const v = story.fields?.[storyPointsField];
+      if (typeof v === 'number') return v;
+      // Fallback: try other common fields
+      for (const f of ['customfield_10016', 'customfield_10026', 'customfield_10004', 'story_points']) {
+        const fv = story.fields?.[f];
+        if (typeof fv === 'number') return fv;
       }
       return 0;
     };
-    
-    // Log first story's fields to help identify the points field
-    if (stories.length > 0) {
-      const customFields = Object.keys(stories[0].fields).filter(k => k.startsWith('customfield_'));
-      console.log('[background] Available custom fields:', customFields);
-    }
     
     const totalPoints = stories.reduce((sum, s) => sum + getPoints(s), 0);
     const completedStories = stories.filter(s => s.fields.status?.name === 'Done' || s.fields.status?.statusCategory?.key === 'done');
@@ -285,24 +288,22 @@ async function fetchJiraData(settings) {
 
 /**
  * Fetch Sentry data from saved views
- * Views can be in formats:
- *   "201661" — just an ID, label auto-set to "View 201661"
- *   "All Issues|201661" — labeled view
+ * Returns issues grouped per view, not merged.
+ * Views format: "Label|ID" or just "ID"
  */
 async function fetchSentryData(settings) {
   const client = new sentryAPI.SentryClient(
     settings.sentry.baseUrl,
     settings.sentry.org,
-    '', // project not needed for view-based queries
+    '',
     settings.sentry.token
   );
   
-  const allIssues = [];
+  const viewResults = []; // [{label, viewId, issues, count}]
+  const allIssues = []; // flat merged list (for alert rules)
   
-  // Fetch issues from each saved view
   if (settings.sentry.views && settings.sentry.views.length > 0) {
     for (const viewSpec of settings.sentry.views) {
-      // Parse "Label|ID" or just "ID"
       let label, viewId;
       if (viewSpec.includes('|')) {
         [label, viewId] = viewSpec.split('|').map(s => s.trim());
@@ -314,24 +315,23 @@ async function fetchSentryData(settings) {
       console.log(`[background] Fetching Sentry view "${label}" (${viewId})...`);
       
       try {
-        const viewIssues = await client.getIssuesFromView(viewId, 'production');
-        console.log(`[background] View "${label}" returned ${viewIssues.length} issues`);
-        allIssues.push(...viewIssues.map(issue => ({ 
-          ...issue, 
-          _viewId: viewId, 
-          _viewLabel: label 
-        })));
+        const issues = await client.getIssuesFromView(viewId, 'production');
+        console.log(`[background] View "${label}" → ${issues.length} issues`);
+        
+        viewResults.push({ label, viewId, issues, count: issues.length });
+        allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));
       } catch (error) {
-        console.error(`[background] Failed to fetch Sentry view ${viewId}:`, error);
+        console.error(`[background] Failed view ${viewId}:`, error.message);
+        viewResults.push({ label, viewId, issues: [], count: 0, error: error.message });
       }
     }
   } else {
-    // Fallback: if no views configured, get unresolved issues
     const issues = await client.getUnresolvedIssues(100);
+    viewResults.push({ label: 'Unresolved Issues', viewId: null, issues, count: issues.length });
     allIssues.push(...issues);
   }
   
-  return { issues: allIssues };
+  return { viewResults, issues: allIssues };
 }
 
 /**

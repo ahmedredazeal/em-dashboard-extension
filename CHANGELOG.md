@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.1.3 (2026-05-11) — Per-View Sentry Sections + Auto Story Points
+
+**Fixed:**
+- Sentry issues now display in separate collapsible sections per view (not mixed together)
+- Story points auto-detected from board configuration (`/rest/agile/1.0/board/{id}/configuration`)
+- Version number now correctly reflects build (manifest.json is source of truth)
+- Loading indicator shows while data is being fetched
+- Tags no longer shown on issues (replaced by per-section grouping)
+
+**Added:**
+- Per-view issue counts in section headers
+- Collapsible Sentry view sections (click header to expand/collapse)
+- Assignee shown per issue
+- Project slug shown per issue
+
+---
+
 ## v1.1.0 (2026-05-11) — Dynamic Boards & Multi-Project Sentry
 
 **Added:**
