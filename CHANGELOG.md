@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.1.0 (2026-05-11) — Dynamic Boards & Multi-Project Sentry
+
+**Added:**
+- Dynamic board configuration: multiple boards with custom names
+- Drag-and-drop board reordering in settings
+- Per-board active sprint detection and display
+- Collapsible dashboard sections (per-board)
+- Multi-project Sentry integration via saved view IDs
+- Sentry view configuration: total count + detailed listings per view
+- Settings auto-reload: changes apply immediately without closing side panel
+- Migration logic: v1.0.0 single-squad → v1.1.0 multi-board model
+
+**Changed:**
+- Settings UI: Board Manager replaces single squad form
+- Sentry config: now supports multiple projects via view IDs (e.g., 201661, 205219)
+- Dashboard: renders sections per board, sorted by user preference
+- Data model: `squad` → `boards[]` array with id, key, customName, order, visible
+
+**Fixed:**
+- Settings changes now trigger side panel reload (no manual close/reopen needed)
+- Active sprint JQL queries improved for better detection
+- Sentry API now fetches issues correctly across multiple projects
+
+---
+
 ## v1.0.0 (2026-05-11) — Phase 1: Foundation
 
 **Added:**
