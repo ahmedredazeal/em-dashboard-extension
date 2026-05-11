@@ -174,8 +174,12 @@ async function fetchJiraData(settings) {
   // Get current sprint
   let currentSprint = null;
   try {
+    console.log(`[background] Fetching active sprint for board ${boardId}...`);
     const activeSprint = await client.getActiveSprint(boardId);
+    console.log('[background] Active sprint found:', activeSprint.name, activeSprint.id);
+    
     const stories = await client.getSprintStories(activeSprint.id, squadKey);
+    console.log(`[background] Fetched ${stories.length} stories from sprint`);
     
     // Calculate sprint metrics
     const totalPoints = stories.reduce((sum, s) => sum + (s.fields.customfield_10016 || 0), 0);
@@ -197,8 +201,10 @@ async function fetchJiraData(settings) {
       totalDays,
       daysElapsed
     };
+    console.log('[background] Current sprint metrics:', currentSprint);
   } catch (err) {
-    console.warn('[background] No active sprint found:', err.message);
+    console.error('[background] Failed to fetch active sprint:', err.message);
+    console.error('[background] Error details:', err);
   }
   
   // Fetch support tickets
