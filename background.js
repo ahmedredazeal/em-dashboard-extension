@@ -212,20 +212,35 @@ async function fetchJiraData(settings) {
 }
 
 /**
- * Fetch Sentry data
+ * Fetch Sentry data from saved views
  */
 async function fetchSentryData(settings) {
   const client = new sentryAPI.SentryClient(
     settings.sentry.baseUrl,
     settings.sentry.org,
-    settings.sentry.project,
+    '', // project not needed for view-based queries
     settings.sentry.token
   );
   
-  // Get unresolved issues
-  const issues = await client.getUnresolvedIssues(100);
+  const allIssues = [];
   
-  return { issues };
+  // Fetch issues from each saved view
+  if (settings.sentry.views && settings.sentry.views.length > 0) {
+    for (const viewId of settings.sentry.views) {
+      try {
+        const viewIssues = await client.getIssuesFromView(viewId, 'production');
+        allIssues.push(...viewIssues.map(issue => ({ ...issue, viewId })));
+      } catch (error) {
+        console.error(`[background] Failed to fetch Sentry view ${viewId}:`, error);
+      }
+    }
+  } else {
+    // Fallback: if no views configured, get unresolved issues
+    const issues = await client.getUnresolvedIssues(100);
+    allIssues.push(...issues);
+  }
+  
+  return { issues: allIssues };
 }
 
 /**
