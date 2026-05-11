@@ -180,18 +180,24 @@ export class JiraClient {
 
   /**
    * Get all stories in a sprint
-   * Uses the new POST /rest/api/3/search/jql endpoint
    * @param {string|number} sprintId
    * @param {string} projectKey
+   * @param {string} storyPointsField - detected field ID e.g. "customfield_10016"
    * @returns {Promise<Array>}
    */
-  async getSprintStories(sprintId, projectKey) {
-    const jql = `project = ${projectKey} AND sprint = ${sprintId}`;
+  async getSprintStories(sprintId, projectKey, storyPointsField = 'customfield_10016') {
+    const jql = `project = ${projectKey} AND sprint = ${sprintId} AND issuetype not in subTaskIssueTypes() ORDER BY rank ASC`;
     console.log(`[jira] Fetching stories: ${jql}`);
     
     const result = await this._search({
       jql,
-      fields: ['summary', 'status', 'assignee', 'issuetype', 'customfield_10016', 'subtasks', 'created', 'updated', 'priority'],
+      fields: [
+        'summary', 'status', 'assignee', 'issuetype', 'priority',
+        storyPointsField,
+        'customfield_10016', // Always include common defaults too
+        'customfield_10026',
+        'subtasks', 'created', 'updated'
+      ],
       maxResults: 100
     });
     

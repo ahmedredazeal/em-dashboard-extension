@@ -201,24 +201,38 @@ async function fetchJiraData(settings) {
     const storyPointsField = await client.getStoryPointsField(boardId);
     console.log(`[background] Story points field: ${storyPointsField}`);
     
-    const stories = await client.getSprintStories(activeSprint.id, squadKey);
+    const stories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
     console.log(`[background] Fetched ${stories.length} stories from sprint`);
     
-    // Use the detected story points field
+    // Extract story points using detected field + common fallbacks
+    const POINT_FIELDS = [storyPointsField, 'customfield_10016', 'customfield_10026', 'customfield_10004'];
     const getPoints = (story) => {
-      const v = story.fields?.[storyPointsField];
-      if (typeof v === 'number') return v;
-      // Fallback: try other common fields
-      for (const f of ['customfield_10016', 'customfield_10026', 'customfield_10004', 'story_points']) {
-        const fv = story.fields?.[f];
-        if (typeof fv === 'number') return fv;
+      for (const f of POINT_FIELDS) {
+        const v = story.fields?.[f];
+        if (typeof v === 'number' && v >= 0) return v;
       }
       return 0;
     };
     
     const totalPoints = stories.reduce((sum, s) => sum + getPoints(s), 0);
-    const completedStories = stories.filter(s => s.fields.status?.name === 'Done' || s.fields.status?.statusCategory?.key === 'done');
+    const completedStories = stories.filter(s => {
+      const statusName = (s.fields.status?.name || '').toLowerCase();
+      const statusCat = (s.fields.status?.statusCategory?.key || '').toLowerCase();
+      return statusCat === 'done' || statusName === 'done' || statusName === 'closed' || statusName === 'resolved';
+    });
     const completedPoints = completedStories.reduce((sum, s) => sum + getPoints(s), 0);
+    
+    // Normalize stories for popup display
+    const normalizedStories = stories.map(s => ({
+      key: s.key,
+      summary: s.fields.summary || '',
+      status: s.fields.status?.name || '',
+      statusCategory: s.fields.status?.statusCategory?.key || '',
+      assignee: s.fields.assignee?.displayName || null,
+      priority: s.fields.priority?.name || 'Medium',
+      points: getPoints(s),
+      type: s.fields.issuetype?.name || 'Story'
+    }));
     
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
     const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
@@ -239,7 +253,8 @@ async function fetchJiraData(settings) {
       totalPoints,
       completedPoints,
       totalDays,
-      daysElapsed
+      daysElapsed,
+      stories: normalizedStories  // Include full story list for popup display
     };
     console.log('[background] Current sprint:', currentSprint);
   } catch (err) {

@@ -364,11 +364,47 @@ function renderTodayScreen() {
   // Sprint at a glance
   const glanceName = document.getElementById('sprint-glance-name');
   const glanceSubtitle = document.getElementById('sprint-glance-subtitle');
+  const glanceCard = document.getElementById('sprint-glance');
   
   if (state.currentSprint) {
-    const prediction = metrics.sprintBurndownPrediction(state.currentSprint);
-    glanceName.textContent = state.currentSprint.name;
-    glanceSubtitle.textContent = `${state.currentSprint.completedPoints}/${state.currentSprint.totalPoints} pts · Day ${state.currentSprint.daysElapsed}/${state.currentSprint.totalDays} · ${prediction.onTrack ? '✓ On track' : '⚠ At risk'}`;
+    const sp = state.currentSprint;
+    const prediction = metrics.sprintBurndownPrediction(sp);
+    glanceName.textContent = sp.name;
+    glanceSubtitle.textContent = `${sp.completedPoints}/${sp.totalPoints} pts · Day ${sp.daysElapsed}/${sp.totalDays} · ${prediction.onTrack ? '✓ On track' : '⚠ At risk'}`;
+    
+    // Render story list if available
+    const stories = sp.stories || [];
+    if (stories.length > 0) {
+      const existingList = document.getElementById('sprint-story-list');
+      if (existingList) existingList.remove();
+      
+      const STATUS_COLORS = {
+        'done': '#22c55e', 'in progress': '#3b82f6', 'in review': '#8b5cf6',
+        'blocked': '#ef4444', 'todo': 'var(--text-muted)', 'to do': 'var(--text-muted)'
+      };
+      const statusColor = (s) => STATUS_COLORS[(s || '').toLowerCase()] || 'var(--text-muted)';
+      const statusIcon = (cat) => ({ done: '✓', inprogress: '●', new: '○' })[cat] || '○';
+      
+      const listEl = document.createElement('div');
+      listEl.id = 'sprint-story-list';
+      listEl.style.cssText = 'margin-top:8px; border-top:1px solid var(--border); padding-top:8px;';
+      listEl.innerHTML = stories.map(s => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
+          <span style="font-size:12px;color:${statusColor(s.status)};flex-shrink:0;padding-top:1px;" title="${escapeHtml(s.status)}">${statusIcon(s.statusCategory)}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.summary)}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+              ${escapeHtml(s.key)}
+              ${s.assignee ? `· ${escapeHtml(s.assignee)}` : ''}
+              ${s.points > 0 ? `· ${s.points}pt` : ''}
+            </div>
+          </div>
+          <span style="font-size:10px;color:${statusColor(s.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(s.status)}</span>
+        </div>
+      `).join('');
+      
+      glanceCard.appendChild(listEl);
+    }
   } else {
     glanceName.textContent = 'No active sprint';
     glanceSubtitle.textContent = '';
