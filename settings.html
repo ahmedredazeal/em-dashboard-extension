@@ -75,11 +75,12 @@
       </div>
 
       <div class="field">
-        <label for="sentry-views">Saved view IDs (comma-separated)</label>
-        <input type="text" id="sentry-views" placeholder="201661, 205219, 205221, 205220" autocomplete="off"/>
+        <label for="sentry-views">Saved view IDs (comma-separated, with optional labels)</label>
+        <input type="text" id="sentry-views" placeholder="All Issues|201661, High Frequency|205219, Backend|205221, Mobile|205220" autocomplete="off"/>
         <span class="field-hint">
-          Sentry saved view IDs from your dashboard URLs.<br/>
-          Example: https://zeal.sentry.io/issues/views/<strong>201661</strong>/ → use "201661"
+          Format: <code>Label|ViewID</code> — separated by commas. Label is optional.<br/>
+          Example: <code>All Issues|201661, Backend|205221</code><br/>
+          View IDs come from your Sentry URL: <code>/issues/views/<strong>201661</strong>/</code>
         </span>
       </div>
 
@@ -118,9 +119,9 @@
       </div>
 
       <div class="field">
-        <label for="squad-board">Jira board ID <small style="color:var(--text-muted);font-weight:normal;">(optional)</small></label>
-        <input type="number" id="squad-board" placeholder="Leave empty to auto-discover" autocomplete="off"/>
-        <span class="field-hint">Leave empty and we'll find the scrum board for your project automatically. Or paste the board ID from the URL.</span>
+        <label for="squad-extra-boards">Extra boards <small style="color:var(--text-muted);font-weight:normal;">(optional, comma-separated)</small></label>
+        <input type="text" id="squad-extra-boards" placeholder="e.g. 123, 456" autocomplete="off"/>
+        <span class="field-hint">Extra board IDs to monitor (e.g. support board). The main project's active sprint is detected automatically.</span>
       </div>
     </div>
 

@@ -177,40 +177,45 @@ async function fetchJiraData(settings) {
   );
   
   const squadKey = settings.squad?.key;
-  let boardId = settings.squad?.boardId;
   
   if (!squadKey) {
     throw new Error('Squad project key not configured');
   }
   
-  console.log(`[background] Jira fetch starting for project ${squadKey}${boardId ? `, board ${boardId}` : ' (auto-discover board)'}`);
+  console.log(`[background] Jira fetch for project ${squadKey} (auto-discover board)`);
   
-  // Get current sprint - auto-discover board if not configured
+  // Always auto-discover main board from project key
   let currentSprint = null;
+  let boardId = null;
   try {
-    let activeSprint;
-    
-    if (boardId) {
-      // Use configured board ID
-      console.log(`[background] Using configured board ${boardId}`);
-      activeSprint = await client.getActiveSprint(boardId);
-    } else {
-      // Auto-discover board from project key
-      console.log(`[background] Auto-discovering board for ${squadKey}...`);
-      activeSprint = await client.getActiveSprintByProject(squadKey);
-      boardId = activeSprint.boardId;
-      console.log(`[background] Auto-discovered board: ${activeSprint.boardName} (id=${boardId})`);
-    }
-    
-    console.log('[background] Active sprint found:', activeSprint.name, 'id=' + activeSprint.id);
+    console.log(`[background] Auto-discovering board for ${squadKey}...`);
+    const activeSprint = await client.getActiveSprintByProject(squadKey);
+    boardId = activeSprint.boardId;
+    console.log(`[background] Auto-discovered board: ${activeSprint.boardName} (id=${boardId})`);
+    console.log('[background] Active sprint:', activeSprint.name, 'id=' + activeSprint.id);
     
     const stories = await client.getSprintStories(activeSprint.id, squadKey);
     console.log(`[background] Fetched ${stories.length} stories from sprint`);
     
-    // Calculate sprint metrics
-    const totalPoints = stories.reduce((sum, s) => sum + (s.fields.customfield_10016 || 0), 0);
-    const completedStories = stories.filter(s => s.fields.status?.name === 'Done');
-    const completedPoints = completedStories.reduce((sum, s) => sum + (s.fields.customfield_10016 || 0), 0);
+    // Try multiple common story point fields (varies by Jira instance)
+    const POINT_FIELDS = ['customfield_10016', 'customfield_10026', 'customfield_10004', 'customfield_10002'];
+    const getPoints = (story) => {
+      for (const field of POINT_FIELDS) {
+        const v = story.fields?.[field];
+        if (typeof v === 'number' && v > 0) return v;
+      }
+      return 0;
+    };
+    
+    // Log first story's fields to help identify the points field
+    if (stories.length > 0) {
+      const customFields = Object.keys(stories[0].fields).filter(k => k.startsWith('customfield_'));
+      console.log('[background] Available custom fields:', customFields);
+    }
+    
+    const totalPoints = stories.reduce((sum, s) => sum + getPoints(s), 0);
+    const completedStories = stories.filter(s => s.fields.status?.name === 'Done' || s.fields.status?.statusCategory?.key === 'done');
+    const completedPoints = completedStories.reduce((sum, s) => sum + getPoints(s), 0);
     
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
     const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
@@ -236,10 +241,9 @@ async function fetchJiraData(settings) {
     console.log('[background] Current sprint:', currentSprint);
   } catch (err) {
     console.error('[background] Failed to fetch active sprint:', err.message);
-    console.error('[background] Full error:', err);
   }
   
-  // Fetch sprint history if we have a board ID
+  // Sprint history
   let sprintHistory = [];
   if (boardId) {
     try {
@@ -249,7 +253,7 @@ async function fetchJiraData(settings) {
     }
   }
   
-  // Fetch support tickets
+  // Support tickets
   let supportTickets = [];
   try {
     supportTickets = await client.getSupportTickets(squadKey);
@@ -257,15 +261,33 @@ async function fetchJiraData(settings) {
     console.warn('[background] Failed to fetch support tickets:', err.message);
   }
   
+  // Extra boards (for future use - we'll display them as additional sections)
+  const extraBoardsData = [];
+  if (settings.squad?.extraBoards && settings.squad.extraBoards.length > 0) {
+    console.log(`[background] Fetching ${settings.squad.extraBoards.length} extra boards`);
+    for (const extraBoardId of settings.squad.extraBoards) {
+      try {
+        const sprint = await client.getActiveSprint(extraBoardId);
+        extraBoardsData.push({ boardId: extraBoardId, activeSprint: sprint });
+      } catch (err) {
+        console.warn(`[background] Extra board ${extraBoardId}: ${err.message}`);
+      }
+    }
+  }
+  
   return {
     sprintHistory,
     currentSprint,
-    supportTickets
+    supportTickets,
+    extraBoardsData
   };
 }
 
 /**
  * Fetch Sentry data from saved views
+ * Views can be in formats:
+ *   "201661" — just an ID, label auto-set to "View 201661"
+ *   "All Issues|201661" — labeled view
  */
 async function fetchSentryData(settings) {
   const client = new sentryAPI.SentryClient(
@@ -279,10 +301,26 @@ async function fetchSentryData(settings) {
   
   // Fetch issues from each saved view
   if (settings.sentry.views && settings.sentry.views.length > 0) {
-    for (const viewId of settings.sentry.views) {
+    for (const viewSpec of settings.sentry.views) {
+      // Parse "Label|ID" or just "ID"
+      let label, viewId;
+      if (viewSpec.includes('|')) {
+        [label, viewId] = viewSpec.split('|').map(s => s.trim());
+      } else {
+        viewId = viewSpec.trim();
+        label = `View ${viewId}`;
+      }
+      
+      console.log(`[background] Fetching Sentry view "${label}" (${viewId})...`);
+      
       try {
         const viewIssues = await client.getIssuesFromView(viewId, 'production');
-        allIssues.push(...viewIssues.map(issue => ({ ...issue, viewId })));
+        console.log(`[background] View "${label}" returned ${viewIssues.length} issues`);
+        allIssues.push(...viewIssues.map(issue => ({ 
+          ...issue, 
+          _viewId: viewId, 
+          _viewLabel: label 
+        })));
       } catch (error) {
         console.error(`[background] Failed to fetch Sentry view ${viewId}:`, error);
       }

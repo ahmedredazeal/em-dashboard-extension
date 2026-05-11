@@ -34,7 +34,10 @@
   if (settings.squad) {
     document.getElementById('squad-key').value = settings.squad.key || '';
     document.getElementById('squad-name').value = settings.squad.name || '';
-    document.getElementById('squad-board').value = settings.squad.boardId || '';
+    // Extra boards (comma-separated)
+    if (Array.isArray(settings.squad.extraBoards)) {
+      document.getElementById('squad-extra-boards').value = settings.squad.extraBoards.join(', ');
+    }
   }
   
   // Select current theme
@@ -166,10 +169,10 @@
         squad: {
           key: document.getElementById('squad-key').value.trim().toUpperCase(),
           name: document.getElementById('squad-name').value.trim(),
-          boardId: (() => {
-            const v = document.getElementById('squad-board').value.trim();
-            return v ? parseInt(v, 10) : null;
-          })()
+          extraBoards: document.getElementById('squad-extra-boards').value
+            .split(',')
+            .map(s => parseInt(s.trim(), 10))
+            .filter(n => Number.isFinite(n))
         },
         ui: {
           theme: document.querySelector('input[name="theme"]:checked')?.value || 'browser',
