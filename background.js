@@ -128,6 +128,20 @@ async function checkDashboard() {
     // Save alerts
     await chrome.storage.local.set({ alerts: mergedAlerts });
     
+    // CRITICAL: Save fetched data to storage so popup.js can render it
+    await chrome.storage.local.set({
+      sprintHistory: state.sprintHistory,
+      currentSprint: state.currentSprint,
+      supportTickets: state.supportTickets,
+      sentryIssues: state.sentryIssues
+    });
+    console.log('[background] Saved data to storage:', {
+      sprintHistory: state.sprintHistory.length,
+      currentSprint: state.currentSprint ? state.currentSprint.name : null,
+      supportTickets: state.supportTickets.length,
+      sentryIssues: state.sentryIssues.length
+    });
+    
     // Update badge
     await updateBadge(mergedAlerts);
     
@@ -148,6 +162,7 @@ async function checkDashboard() {
     
   } catch (error) {
     console.error('[background] Dashboard check failed:', error);
+    throw error; // Re-throw so message handler reports to popup
   }
 }
 

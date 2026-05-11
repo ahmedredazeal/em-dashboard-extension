@@ -38,13 +38,25 @@ try:
         html = f.read()
     
     all_ids = re.findall(r"getElementById\('([^']+)'\)", js)
-    missing = [e for e in sorted(set(all_ids)) if f'id="{e}"' not in html]
+    
+    # Skip elements that are dynamically created (have a createElement nearby)
+    # or are accessed with null-check pattern
+    dynamic_elements = set()
+    for elem_id in set(all_ids):
+        # Check if this element is created via createElement and assigned this id
+        if re.search(rf"\.id\s*=\s*['\"]{re.escape(elem_id)}['\"]", js):
+            dynamic_elements.add(elem_id)
+    
+    missing = [e for e in sorted(set(all_ids)) 
+               if f'id="{e}"' not in html and e not in dynamic_elements]
     
     if missing:
         print(f"   ✗ Missing elements: {missing}")
         sys.exit(1)
     else:
         print("   ✓ All getElementById references valid")
+        if dynamic_elements:
+            print(f"   ℹ Dynamically created (OK): {sorted(dynamic_elements)}")
 except Exception as e:
     print(f"   ✗ Element audit failed: {e}")
     sys.exit(1)

@@ -49,13 +49,17 @@ async function boot() {
     return;
   }
   
-  // Load cached data
+  // Load cached data first for instant render
   await loadData();
   
   // Show home screen
   showScreen('today');
   
-  console.log('[popup] Boot complete');
+  console.log('[popup] Boot complete, triggering fresh data fetch...');
+  
+  // Trigger fresh fetch from APIs in background
+  // This wakes up the service worker and fetches latest data
+  refreshDashboard();
 }
 
 /**
@@ -151,19 +155,65 @@ async function loadData() {
 async function refreshDashboard() {
   console.log('[popup] Requesting dashboard refresh...');
   
+  // Show loading indicator on refresh button
+  const refreshBtn = document.getElementById('context-refresh');
+  if (refreshBtn) {
+    refreshBtn.style.opacity = '0.5';
+    refreshBtn.style.pointerEvents = 'none';
+  }
+  
   try {
     const response = await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
     
-    if (response.success) {
+    if (response && response.success) {
       // Reload data and re-render
       await loadData();
       renderCurrentScreen();
       console.log('[popup] Dashboard refreshed');
+      
+      // Clear any previous error banner
+      const errBanner = document.getElementById('error-banner');
+      if (errBanner) errBanner.remove();
     } else {
-      console.error('[popup] Refresh failed:', response.error);
+      const errMsg = response?.error || 'Unknown error - check service worker console';
+      console.error('[popup] Refresh failed:', errMsg);
+      showErrorBanner(errMsg);
     }
   } catch (error) {
     console.error('[popup] Refresh request failed:', error);
+    showErrorBanner(`Connection failed: ${error.message}`);
+  } finally {
+    if (refreshBtn) {
+      refreshBtn.style.opacity = '1';
+      refreshBtn.style.pointerEvents = 'auto';
+    }
+  }
+}
+
+/**
+ * Show error banner at top of dashboard
+ */
+function showErrorBanner(message) {
+  // Remove existing banner
+  const existing = document.getElementById('error-banner');
+  if (existing) existing.remove();
+  
+  const banner = document.createElement('div');
+  banner.id = 'error-banner';
+  banner.style.cssText = `
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 12px;
+    font-size: 13px;
+    border: 1px solid #fca5a5;
+  `;
+  banner.innerHTML = `<strong>⚠ Error:</strong> ${escapeHtml(message)}<br/><small>Check service worker console for details</small>`;
+  
+  const todayScreen = document.getElementById('screen-today');
+  if (todayScreen) {
+    todayScreen.insertBefore(banner, todayScreen.firstChild);
   }
 }
 
