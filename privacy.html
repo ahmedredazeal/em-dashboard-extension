@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>EM Dashboard — Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; margin-top: 32px; }
+    p, li { font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>EM Dashboard — Privacy Policy</h1>
+  <p><strong>Effective Date:</strong> May 11, 2026</p>
+  
+  <h2>1. What Data We Access</h2>
+  <p>EM Dashboard accesses:</p>
+  <ul>
+    <li>Jira credentials (base URL, email, API token)</li>
+    <li>Sentry credentials (base URL, organization, project, auth token)</li>
+    <li>Sprint data, stories, subtasks, worklogs from your Jira instance</li>
+    <li>Error issues and events from your Sentry instance</li>
+    <li>Locally-stored notes (1:1 logs, people log, growth plans, promotion cycle)</li>
+  </ul>
+  
+  <h2>2. Where It's Stored</h2>
+  <p>All data is stored in <code>chrome.storage.local</code> — encrypted at rest by Chrome, stored locally on your device only. No third-party servers. No cloud sync.</p>
+  
+  <h2>3. How It's Used</h2>
+  <p>Credentials are used exclusively to make read-only API calls directly from your browser to your Jira and Sentry instances. No data is transmitted to any third-party service or Zeal servers.</p>
+  
+  <h2>4. No Third-Party Transmission</h2>
+  <p>EM Dashboard makes API calls only to your configured Jira and Sentry instances. No analytics, no tracking, no external data transmission.</p>
+  
+  <h2>5. How to Delete Your Data</h2>
+  <p>Uninstall the extension. All data in <code>chrome.storage.local</code> is deleted automatically when the extension is removed.</p>
+  
+  <h2>6. Contact</h2>
+  <p>For questions: <a href="https://www.getzeal.io/">https://www.getzeal.io/</a></p>
+</body>
+</html>

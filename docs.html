@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="theme-loader.js"></script>
+  <meta charset="UTF-8"/>
+  <title>EM Dashboard — Documentation</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body class="settings-body">
+  <div class="settings-wrap">
+    <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Documentation</h1>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:32px;">
+      Phase 1 (v1.0.0) — Foundation with Jira + Sentry integration, alert rules, and privacy mode.
+    </p>
+    
+    <h2 style="font-size:15px;font-weight:600;margin:24px 0 12px;">Alert Rules (Phase 1)</h2>
+    <ul style="font-size:13px;line-height:1.8;">
+      <li><strong>velocity_drop</strong> — Velocity drops >15% for 2 consecutive sprints</li>
+      <li><strong>sprint_goal_at_risk</strong> — Mid-sprint burndown predicts goal miss</li>
+      <li><strong>sentry_spike_untriaged</strong> — Sentry issue >24h old, not triaged</li>
+      <li><strong>support_sla_breach</strong> — Support ticket aged past SLA</li>
+    </ul>
+    
+    <h2 style="font-size:15px;font-weight:600;margin:24px 0 12px;">Screens</h2>
+    <ul style="font-size:13px;line-height:1.8;">
+      <li><strong>Today</strong> — Alert inbox, sprint glance, fresh Sentry spikes</li>
+      <li><strong>Sprint Health</strong> — Velocity, goal hit rate, carry-over, stale tickets</li>
+      <li><strong>Reliability</strong> — Sentry 7-day trend, untriaged spikes, SLA adherence</li>
+    </ul>
+    
+    <h2 style="font-size:15px;font-weight:600;margin:24px 0 12px;">Privacy Mode</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:12px;">
+      Click the 🔒 icon in the app bar to toggle screen-share privacy mode. When ON, personal content (1:1 notes, people log, promotion evidence) is masked. Dashboards and metrics remain visible.
+    </p>
+    
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);">
+      <a href="changelog.html" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">View Changelog →</a>
+    </div>
+  </div>
+</body>
+</html>

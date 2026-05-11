@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="theme-loader.js"></script>
+  <meta charset="UTF-8"/>
+  <title>EM Dashboard — Settings</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body class="settings-body">
+  <div class="settings-wrap">
+    <div class="settings-header">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="3" width="7" height="7" rx="1" fill="#2563EB"/>
+        <rect x="3" y="14" width="7" height="7" rx="1" fill="#2563EB"/>
+        <rect x="14" y="3" width="7" height="7" rx="1" fill="#60a5fa"/>
+        <rect x="14" y="14" width="7" height="7" rx="1" fill="#60a5fa"/>
+      </svg>
+      <div>
+        <h1>EM Dashboard</h1>
+        <p>Connect your tools and configure your squad</p>
+      </div>
+    </div>
+
+    <!-- Jira Connection -->
+    <div class="settings-section">
+      <h2>Jira connection</h2>
+      <p class="hint">
+        Your credentials are stored locally and only used to connect to your Jira instance.
+      </p>
+
+      <div class="field">
+        <label for="jira-url">Jira base URL</label>
+        <input type="url" id="jira-url" placeholder="https://your-org.atlassian.net" autocomplete="off" spellcheck="false"/>
+        <span class="field-hint">Your Atlassian Cloud URL, without trailing slash</span>
+      </div>
+
+      <div class="field">
+        <label for="jira-email">Email</label>
+        <input type="email" id="jira-email" placeholder="you@company.com" autocomplete="off"/>
+        <span class="field-hint">The email you use to log in to Jira</span>
+      </div>
+
+      <div class="field">
+        <label for="jira-token">API token</label>
+        <input type="password" id="jira-token" placeholder="Paste your API token here" autocomplete="off"/>
+        <span class="field-hint">
+          Create one at
+          <a href="https://id.atlassian.com/manage/api-tokens" target="_blank">id.atlassian.com/manage/api-tokens</a>
+        </span>
+      </div>
+
+      <div class="button-row">
+        <button id="jira-test-btn" class="btn-secondary">Test Jira connection</button>
+      </div>
+      <div id="jira-test-result" class="test-result hidden"></div>
+    </div>
+
+    <!-- Sentry Connection -->
+    <div class="settings-section">
+      <h2>Sentry connection</h2>
+      <p class="hint">
+        Connect to Sentry to track error trends and untriaged spikes.
+      </p>
+
+      <div class="field">
+        <label for="sentry-url">Sentry base URL</label>
+        <input type="url" id="sentry-url" value="https://zeal.sentry.io" readonly/>
+        <span class="field-hint">Your Sentry instance URL</span>
+      </div>
+
+      <div class="field">
+        <label for="sentry-org">Organization slug</label>
+        <input type="text" id="sentry-org" placeholder="zeal" autocomplete="off"/>
+        <span class="field-hint">Your Sentry organization slug</span>
+      </div>
+
+      <div class="field">
+        <label for="sentry-project">Project slug</label>
+        <input type="text" id="sentry-project" placeholder="your-project" autocomplete="off"/>
+        <span class="field-hint">Your Sentry project slug</span>
+      </div>
+
+      <div class="field">
+        <label for="sentry-token">Auth token</label>
+        <input type="password" id="sentry-token" placeholder="Paste your Sentry auth token here" autocomplete="off"/>
+        <span class="field-hint">
+          Create one at
+          <a href="https://zeal.sentry.io/settings/account/api/auth-tokens/" target="_blank">Sentry → Settings → Auth Tokens</a>
+        </span>
+      </div>
+
+      <div class="button-row">
+        <button id="sentry-test-btn" class="btn-secondary">Test Sentry connection</button>
+      </div>
+      <div id="sentry-test-result" class="test-result hidden"></div>
+    </div>
+
+    <!-- Squad Selection -->
+    <div class="settings-section">
+      <h2>Squad selection</h2>
+      <p class="hint">
+        Select your squad to focus the dashboard. Multi-squad view is coming in v2.
+      </p>
+
+      <div class="field">
+        <label for="squad-key">Squad project key</label>
+        <input type="text" id="squad-key" placeholder="ATH" autocomplete="off" style="text-transform:uppercase;"/>
+        <span class="field-hint">Your Jira project key (e.g., ATH, HRM, APL)</span>
+      </div>
+
+      <div class="field">
+        <label for="squad-name">Squad name</label>
+        <input type="text" id="squad-name" placeholder="Athena" autocomplete="off"/>
+        <span class="field-hint">Display name for your squad</span>
+      </div>
+
+      <div class="field">
+        <label for="squad-board">Jira board ID</label>
+        <input type="number" id="squad-board" placeholder="42" autocomplete="off"/>
+        <span class="field-hint">Your Jira board ID (found in the board URL)</span>
+      </div>
+    </div>
+
+    <!-- Appearance -->
+    <div class="settings-section">
+      <h2>Appearance</h2>
+      <p class="hint">Choose how EM Dashboard looks. Browser follows your OS dark mode setting.</p>
+
+      <div class="theme-swatches" id="theme-swatches">
+        <label class="theme-swatch" data-theme="light">
+          <input type="radio" name="theme" value="light"/>
+          <div class="swatch-preview">
+            <svg width="100" height="52" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="52" fill="#ffffff"/>
+              <rect width="100" height="14" fill="#f1f5f9"/>
+              <rect x="8" y="20" width="60" height="6" rx="2" fill="#e5e7eb"/>
+              <rect x="8" y="30" width="44" height="6" rx="2" fill="#dbeafe"/>
+              <rect x="8" y="40" width="52" height="6" rx="2" fill="#e5e7eb"/>
+            </svg>
+          </div>
+          <span class="swatch-label">Light</span>
+        </label>
+
+        <label class="theme-swatch" data-theme="dark">
+          <input type="radio" name="theme" value="dark"/>
+          <div class="swatch-preview">
+            <svg width="100" height="52" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="52" fill="#1a1b23"/>
+              <rect width="100" height="14" fill="#22232e"/>
+              <rect x="8" y="20" width="60" height="6" rx="2" fill="#2e3044"/>
+              <rect x="8" y="30" width="44" height="6" rx="2" fill="#1e3a5f"/>
+              <rect x="8" y="40" width="52" height="6" rx="2" fill="#2e3044"/>
+            </svg>
+          </div>
+          <span class="swatch-label">Dark</span>
+        </label>
+
+        <label class="theme-swatch" data-theme="browser">
+          <input type="radio" name="theme" value="browser"/>
+          <div class="swatch-preview">
+            <svg width="100" height="52" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="52" fill="#ffffff"/>
+              <polygon points="50,0 100,0 100,52" fill="#1a1b23"/>
+              <rect x="8" y="20" width="26" height="6" rx="2" fill="#e5e7eb"/>
+              <rect x="8" y="30" width="20" height="6" rx="2" fill="#dbeafe"/>
+              <rect x="58" y="20" width="26" height="6" rx="2" fill="#2e3044"/>
+              <rect x="58" y="30" width="20" height="6" rx="2" fill="#1e3a5f"/>
+            </svg>
+          </div>
+          <span class="swatch-label">Browser</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Save Button -->
+    <div style="margin-bottom:28px;">
+      <button id="save-btn" class="btn-primary" style="padding:9px 24px;font-size:13px;">Save settings →</button>
+      <div id="save-result" class="hidden" style="margin-top:10px;font-size:12px;padding:7px 12px;border-radius:var(--radius);"></div>
+    </div>
+
+    <!-- Documentation Link -->
+    <div class="settings-section">
+      <h2>Documentation</h2>
+      <p class="hint">Alert rules, metrics, API endpoints, changelog and full setup guide.</p>
+      <a href="docs.html" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">Open documentation →</a>
+    </div>
+
+    <!-- Zeal Footer -->
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);
+      display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-lighter);">
+      Powered by
+      <a href="https://www.getzeal.io/" target="_blank" title="Visit Zeal" style="display:flex;align-items:center;text-decoration:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 111 35" fill="none" style="display:block;" height="18" width="57.1" color="#4B5563"><path d="M1.51542 3.971V4.2733H0.919508V6.04753H0.589806V4.2733H0V3.971H1.51542ZM4.08589 6.04753H3.75619V4.39447H3.74031L3.098 6.05136H2.80004L2.16261 4.41233H2.14552V6.04626H1.83291V3.971H2.33479L2.9478 5.54753H2.96123L3.57302 3.96973H4.08589V6.04753Z" fill="currentColor"/><path d="M37.4495 24.6587C36.8181 29.6675 32.6394 33.5377 27.5779 33.5377C25.6499 33.5377 23.8494 32.9755 22.3252 32.0034C27.7592 35.5702 35.0263 35.3806 40.3341 31.0122C46.3196 26.0879 46.6309 18.8315 44.3553 11.9068C43.43 9.09309 42.9311 6.26404 45.4368 4.19956C45.4631 4.17907 45.4918 4.15474 45.5206 4.13681C46.1733 3.61941 47.6687 3.13402 47.6687 3.13402C46.2983 3.29155 44.8904 2.89582 43.7889 1.975C40.8468 -0.454482 36.4917 0.21148 34.2148 3.28002L34.2123 3.28258C34.1661 3.34662 34.1223 3.41193 34.0786 3.47853C32.1918 6.32936 32.7332 10.1484 35.1964 12.4921L35.2239 12.5202C33.1996 10.58 30.3925 9.45169 27.3479 9.45169H0C0.781475 10.8374 1.69799 11.7211 2.91459 12.2807C4.23497 12.8878 5.94546 13.1478 8.63248 13.1478H28.0131C30.8389 13.3002 33.7497 14.7102 35.584 17.2844C37.0782 19.3796 37.7646 21.7476 37.4445 24.6676L37.4495 24.6587Z" fill="currentColor"/><path d="M34.7288 22.0105C34.4396 21.5283 34.0994 21.0932 33.7071 20.7088C32.2583 19.2875 30.1701 18.5672 27.4972 18.5672H12.7024C10.0866 18.5672 8.43297 18.3315 7.16914 17.7792C6.18588 17.3501 5.42734 16.718 4.76562 15.7656H27.4152C30.4916 15.7656 32.2806 17.3078 33.2403 18.601C33.9628 19.5727 34.4718 20.7536 34.7288 22.0105Z" fill="currentColor"/><path d="M32.6885 24.7858C31.567 24.1916 29.8741 24.1916 27.2927 24.1916H17.4578C14.8467 24.1916 13.196 23.9498 11.9344 23.3829C10.9529 22.9426 10.1957 22.2938 9.53516 21.3164H27.5393C30.1939 21.3164 31.5534 22.7888 32.1284 23.667C32.3589 24.0168 32.5485 24.3975 32.6885 24.7858Z" fill="currentColor"/><path d="M22.2152 30.337C19.6059 30.337 17.9572 30.1035 16.6984 29.5563C16.1141 29.3025 15.6116 28.9768 15.1648 28.5601C14.8541 28.2728 14.5694 27.9435 14.3008 27.5615H27.6714C29.1245 27.5615 30.3512 27.9782 31.3253 28.7996C30.949 29.1049 30.5344 29.354 30.0677 29.5563C28.8101 30.1035 27.1602 30.337 24.5509 30.337H22.2152Z" fill="currentColor"/><path d="M61.2891 25.4785V22.8399L71.3772 10.9284H63.218C62.1526 10.9284 61.2891 10.0697 61.2891 9.01026V8.13281H75.5897V10.7789L65.5078 22.6842H75.5897V23.5616C75.5897 24.621 74.7261 25.4798 73.6608 25.4798H61.2891V25.4785Z" fill="currentColor"/><path d="M90.5715 20.46H80.5383C80.718 21.4672 81.2108 22.2531 82.018 22.8191C82.8252 23.3851 83.8557 23.6681 85.1108 23.6681C86.9935 23.6681 88.5091 23.1201 89.6564 22.0229L89.7347 23.6578C89.7745 24.503 89.2753 25.276 88.4925 25.5925C87.5351 25.981 86.3711 26.1739 85.003 26.1739C82.797 26.1739 81.017 25.5719 79.6631 24.3679C78.3091 23.1639 77.6328 21.5727 77.6328 19.5956C77.6328 17.6545 78.2462 16.0684 79.4757 14.8374C80.7038 13.6064 82.2772 12.9902 84.1958 12.9902C86.1504 12.9902 87.7019 13.5382 88.8492 14.6342C89.9965 15.7314 90.5702 17.2043 90.5702 19.0553V20.46H90.5715ZM84.2767 15.4986C83.3617 15.4986 82.5557 15.7597 81.8563 16.2807C81.1569 16.8029 80.718 17.4847 80.5383 18.3298H87.9355C87.8097 17.4667 87.4157 16.7798 86.7522 16.2678C86.0875 15.7559 85.2636 15.4986 84.2767 15.4986Z" fill="currentColor"/><path d="M104.872 12.9902V25.9038H103.838C103.064 25.9038 102.437 25.2581 102.437 24.462V24.098C101.476 25.4819 100.001 26.1739 98.0105 26.1739C96.2461 26.1739 94.7927 25.554 93.6493 24.314C92.5059 23.0741 91.9336 21.5011 91.9336 19.5962C91.9336 17.6913 92.5047 16.1144 93.6493 14.8655C94.7927 13.6166 96.2461 12.9915 98.0105 12.9915H104.872V12.9902ZM98.4554 15.5511C97.3557 15.5511 96.4597 15.9241 95.7712 16.6701C95.0814 17.4161 94.7365 18.391 94.7365 19.5949C94.7365 20.7641 95.0814 21.7249 95.7712 22.4799C96.461 23.2349 97.3557 23.6118 98.4554 23.6118C99.5551 23.6118 100.45 23.2349 101.14 22.4799C101.829 21.7249 102.174 20.7641 102.174 19.5949V15.5511H98.4554Z" fill="currentColor"/><path d="M108.277 25.4785V9.53009C108.277 8.75853 108.893 8.13281 109.652 8.13281H111.001V24.0825C111.001 24.854 110.386 25.4798 109.626 25.4798H108.277V25.4785Z" fill="currentColor"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

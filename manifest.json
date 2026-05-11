@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "EM Dashboard",
+  "version": "1.0.0",
+  "description": "Engineering Manager cockpit — sprint health, reliability alerts, and the monthly brief, in a Chrome side panel.",
+  "author": "Zeal",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "EM Dashboard"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://*.atlassian.net/*",
+    "https://zeal.sentry.io/*",
+    "https://sentry.io/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "options_page": "settings.html",
+  "minimum_chrome_version": "114"
+}

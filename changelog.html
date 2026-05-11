@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="theme-loader.js"></script>
+  <meta charset="UTF-8"/>
+  <title>EM Dashboard — Changelog</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .cl-row { margin-bottom:20px; }
+    .cl-ver { font-size:14px; font-weight:600; color:var(--text); margin-bottom:4px; }
+    .cl-ver.major { color:var(--primary); }
+    .cl-desc { font-size:13px; color:var(--text-muted); line-height:1.6; }
+  </style>
+</head>
+<body class="settings-body">
+  <div class="settings-wrap">
+    <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
+    
+    <div class="cl-row">
+      <div class="cl-ver major">v1.0.0</div>
+      <div class="cl-desc">
+        <strong>Phase 1 — Foundation:</strong> Jira + Sentry integration, side panel UI with Today/Sprint Health/Reliability screens, 4 core alert rules (velocity drop, sprint goal at risk, Sentry spike untriaged, support SLA breach), toolbar badge, privacy mode toggle for screen sharing, two-row sticky header system, light/dark/browser themes. Built with zero infrastructure — credentials stored locally, read-only APIs, no backend.
+      </div>
+    </div>
+    
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);">
+      <a href="docs.html" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">Back to Documentation →</a>
+    </div>
+  </div>
+</body>
+</html>
