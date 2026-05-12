@@ -1,15 +1,13 @@
 /**
  * background.js
  * Service worker for EM Dashboard
- * Handles: alarms, data fetching, alert rules, toolbar badge, notifications
+ * Data is fetched on panel open (not on a background timer).
+ * This service worker handles: data fetching, alert rules, toolbar badge, notifications.
  */
 
 import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
-
-const ALARM_NAME = 'em-dashboard-check';
-const DEFAULT_INTERVAL_MINUTES = 30;
 
 /**
  * Initialize on extension install/update
@@ -21,11 +19,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   console.log('[background] Side panel configured to open on click');
   
-  // Set up alarm for periodic checks
-  await setupAlarm();
-  
-  // Run initial check
-  await checkDashboard();
+  // Clear any previously registered alarms (cleanup from old versions)
+  await chrome.alarms.clearAll();
+  console.log('[background] Background alarms cleared — data fetches on panel open only');
 });
 
 /**
@@ -34,39 +30,8 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onStartup.addListener(async () => {
   console.log('[background] EM Dashboard starting up');
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-  console.log('[background] Side panel configured on startup');
-});
-
-/**
- * Set up periodic alarm
- */
-async function setupAlarm() {
-  try {
-    const result = await chrome.storage.local.get(['settings']);
-    const interval = result.settings?.alerts?.cadenceMin || DEFAULT_INTERVAL_MINUTES;
-    
-    // Clear existing alarm
-    await chrome.alarms.clear(ALARM_NAME);
-    
-    // Create new alarm
-    await chrome.alarms.create(ALARM_NAME, {
-      periodInMinutes: interval
-    });
-    
-    console.log(`[background] Alarm set for every ${interval} minutes`);
-  } catch (error) {
-    console.error('[background] Failed to setup alarm:', error);
-  }
-}
-
-/**
- * Handle alarm triggers
- */
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === ALARM_NAME) {
-    console.log('[background] Alarm triggered, checking dashboard...');
-    await checkDashboard();
-  }
+  // Clear any stale alarms from old versions
+  await chrome.alarms.clearAll();
 });
 
 /**

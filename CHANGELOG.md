@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.6 (2026-05-12) — On-Demand Fetching (No Background Alarm)
+
+**Changed:**
+- Removed 30-minute background alarm — data now fetches only when panel opens
+- Panel open → always fetches fresh data (skips fetch if cache < 2 minutes old)
+- Countdown changed from "next refresh in mm:ss" to "fetched Xm ago" (elapsed time)
+- Cleaned up unused alarm constants from background.js
+
+**Why:** Background alarms fire every 30 minutes regardless of whether you're using the panel — wasteful API calls, unnecessary service worker wakes. Fetching on open is always current and never wasteful.
+
+---
+
 ## v1.1.5 (2026-05-12) — Refresh Countdown Timer
 
 **Added:**

@@ -57,11 +57,19 @@ async function boot() {
   // Show home screen
   showScreen('today');
   
-  console.log('[popup] Boot complete, triggering fresh data fetch...');
+  // Check if cache is fresh enough (< 2 minutes old) to skip fetch
+  const cacheResult = await chrome.storage.local.get(['cache']);
+  const lastFetch = cacheResult.cache?.lastFetch?.jira || cacheResult.cache?.lastFetch?.sentry;
+  const cacheAge = lastFetch ? Date.now() - lastFetch : Infinity;
+  const CACHE_GRACE_MS = 2 * 60 * 1000; // 2 minutes
   
-  // Trigger fresh fetch from APIs in background
-  // This wakes up the service worker and fetches latest data
-  refreshDashboard();
+  if (cacheAge < CACHE_GRACE_MS) {
+    console.log(`[popup] Cache is fresh (${Math.round(cacheAge / 1000)}s old), skipping fetch`);
+    renderCurrentScreen();
+  } else {
+    console.log('[popup] Cache stale or empty — fetching fresh data...');
+    refreshDashboard();
+  }
 }
 
 /**
@@ -179,7 +187,7 @@ async function refreshDashboard() {
       renderCurrentScreen();
       console.log('[popup] Dashboard refreshed');
       
-      // Reset countdown from now
+      // Reset elapsed timer from now
       startCountdown(Date.now());
       
       const errBanner = document.getElementById('error-banner');
@@ -660,48 +668,44 @@ chrome.runtime.onMessage.addListener((message) => {
 boot();
 
 /**
- * Countdown timer — shows time until next auto-refresh beside the ↻ button
+ * "Fetched X ago" elapsed timer beside the ↻ button
  */
 let _countdownInterval = null;
-const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 function startCountdown(fromTimestamp) {
   const el = document.getElementById('refresh-countdown');
   if (!el) return;
-  
   if (_countdownInterval) clearInterval(_countdownInterval);
   
   function tick() {
     const elapsed = Date.now() - fromTimestamp;
-    const remaining = Math.max(0, REFRESH_INTERVAL_MS - elapsed);
-    const mins = Math.floor(remaining / 60000);
-    const secs = Math.floor((remaining % 60000) / 1000);
-    el.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const secs = Math.floor(elapsed / 1000);
+    const mins = Math.floor(secs / 60);
+    const hrs  = Math.floor(mins / 60);
     
-    if (remaining === 0) {
-      el.textContent = '00:00';
-      clearInterval(_countdownInterval);
-    }
+    let label;
+    if (secs < 60)       label = 'just now';
+    else if (mins < 60)  label = `${mins}m ago`;
+    else                 label = `${hrs}h ago`;
+    
+    el.textContent = label;
   }
   
   tick();
-  _countdownInterval = setInterval(tick, 1000);
+  _countdownInterval = setInterval(tick, 15000); // update every 15s (enough granularity)
 }
 
 async function initCountdown() {
   const el = document.getElementById('refresh-countdown');
   if (!el) return;
-  el.style.display = '';
   
-  // Read last fetch time from cache
   const result = await chrome.storage.local.get(['cache']);
   const lastFetch = result.cache?.lastFetch?.jira || result.cache?.lastFetch?.sentry;
   
   if (lastFetch) {
     startCountdown(lastFetch);
   } else {
-    // No fetch yet — start from now
-    el.textContent = '30:00';
+    el.textContent = '';
   }
 }
 
