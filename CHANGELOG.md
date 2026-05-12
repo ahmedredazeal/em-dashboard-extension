@@ -1,6 +1,21 @@
 # Changelog
 
-## v1.1.3 (2026-05-11) — Per-View Sentry Sections + Auto Story Points
+## v1.1.4 (2026-05-12) — Collaboration Infrastructure + GitHub Pages
+
+**Added:**
+- GitHub Pages site: index.html landing page with docs + changelog links
+- CONTRIBUTING.md: full contributor workflow, versioning rules, code rules
+- HANDOFF.md: session state log — current version, known issues, next steps
+- AI_PROMPT.md: onboarding prompt for new Claude sessions
+- GitHub Issue templates: bug report, feature request, docs update
+- Versioning policy added to GUIDELINES.md (mandatory on every push)
+
+**Changed:**
+- All future pushes must bump manifest.json version + update both changelog files
+
+---
+
+## v1.1.3 (2026-05-12) — Per-View Sentry Sections + Auto Story Points
 
 **Fixed:**
 - Sentry issues now display in separate collapsible sections per view (not mixed together)

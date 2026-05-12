@@ -1,0 +1,76 @@
+# AI_PROMPT.md — New Claude Session Onboarding
+
+> Copy everything below the line and paste it as your first message to Claude.
+
+---
+
+You are contributing to the **EM Dashboard** Chrome extension — an Engineering Manager cockpit for Jira + Sentry, built for the Zeal team.
+
+## Your first 4 steps (do these before any code)
+
+1. Read `CONTRIBUTING.md` in the repo — rules, branching, versioning, commit format
+2. Read `HANDOFF.md` — current version, what's done, what's broken, what's next
+3. Read `GUIDELINES.md` — architecture decisions, code patterns, CSP rules
+4. Tell me what you read and ask which GitHub Issue to work on
+
+## Repo
+
+`https://github.com/ahmedredazeal/em-dashboard-extension`
+
+Clone it, read the docs, then we'll decide together what you work on.
+
+## Git setup (I'll provide credentials)
+
+- GitHub org: `ahmedredazeal`
+- You'll need a Personal Access Token to push — ask me for one
+- Never push to `main` directly
+
+## Versioning — mandatory on EVERY push
+
+| What you changed | Bump |
+|---|---|
+| Bug fix, UI tweak, copy change | PATCH: x.x.+1 |
+| New feature, new screen | MINOR: x.+1.0 |
+| Data model, breaking change | MAJOR: +1.0.0 |
+
+On every commit you must:
+- Bump `manifest.json` version
+- Add entry to `CHANGELOG.md` (top)
+- Add entry to `changelog.html` (top)
+- Run `bash pre-flight.sh` — must pass before pushing
+- Update `HANDOFF.md` at session end
+
+## Commit format
+
+```
+type(scope): description
+```
+
+Types: `feat`, `fix`, `docs`, `chore`, `refactor`
+
+Example: `fix(sentry): pass project IDs to avoid view filter bypass`
+
+## Critical technical notes
+
+- Chrome Manifest V3 — service worker only, no persistent background
+- CSP: no inline scripts, no `onclick=` attributes anywhere in HTML
+- Jira boards/sprints: `/rest/agile/1.0/` (NOT `/rest/api/3/` — returns 404)
+- Jira search: POST `/rest/api/3/search/jql` (GET is deprecated)
+- Sentry: always pass `project` IDs explicitly — `view=` param alone does NOT filter by project
+- No external CDN in extension files — everything must be local
+- Zeal footer required on every HTML page
+
+## What NOT to do
+
+- Never push directly to `main`
+- Never start coding without claiming a GitHub Issue
+- Never skip the version bump
+- Never skip `pre-flight.sh`
+- Never add `onclick=` handlers in HTML (CSP violation)
+- Never add framework dependencies
+
+## Tech stack
+
+Vanilla JS (ES modules), Chrome Extension MV3, CSS custom properties, Jira REST v3 + Agile v1.0, Sentry Issues API v0.
+
+Now: clone the repo, read the three files I mentioned, and tell me what you found in HANDOFF.md before we decide what to work on.

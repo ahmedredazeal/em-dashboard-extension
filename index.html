@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EM Dashboard — Engineering Manager Cockpit</title>
+  <link rel="icon" type="image/png" href="icons/icon32.png"/>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1b23;
+      --surface-2: #21232e;
+      --border: rgba(255,255,255,0.08);
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --blue: #3b82f6;
+      --teal: #14b8a6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+
+    header {
+      padding: 64px 24px 48px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: inline-flex; align-items: center; gap: 12px;
+      margin-bottom: 24px;
+    }
+    .logo svg { width: 40px; height: 40px; }
+    .logo-text { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    .tagline { font-size: 18px; color: var(--text-muted); max-width: 520px; margin: 0 auto 32px; }
+    .badge {
+      display: inline-block; padding: 4px 12px;
+      background: rgba(99,102,241,0.15); color: var(--primary-light);
+      border: 1px solid rgba(99,102,241,0.3); border-radius: 20px;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.3px;
+    }
+
+    main { max-width: 860px; margin: 0 auto; padding: 64px 24px; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 64px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px 24px; text-decoration: none;
+      color: inherit; transition: border-color 0.2s, transform 0.15s;
+    }
+    .card:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-2px); }
+    .card-icon { font-size: 28px; margin-bottom: 14px; display: block; }
+    .card-title { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+    .card-desc { font-size: 14px; color: var(--text-muted); }
+
+    .features { margin-bottom: 64px; }
+    h2 { font-size: 22px; font-weight: 600; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .feature {
+      background: var(--surface-2); border-radius: 8px; padding: 16px;
+      border: 1px solid var(--border); font-size: 14px;
+    }
+    .feature-name { font-weight: 600; margin-bottom: 4px; color: var(--primary-light); }
+
+    .install { background: var(--surface); border-radius: 12px; padding: 32px; margin-bottom: 64px; border: 1px solid var(--border); }
+    .install h2 { border: none; padding: 0; margin-bottom: 20px; }
+    ol { padding-left: 20px; }
+    ol li { margin-bottom: 10px; font-size: 14px; color: var(--text-muted); }
+    ol li strong { color: var(--text); }
+    code { background: rgba(255,255,255,0.07); padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+    .contrib { background: var(--surface); border-radius: 12px; padding: 32px; margin-bottom: 64px; border: 1px solid rgba(99,102,241,0.2); }
+    .contrib h2 { border: none; padding: 0; margin-bottom: 20px; }
+    .contrib p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+    .contrib a { color: var(--primary-light); text-decoration: none; }
+    .contrib a:hover { text-decoration: underline; }
+
+    footer {
+      text-align: center; padding: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px;
+    }
+    footer a { color: var(--primary-light); text-decoration: none; margin: 0 8px; }
+
+    @media(max-width:600px) { header { padding: 40px 16px 32px; } main { padding: 40px 16px; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4"  y="4"  width="14" height="14" rx="3" fill="#3b82f6"/>
+      <rect x="4"  y="22" width="14" height="14" rx="3" fill="#3b82f6"/>
+      <rect x="22" y="4"  width="14" height="14" rx="3" fill="#818cf8"/>
+      <rect x="22" y="22" width="14" height="14" rx="3" fill="#818cf8"/>
+    </svg>
+    <span class="logo-text">EM Dashboard</span>
+  </div>
+  <p class="tagline">Engineering Manager cockpit for Jira + Sentry — live in your Chrome side panel</p>
+  <span class="badge">v1.1.4 · Chrome Extension</span>
+</header>
+
+<main>
+
+  <div class="cards">
+    <a class="card" href="docs.html">
+      <span class="card-icon">📖</span>
+      <div class="card-title">Documentation</div>
+      <div class="card-desc">Setup guides, API configuration, settings reference, and feature walkthroughs.</div>
+    </a>
+    <a class="card" href="changelog.html">
+      <span class="card-icon">📋</span>
+      <div class="card-title">Changelog</div>
+      <div class="card-desc">Release history — what changed, what was fixed, and what's coming next.</div>
+    </a>
+    <a class="card" href="https://github.com/ahmedredazeal/em-dashboard-extension" target="_blank">
+      <span class="card-icon">⌥</span>
+      <div class="card-title">GitHub Repository</div>
+      <div class="card-desc">Source code, Issues board, Pull Requests, and contribution guidelines.</div>
+    </a>
+  </div>
+
+  <div class="features">
+    <h2>What it does</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="feature-name">Sprint at a glance</div>
+        Auto-discovers your active sprint, shows full ticket list with assignees and story points.
+      </div>
+      <div class="feature">
+        <div class="feature-name">Sentry issues by view</div>
+        Fetches issues per saved view with correct project filters — collapsible per team.
+      </div>
+      <div class="feature">
+        <div class="feature-name">Alert inbox</div>
+        Velocity drop, goal risk, SLA breach, untriaged spikes — fires only when actionable.
+      </div>
+      <div class="feature">
+        <div class="feature-name">Privacy mode</div>
+        One-click toggle hides sensitive data for screen sharing.
+      </div>
+      <div class="feature">
+        <div class="feature-name">Local-only storage</div>
+        Credentials stay in Chrome storage — no backend, no servers, no tracking.
+      </div>
+      <div class="feature">
+        <div class="feature-name">Light / Dark / Browser</div>
+        Follows your OS theme or override it in settings.
+      </div>
+    </div>
+  </div>
+
+  <div class="install">
+    <h2>Installation</h2>
+    <ol>
+      <li>Download the latest <strong>.zip</strong> from <a href="https://github.com/ahmedredazeal/em-dashboard-extension/releases" style="color:var(--primary-light)">Releases</a></li>
+      <li>Unzip the folder</li>
+      <li>Open Chrome → <code>chrome://extensions</code></li>
+      <li>Enable <strong>Developer mode</strong> (top-right toggle)</li>
+      <li>Click <strong>Load unpacked</strong> → select the unzipped folder</li>
+      <li>Click the extension icon → <strong>Set up credentials</strong></li>
+      <li>Enter your Jira URL, email, API token, Sentry org + token, and Sentry view IDs</li>
+    </ol>
+  </div>
+
+  <div class="contrib">
+    <h2>Contributing</h2>
+    <p>This project uses AI-assisted development. Both human contributors and Claude sessions follow the same workflow to avoid conflicts.</p>
+    <p>
+      Read <a href="https://github.com/ahmedredazeal/em-dashboard-extension/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> before starting.
+      Check <a href="https://github.com/ahmedredazeal/em-dashboard-extension/blob/main/HANDOFF.md">HANDOFF.md</a> for current session state.
+      Use <a href="https://github.com/ahmedredazeal/em-dashboard-extension/blob/main/AI_PROMPT.md">AI_PROMPT.md</a> to onboard a new Claude session.
+    </p>
+  </div>
+
+</main>
+
+<footer>
+  <div>Powered by <a href="https://getzeal.io" target="_blank">Zeal</a></div>
+  <div style="margin-top:8px;">
+    <a href="docs.html">Docs</a>
+    <a href="changelog.html">Changelog</a>
+    <a href="https://github.com/ahmedredazeal/em-dashboard-extension">GitHub</a>
+    <a href="privacy.html">Privacy</a>
+  </div>
+</footer>
+
+</body>
+</html>
