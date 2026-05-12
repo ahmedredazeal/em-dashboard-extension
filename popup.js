@@ -421,18 +421,20 @@ function renderTodayScreen() {
       
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';
-      listEl.innerHTML = stories.map(s => `
+      listEl.innerHTML = stories.map(s => {
+        const duePart = s.dueDate ? formatDueDate(s.dueDate) : '';
+        return `
         <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
           <span style="font-size:12px;color:${statusColor(s.status)};flex-shrink:0;padding-top:1px;" title="${escapeHtml(s.status)}">${statusIcon(s.statusCategory)}</span>
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.summary)}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-              ${escapeHtml(s.key)}${s.assignee ? ` · ${escapeHtml(s.assignee)}` : ''}${s.points > 0 ? ` · ${s.points}pt` : ''}
+              ${escapeHtml(s.key)}${s.assignee ? ` · ${escapeHtml(s.assignee)}` : ''}${s.points > 0 ? ` · ${s.points}pt` : ''}${duePart ? ` · ${duePart}` : ''}
             </div>
           </div>
           <span style="font-size:10px;color:${statusColor(s.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(s.status)}</span>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
       glanceBody.appendChild(listEl);
     }
   } else {
@@ -644,6 +646,20 @@ function formatDate(dateString) {
   if (!dateString) return 'Unknown';
   const date = new Date(dateString);
   return date.toLocaleDateString();
+}
+
+/**
+ * Utility: format due date — returns HTML string with colour coding
+ * Red = overdue, Amber = due within 2 days, normal = upcoming
+ */
+function formatDueDate(dateStr) {
+  if (!dateStr) return '';
+  const due  = new Date(dateStr);
+  const days = Math.ceil((due - new Date()) / (1000 * 60 * 60 * 24));
+  const label = due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  if (days < 0)  return `<span style="color:#ef4444;">⚠ due ${label}</span>`;
+  if (days <= 2) return `<span style="color:#f59e0b;">📅 ${label}</span>`;
+  return `📅 ${label}`;
 }
 
 /**

@@ -205,13 +205,14 @@ export function sprintBurndownPrediction(sprint) {
 
   // Too early to judge: first 20% of sprint or first 2 days — give the team time
   const earlyThreshold = Math.max(2, Math.floor(totalDays * 0.2));
+  const roundedExpected = Math.round(expectedDailyVelocity * 10) / 10;
   if (daysElapsed <= earlyThreshold) {
     return {
-      predicted: totalPoints, // assume on track when too early
+      predicted: totalPoints,
       onTrack: true,
       risk: 'early',
-      dailyVelocity: daysElapsed > 0 ? completedPoints / daysElapsed : 0,
-      expectedDailyVelocity
+      dailyVelocity: 0,
+      expectedDailyVelocity: roundedExpected
     };
   }
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.8 (2026-05-12) — Due Dates, Icon Fix, Decimal Fix
+
+**Fixed:**
+- Expected velocity showed too many decimals (e.g. `4.076923...`) — now rounds to 1dp (`4.1`)
+- Early-sprint return in `sprintBurndownPrediction` was skipping the rounding applied elsewhere
+- Tab/toolbar icon regenerated with correct RGBA format — was showing corrupted in Chrome
+
+**Added:**
+- Sprint story due dates in ticket list: `📅 15 May`
+- Overdue stories highlighted red: `⚠ due 10 May`
+- Due within 2 days highlighted amber: `📅 12 May`
+
+---
+
 ## v1.1.7 (2026-05-12) — Refresh Timer Fixed
 
 **Fixed:**

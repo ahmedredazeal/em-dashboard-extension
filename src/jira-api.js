@@ -194,9 +194,10 @@ export class JiraClient {
       fields: [
         'summary', 'status', 'assignee', 'issuetype', 'priority',
         storyPointsField,
-        'customfield_10016', // Always include common defaults too
+        'customfield_10016',
         'customfield_10026',
-        'subtasks', 'created', 'updated'
+        'subtasks', 'created', 'updated',
+        'duedate'
       ],
       maxResults: 100
     });

@@ -196,7 +196,8 @@ async function fetchJiraData(settings) {
       assignee: s.fields.assignee?.displayName || null,
       priority: s.fields.priority?.name || 'Medium',
       points: getPoints(s),
-      type: s.fields.issuetype?.name || 'Story'
+      type: s.fields.issuetype?.name || 'Story',
+      dueDate: s.fields.duedate || null
     }));
     
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
