@@ -162,8 +162,10 @@ async function refreshDashboard() {
   
   // Show loading in Sentry section
   const spikes = document.getElementById('sentry-spikes');
+  const sentryEmpty = document.getElementById('sentry-empty');
   const sentryTotal = document.getElementById('sentry-total');
   if (spikes) spikes.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center;">Loading issues…</div>';
+  if (sentryEmpty) sentryEmpty.classList.add('hidden'); // hide empty while loading
   if (sentryTotal) sentryTotal.textContent = '…';
   
   const refreshBtn = document.getElementById('context-refresh');
@@ -375,8 +377,16 @@ function renderTodayScreen() {
     const prediction = metrics.sprintBurndownPrediction(sp);
     const onTrack = prediction.onTrack;
     
-    // Header summary (always visible)
-    if (collapsedSummary) collapsedSummary.textContent = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pts · Day ${sp.daysElapsed}/${sp.totalDays} · ${onTrack ? '✓ On track' : '⚠ At risk'}`;
+    let statusText;
+    if (prediction.risk === 'early') {
+      statusText = `📊 Too early — expected ${prediction.expectedDailyVelocity}pt/day`;
+    } else if (prediction.risk === 'no-data') {
+      statusText = '— No point data';
+    } else {
+      statusText = onTrack ? '✓ On track' : `⚠ At risk (${prediction.dailyVelocity}pt/day, need ${prediction.expectedDailyVelocity}pt/day)`;
+    }
+    
+    if (collapsedSummary) collapsedSummary.textContent = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pt · Day ${sp.daysElapsed}/${sp.totalDays} · ${statusText}`;
     if (glanceSubtitle) glanceSubtitle.textContent = `${sp.completedPoints}/${sp.totalPoints} pts · Day ${sp.daysElapsed}/${sp.totalDays}`;
     
     // Story list in body
@@ -463,30 +473,30 @@ function renderTodayScreen() {
     
     const sectionId = `sentry-view-${idx}`;
     return `
-      <div class="sentry-view-section" style="margin-bottom:12px;">
+      <div class="sentry-view-section" style="margin-bottom:8px;">
         <div class="sentry-view-header" data-section="${sectionId}"
           style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
           background:var(--surface-raised,#1f2937);border-radius:6px;cursor:pointer;user-select:none;">
           <span style="font-size:12px;font-weight:600;color:var(--text);">${escapeHtml(view.label)}</span>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:12px;font-weight:700;color:var(--primary,#60a5fa);">${view.count}</span>
-            <span class="sentry-chevron" style="font-size:10px;color:var(--text-muted);">▼</span>
+            <span class="sentry-chevron" style="font-size:10px;color:var(--text-muted);">▶</span>
           </div>
         </div>
-        <div id="${sectionId}" style="margin-top:6px;">${issueCards}</div>
+        <div id="${sectionId}" style="margin-top:6px; display:none;">${issueCards}</div>
       </div>`;
   }).join('');
   
-  // Wire up collapsible headers
+  // Wire up collapsible headers (all collapsed by default)
   spikes.querySelectorAll('.sentry-view-header').forEach(header => {
     header.addEventListener('click', () => {
       const id = header.getAttribute('data-section');
       const body = document.getElementById(id);
       const chevron = header.querySelector('.sentry-chevron');
       if (!body) return;
-      const collapsed = body.style.display === 'none';
-      body.style.display = collapsed ? '' : 'none';
-      if (chevron) chevron.textContent = collapsed ? '▼' : '▶';
+      const isCollapsed = body.style.display === 'none';
+      body.style.display = isCollapsed ? '' : 'none';
+      if (chevron) chevron.textContent = isCollapsed ? '▼' : '▶';
     });
   });
   

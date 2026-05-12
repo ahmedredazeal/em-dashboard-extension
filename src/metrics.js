@@ -185,34 +185,51 @@ export function effectiveWorkingDays(engineerId, range, vacations = []) {
  */
 export function sprintBurndownPrediction(sprint) {
   if (!sprint || !sprint.totalPoints) {
-    return { predicted: 0, onTrack: true, risk: 'no-data' };
+    return { predicted: 0, onTrack: true, risk: 'no-data', dailyVelocity: 0, expectedDailyVelocity: 0 };
   }
   
   const { totalPoints, completedPoints, daysElapsed, totalDays } = sprint;
-  const daysRemaining = totalDays - daysElapsed;
-  
+  const daysRemaining = Math.max(0, totalDays - daysElapsed);
+  const expectedDailyVelocity = totalPoints / totalDays;
+
+  // Sprint ended
   if (daysRemaining <= 0) {
-    return { 
-      predicted: completedPoints, 
+    return {
+      predicted: completedPoints,
       onTrack: completedPoints >= totalPoints,
-      risk: completedPoints >= totalPoints ? 'none' : 'goal-missed'
+      risk: completedPoints >= totalPoints ? 'none' : 'goal-missed',
+      dailyVelocity: completedPoints / Math.max(1, totalDays),
+      expectedDailyVelocity
     };
   }
-  
+
+  // Too early to judge: first 20% of sprint or first 2 days — give the team time
+  const earlyThreshold = Math.max(2, Math.floor(totalDays * 0.2));
+  if (daysElapsed <= earlyThreshold) {
+    return {
+      predicted: totalPoints, // assume on track when too early
+      onTrack: true,
+      risk: 'early',
+      dailyVelocity: daysElapsed > 0 ? completedPoints / daysElapsed : 0,
+      expectedDailyVelocity
+    };
+  }
+
   // Linear projection: current velocity × remaining days
-  const dailyVelocity = daysElapsed > 0 ? completedPoints / daysElapsed : 0;
+  const dailyVelocity = completedPoints / daysElapsed;
   const predicted = completedPoints + (dailyVelocity * daysRemaining);
-  
-  const onTrack = predicted >= totalPoints * 0.95; // within 5%
-  
+  const onTrack = predicted >= totalPoints * 0.85; // within 15%
+
   let risk = 'none';
-  if (predicted < totalPoints * 0.7) risk = 'high';
-  else if (predicted < totalPoints * 0.9) risk = 'medium';
-  
+  if (predicted < totalPoints * 0.6) risk = 'high';
+  else if (predicted < totalPoints * 0.85) risk = 'medium';
+
   return {
     predicted: Math.round(predicted),
     onTrack,
-    risk
+    risk,
+    dailyVelocity: Math.round(dailyVelocity * 10) / 10,
+    expectedDailyVelocity: Math.round(expectedDailyVelocity * 10) / 10
   };
 }
 
