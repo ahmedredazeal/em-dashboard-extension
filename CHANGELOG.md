@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.1.7 (2026-05-12) — Refresh Timer Fixed
+
+**Fixed:**
+- Timer was not appearing at all (visibility bug in showScreen reset)
+- Timer now always visible when context bar is shown
+- `updateRefreshTimer()` called immediately on screen switch so label is always current
+
+**Changed (per clearer requirements):**
+- `elapsed < 5 min` → "just now" / "Xm ago"
+- `elapsed ≥ 5 min` → `mm:ss` countdown to the 30-min mark
+- Countdown goes amber when under 5 minutes remaining
+- Countdown hits `00:00` → auto-refresh fires automatically
+
+---
+
 ## v1.1.6 (2026-05-12) — On-Demand Fetching (No Background Alarm)
 
 **Changed:**

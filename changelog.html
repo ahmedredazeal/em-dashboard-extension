@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.1.7</div>
+      <div class="cl-desc">
+        <strong>Refresh timer fixed:</strong> Fixed visibility bug (timer now always shows in context bar). Under 5 min since last refresh shows "just now" or "Xm ago". At 5+ min switches to a live <code>mm:ss</code> countdown to the 30-min mark (goes amber under 5 min remaining). Countdown hitting zero automatically triggers a refresh.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.1.6</div>
       <div class="cl-desc">
         <strong>On-demand fetching — no background alarm:</strong> Removed the 30-minute background alarm. Data now fetches only when you open the panel (skips if cache is under 2 minutes old). The elapsed timer beside ↻ now shows "just now / Xm ago / Xh ago" instead of a countdown. No more unnecessary API calls while the panel is closed.

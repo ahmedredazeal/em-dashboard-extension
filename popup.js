@@ -187,8 +187,8 @@ async function refreshDashboard() {
       renderCurrentScreen();
       console.log('[popup] Dashboard refreshed');
       
-      // Reset elapsed timer from now
-      startCountdown(Date.now());
+      // Start timer from now
+      startRefreshTimer(Date.now());
       
       const errBanner = document.getElementById('error-banner');
       if (errBanner) errBanner.remove();
@@ -305,11 +305,12 @@ function updateContextBar(screenId) {
     back.style.display = 'inline-block';
   }
   
-  // Refresh button + countdown
+  // Refresh button + countdown (always visible on dashboard screens)
   refresh.style.display = 'inline-block';
   if (countdown) {
     countdown.style.display = 'inline';
-    initCountdown(); // re-init to pick up latest lastFetch
+    // Re-run tick immediately so label is current after screen switch
+    updateRefreshTimer();
   }
 }
 
@@ -668,45 +669,67 @@ chrome.runtime.onMessage.addListener((message) => {
 boot();
 
 /**
- * "Fetched X ago" elapsed timer beside the ↻ button
+ * Refresh timer beside the ↻ button
+ * 3 states:
+ *   elapsed < 5 min  → "just now" / "Xm ago"
+ *   elapsed >= 5 min → countdown mm:ss to the 30-min mark
+ *   countdown hits 0 → auto-refresh fires
  */
-let _countdownInterval = null;
+const REFRESH_CYCLE_MS  = 30 * 60 * 1000; // 30 minutes
+const ELAPSED_MODE_MS   =  5 * 60 * 1000; // switch to countdown after 5 min
 
-function startCountdown(fromTimestamp) {
-  const el = document.getElementById('refresh-countdown');
-  if (!el) return;
-  if (_countdownInterval) clearInterval(_countdownInterval);
-  
-  function tick() {
-    const elapsed = Date.now() - fromTimestamp;
-    const secs = Math.floor(elapsed / 1000);
-    const mins = Math.floor(secs / 60);
-    const hrs  = Math.floor(mins / 60);
-    
-    let label;
-    if (secs < 60)       label = 'just now';
-    else if (mins < 60)  label = `${mins}m ago`;
-    else                 label = `${hrs}h ago`;
-    
-    el.textContent = label;
-  }
-  
-  tick();
-  _countdownInterval = setInterval(tick, 15000); // update every 15s (enough granularity)
+let _timerInterval  = null;
+let _lastFetchTime  = null; // set after every successful fetch
+
+function setLastFetchTime(ts) {
+  _lastFetchTime = ts;
+  updateRefreshTimer();
 }
 
-async function initCountdown() {
+function updateRefreshTimer() {
   const el = document.getElementById('refresh-countdown');
   if (!el) return;
-  
+  if (!_lastFetchTime) { el.textContent = ''; return; }
+
+  const elapsed   = Date.now() - _lastFetchTime;
+  const remaining = Math.max(0, REFRESH_CYCLE_MS - elapsed);
+
+  if (elapsed < ELAPSED_MODE_MS) {
+    // "just now" / "Xm ago"
+    const mins = Math.floor(elapsed / 60000);
+    el.textContent = mins < 1 ? 'just now' : `${mins}m ago`;
+    el.style.color = 'var(--text-muted)';
+  } else {
+    // Countdown to 30-min mark
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    // Go amber as it gets close (under 5 min remaining)
+    el.style.color = remaining < 5 * 60 * 1000 ? '#f59e0b' : 'var(--text-muted)';
+
+    // Countdown finished — auto-refresh
+    if (remaining === 0) {
+      console.log('[popup] Auto-refresh triggered by timer');
+      refreshDashboard();
+    }
+  }
+}
+
+function startRefreshTimer(lastFetchTimestamp) {
+  if (_timerInterval) clearInterval(_timerInterval);
+  _lastFetchTime = lastFetchTimestamp;
+  updateRefreshTimer();
+  _timerInterval = setInterval(updateRefreshTimer, 1000);
+}
+
+// Initialise timer from cache on panel open
+(async function initRefreshTimer() {
   const result = await chrome.storage.local.get(['cache']);
   const lastFetch = result.cache?.lastFetch?.jira || result.cache?.lastFetch?.sentry;
-  
-  if (lastFetch) {
-    startCountdown(lastFetch);
-  } else {
-    el.textContent = '';
+  if (lastFetch) startRefreshTimer(lastFetch);
+  else {
+    // No cache yet — timer will start once first fetch completes
+    const el = document.getElementById('refresh-countdown');
+    if (el) el.textContent = '';
   }
-}
-
-initCountdown();
+})();
