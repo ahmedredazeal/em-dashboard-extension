@@ -122,17 +122,12 @@ export class SentryClient {
       limit: '100',
       view: viewId,
       environment,
-      statsPeriod: '7d',
-      query: 'is:unresolved'
+      query: 'is:unresolved',
+      sort: 'date',
+      statsPeriod: '7d'
     });
-    
-    // Append project IDs if provided (multiple &project= params)
-    if (projectIds.length > 0) {
-      projectIds.forEach(id => params.append('project', String(id)));
-    }
-    
-    const endpoint = `organizations/${this.orgSlug}/issues/?${params.toString()}`;
-    return this.request(endpoint);
+    projectIds.forEach(id => params.append('project', String(id)));
+    return this.request(`organizations/${this.orgSlug}/issues/?${params.toString()}`);
   }
 
   /**

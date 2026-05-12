@@ -354,17 +354,15 @@ function renderTodayScreen() {
     });
   }
   
-  // Sprint at a glance — collapsible
-  const glanceName = document.getElementById('sprint-glance-name');
+  // Sprint at a glance — collapsible (collapsed by default)
   const glanceSubtitle = document.getElementById('sprint-glance-subtitle');
-  const glanceCard = document.getElementById('sprint-glance');
+  const glanceBody = document.getElementById('sprint-glance');
   const collapsedSummary = document.getElementById('sprint-glance-collapsed-summary');
-  
-  // Wire up collapse toggle (only once)
   const sprintHeader = document.getElementById('sprint-glance-header');
   const sprintBody = document.getElementById('sprint-glance-body');
   const sprintChevron = document.getElementById('sprint-chevron');
   
+  // Wire up collapse toggle (only once)
   if (sprintHeader && !sprintHeader.dataset.wired) {
     sprintHeader.dataset.wired = '1';
     sprintHeader.addEventListener('click', () => {
@@ -378,16 +376,14 @@ function renderTodayScreen() {
     const sp = state.currentSprint;
     const prediction = metrics.sprintBurndownPrediction(sp);
     const onTrack = prediction.onTrack;
-    const statusEmoji = onTrack ? '✓ On track' : '⚠ At risk';
-    const summary = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pts · Day ${sp.daysElapsed}/${sp.totalDays} · ${statusEmoji}`;
     
-    if (collapsedSummary) collapsedSummary.textContent = summary;
-    glanceName.textContent = sp.name;
-    glanceSubtitle.textContent = `${sp.completedPoints}/${sp.totalPoints} pts · Day ${sp.daysElapsed}/${sp.totalDays} · ${onTrack ? '✓ On track' : '⚠ At risk'}`;
+    // Header summary (always visible)
+    if (collapsedSummary) collapsedSummary.textContent = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pts · Day ${sp.daysElapsed}/${sp.totalDays} · ${onTrack ? '✓ On track' : '⚠ At risk'}`;
+    if (glanceSubtitle) glanceSubtitle.textContent = `${sp.completedPoints}/${sp.totalPoints} pts · Day ${sp.daysElapsed}/${sp.totalDays}`;
     
-    // Render story list
+    // Story list in body
     const stories = sp.stories || [];
-    if (stories.length > 0) {
+    if (stories.length > 0 && glanceBody) {
       const existingList = document.getElementById('sprint-story-list');
       if (existingList) existingList.remove();
       
@@ -401,9 +397,8 @@ function renderTodayScreen() {
       
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';
-      listEl.style.cssText = 'margin-top:8px; border-top:1px solid var(--border); padding-top:8px;';
       listEl.innerHTML = stories.map(s => `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
           <span style="font-size:12px;color:${statusColor(s.status)};flex-shrink:0;padding-top:1px;" title="${escapeHtml(s.status)}">${statusIcon(s.statusCategory)}</span>
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.summary)}</div>
@@ -414,12 +409,11 @@ function renderTodayScreen() {
           <span style="font-size:10px;color:${statusColor(s.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(s.status)}</span>
         </div>
       `).join('');
-      glanceCard.appendChild(listEl);
+      glanceBody.appendChild(listEl);
     }
   } else {
     if (collapsedSummary) collapsedSummary.textContent = 'No active sprint';
-    glanceName.textContent = 'No active sprint';
-    glanceSubtitle.textContent = '';
+    if (glanceSubtitle) glanceSubtitle.textContent = '';
   }
   
   // Sentry issues — one collapsible section per view
