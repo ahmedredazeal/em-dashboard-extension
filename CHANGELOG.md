@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.5 (2026-05-12) — Refresh Countdown Timer
+
+**Added:**
+- Countdown timer in context bar beside ↻ button — shows `mm:ss` until next auto-refresh
+- Timer reads `lastFetch` from cache storage to compute accurate remaining time
+- Resets to 30:00 on manual refresh click
+- Hidden on auth screen, shown on all dashboard screens
+
+---
+
 ## v1.1.4 (2026-05-12) — Collaboration Infrastructure + GitHub Pages
 
 **Added:**

@@ -175,12 +175,13 @@ async function refreshDashboard() {
     const response = await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
     
     if (response && response.success) {
-      // Reload data and re-render
       await loadData();
       renderCurrentScreen();
       console.log('[popup] Dashboard refreshed');
       
-      // Clear any previous error banner
+      // Reset countdown from now
+      startCountdown(Date.now());
+      
       const errBanner = document.getElementById('error-banner');
       if (errBanner) errBanner.remove();
     } else {
@@ -267,6 +268,8 @@ function updateContextBar(screenId) {
   sep1.style.display = 'none';
   refresh.style.display = 'none';
   exportBtn.style.display = 'none';
+  const countdown = document.getElementById('refresh-countdown');
+  if (countdown) countdown.style.display = 'none';
   
   if (screenId === 'auth') {
     // No context bar for auth
@@ -294,8 +297,12 @@ function updateContextBar(screenId) {
     back.style.display = 'inline-block';
   }
   
-  // Refresh button
+  // Refresh button + countdown
   refresh.style.display = 'inline-block';
+  if (countdown) {
+    countdown.style.display = 'inline';
+    initCountdown(); // re-init to pick up latest lastFetch
+  }
 }
 
 /**
@@ -651,3 +658,51 @@ chrome.runtime.onMessage.addListener((message) => {
 
 // Boot on load
 boot();
+
+/**
+ * Countdown timer — shows time until next auto-refresh beside the ↻ button
+ */
+let _countdownInterval = null;
+const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+function startCountdown(fromTimestamp) {
+  const el = document.getElementById('refresh-countdown');
+  if (!el) return;
+  
+  if (_countdownInterval) clearInterval(_countdownInterval);
+  
+  function tick() {
+    const elapsed = Date.now() - fromTimestamp;
+    const remaining = Math.max(0, REFRESH_INTERVAL_MS - elapsed);
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    
+    if (remaining === 0) {
+      el.textContent = '00:00';
+      clearInterval(_countdownInterval);
+    }
+  }
+  
+  tick();
+  _countdownInterval = setInterval(tick, 1000);
+}
+
+async function initCountdown() {
+  const el = document.getElementById('refresh-countdown');
+  if (!el) return;
+  el.style.display = '';
+  
+  // Read last fetch time from cache
+  const result = await chrome.storage.local.get(['cache']);
+  const lastFetch = result.cache?.lastFetch?.jira || result.cache?.lastFetch?.sentry;
+  
+  if (lastFetch) {
+    startCountdown(lastFetch);
+  } else {
+    // No fetch yet — start from now
+    el.textContent = '30:00';
+  }
+}
+
+initCountdown();
