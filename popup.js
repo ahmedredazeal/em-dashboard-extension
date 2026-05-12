@@ -156,11 +156,9 @@ async function refreshDashboard() {
   console.log('[popup] Requesting dashboard refresh...');
   state.isLoading = true;
   
-  // Show loading indicator on sprint glance
-  const glanceName = document.getElementById('sprint-glance-name');
-  const glanceSub = document.getElementById('sprint-glance-subtitle');
-  if (glanceName) glanceName.textContent = 'Loading…';
-  if (glanceSub) glanceSub.textContent = '';
+  // Show loading indicator on sprint collapsed summary
+  const collapsedSummary = document.getElementById('sprint-glance-collapsed-summary');
+  if (collapsedSummary) collapsedSummary.textContent = 'Loading…';
   
   // Show loading in Sentry section
   const spikes = document.getElementById('sentry-spikes');
