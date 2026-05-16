@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.2.0 (2026-05-20) — Critical Syntax Fix + Pre-flight Brace Check
+
+**Fixed:**
+- `background.js` missing closing `}` on `fetchJiraData` function — caused "Service worker registration failed" and "Unexpected end of input" on load
+- `node --check` doesn't catch missing closing braces in ES modules (returns false-negative) — added separate brace balance check to `pre-flight.sh`
+
+**Added:**
+- Pre-flight step 1b: brace balance check on all JS files (`{` count === `}` count) — prevents this class of error from ever shipping again
+
+---
+
 ## v1.1.9 (2026-05-16) — Extra Boards Fully Working
 
 **Fixed:**

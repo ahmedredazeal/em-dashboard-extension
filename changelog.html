@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.0</div>
+      <div class="cl-desc">
+        <strong>Critical syntax fix + pre-flight brace check:</strong> Fixed missing closing <code>}</code> in <code>fetchJiraData</code> that caused "Service worker registration failed / Unexpected end of input" on load. Added brace balance check to pre-flight script — <code>node --check</code> silently misses this class of error in ES modules, so now both checks run on every file before packaging.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.1.9</div>
       <div class="cl-desc">
         <strong>Extra boards fully working:</strong> Fixed broken pipeline (data was fetched but never saved to storage or rendered). Extra boards now appear as collapsible sections below the main sprint — showing board label, sprint name, point progress, and full story list with assignee, points, and due dates. Settings now accept <code>Name|BoardID</code> format (one per line).

@@ -23,6 +23,24 @@ for file in popup.js settings.js background.js src/*.js; do
     fi
   fi
 done
+
+# Extra: brace balance check (catches missing closing braces that node --check misses in ES modules)
+echo ""
+echo "1b. Checking brace balance..."
+for file in popup.js settings.js background.js src/*.js; do
+  if [ -f "$file" ]; then
+    python3 -c "
+code = open('$file').read()
+diff = code.count('{') - code.count('}')
+if diff != 0:
+    print(f'   ✗ $file — unbalanced braces (diff={diff})')
+    exit(1)
+else:
+    print(f'   ✓ $file')
+" 2>&1
+    if [ $? -ne 0 ]; then ERRORS=$((ERRORS + 1)); fi
+  fi
+done
 echo ""
 
 # 2. Element audit (check for missing getElementById refs)

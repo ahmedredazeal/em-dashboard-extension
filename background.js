@@ -334,6 +334,7 @@ async function fetchJiraData(settings) {
   }
   
   return { sprintHistory, currentSprint, supportTickets, extraBoardsData: state.extraBoardsData };
+}
 
 /**
  * Fetch Sentry data from saved views
