@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.1 (2026-05-20) — Fix ReferenceError: state is not defined
+
+**Fixed:**
+- `fetchJiraData()` referenced `state.extraBoardsData` but `state` is a local variable inside `checkDashboard()` — out of scope entirely in `fetchJiraData()`
+- Caused `ReferenceError: state is not defined` on every Jira fetch → no sprint data rendered
+- Fix: replaced `state.extraBoardsData.push(...)` with a local `const extraBoardsData = []` inside `fetchJiraData()`, returned as part of the result object
+
+---
+
 ## v1.2.0 (2026-05-20) — Critical Syntax Fix + Pre-flight Brace Check
 
 **Fixed:**

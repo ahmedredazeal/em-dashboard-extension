@@ -64,7 +64,6 @@ async function checkDashboard() {
       supportTickets: [],
       sentryIssues: [],
       sentryViews: [],
-      extraBoardsData: [],
       slaHours: 48
     };
     
@@ -249,11 +248,11 @@ async function fetchJiraData(settings) {
   }
   
   // Extra boards — fetch active sprint + stories for each
+  const extraBoardsData = [];
   if (settings.squad?.extraBoards && settings.squad.extraBoards.length > 0) {
     console.log(`[background] Fetching ${settings.squad.extraBoards.length} extra boards`);
     
     for (const boardSpec of settings.squad.extraBoards) {
-      // Parse "Name|BoardID" or just "BoardID"
       let boardLabel, boardId;
       if (typeof boardSpec === 'object') {
         boardLabel = boardSpec.name;
@@ -271,10 +270,8 @@ async function fetchJiraData(settings) {
         console.log(`[background] Extra board "${boardLabel}" (id=${boardId})`);
         const activeSprint = await client.getActiveSprint(boardId);
         
-        // Get stories for this board's project key if we can identify it
         let stories = [];
         try {
-          // Use squad key as fallback (same project, different board)
           const sprintStories = await client.getSprintStories(
             activeSprint.id, squadKey, storyPointsField
           );
@@ -282,10 +279,9 @@ async function fetchJiraData(settings) {
             const v = s.fields?.[storyPointsField];
             return typeof v === 'number' ? v : 0;
           };
-          const done = sprintStories.filter(s => {
-            const cat = s.fields.status?.statusCategory?.key || '';
-            return cat === 'done';
-          });
+          const done = sprintStories.filter(s =>
+            (s.fields.status?.statusCategory?.key || '') === 'done'
+          );
           
           stories = sprintStories.map(s => ({
             key: s.key,
@@ -300,31 +296,23 @@ async function fetchJiraData(settings) {
           const totalPoints = sprintStories.reduce((sum, s) => sum + getPoints(s), 0);
           const completedPoints = done.reduce((sum, s) => sum + getPoints(s), 0);
           
-          state.extraBoardsData.push({
-            boardId,
-            boardLabel,
+          extraBoardsData.push({
+            boardId, boardLabel,
             sprintName: activeSprint.name,
             startDate: activeSprint.startDate,
             endDate: activeSprint.endDate,
             totalStories: sprintStories.length,
             completedStories: done.length,
-            totalPoints,
-            completedPoints,
-            stories
+            totalPoints, completedPoints, stories
           });
         } catch (storyErr) {
-          // Stories fetch failed — still show sprint name
-          state.extraBoardsData.push({
-            boardId,
-            boardLabel,
+          extraBoardsData.push({
+            boardId, boardLabel,
             sprintName: activeSprint.name,
             startDate: activeSprint.startDate,
             endDate: activeSprint.endDate,
-            totalStories: 0,
-            completedStories: 0,
-            totalPoints: 0,
-            completedPoints: 0,
-            stories: []
+            totalStories: 0, completedStories: 0,
+            totalPoints: 0, completedPoints: 0, stories: []
           });
         }
       } catch (err) {
@@ -333,7 +321,7 @@ async function fetchJiraData(settings) {
     }
   }
   
-  return { sprintHistory, currentSprint, supportTickets, extraBoardsData: state.extraBoardsData };
+  return { sprintHistory, currentSprint, supportTickets, extraBoardsData };
 }
 
 /**

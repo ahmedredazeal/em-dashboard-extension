@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.1</div>
+      <div class="cl-desc">
+        <strong>Fix: ReferenceError state is not defined:</strong> <code>fetchJiraData()</code> was referencing <code>state.extraBoardsData</code> but <code>state</code> only exists inside <code>checkDashboard()</code>. This caused every Jira fetch to throw a ReferenceError, meaning sprint data never rendered. Fixed by using a local <code>extraBoardsData</code> array inside <code>fetchJiraData()</code> and returning it as part of the result.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.0</div>
       <div class="cl-desc">
         <strong>Critical syntax fix + pre-flight brace check:</strong> Fixed missing closing <code>}</code> in <code>fetchJiraData</code> that caused "Service worker registration failed / Unexpected end of input" on load. Added brace balance check to pre-flight script — <code>node --check</code> silently misses this class of error in ES modules, so now both checks run on every file before packaging.
