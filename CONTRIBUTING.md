@@ -6,9 +6,9 @@ This project uses AI-assisted development. Both human contributors and Claude se
 
 ## Before you start
 
-1. **Read [HANDOFF.md](./HANDOFF.md)** — what was last worked on, what's blocked, what's next.
-2. **Check [GitHub Issues](https://github.com/ahmedredazeal/em-dashboard-extension/issues)** — pick an unclaimed issue and assign it to yourself.
-3. **Never start without claiming an issue.** No issue = no work.
+1. **Read [TASKS.md](./TASKS.md)** — the single source of truth for all work. Pick an unclaimed (📋) task and claim it by adding your name + date. Commit that change first.
+2. **Read [HANDOFF.md](./HANDOFF.md)** — what was last worked on, what's blocked, what's next.
+3. **Never start without claiming a task in TASKS.md.** No claimed task = no code.
 
 ---
 

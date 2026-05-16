@@ -6,12 +6,15 @@
 
 You are contributing to the **EM Dashboard** Chrome extension — an Engineering Manager cockpit for Jira + Sentry, built for the Zeal team.
 
-## Your first 4 steps (do these before any code)
+## Your first steps (mandatory before any code)
 
-1. Read `CONTRIBUTING.md` in the repo — rules, branching, versioning, commit format
-2. Read `HANDOFF.md` — current version, what's done, what's broken, what's next
-3. Read `GUIDELINES.md` — architecture decisions, code patterns, CSP rules
-4. Tell me what you read and ask which GitHub Issue to work on
+1. Read `TASKS.md` — the single source of truth for all work. Find an unclaimed (📋) task, move it to In Progress with your name + date, commit that change first on a new branch.
+2. Read `HANDOFF.md` — current version, known issues, architecture notes.
+3. Read `CONTRIBUTING.md` — branching, versioning, commit format.
+4. Read `GUIDELINES.md` sections 13–14 — the contributor workflow rules.
+
+**Do not write a single line of code before doing steps 1–4.**
+**No task in TASKS.md = stop and ask what to work on.**
 
 ## Repo
 

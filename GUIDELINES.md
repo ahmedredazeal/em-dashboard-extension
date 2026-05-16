@@ -291,3 +291,73 @@ print(f"Missing: {missing}")  # Must be empty list
 ```
 
 Zero missing references before shipping. This prevents the `Cannot read properties of null` crashes that caused multiple hotfix releases.
+
+---
+
+## 13. Contributor workflow (applies to ALL contributors — human and AI)
+
+**This section is mandatory. Violating it causes duplicated work and merge conflicts.**
+
+### Before starting ANY work
+
+1. Open `TASKS.md` in the repo root
+2. Find an unclaimed task in the **Backlog** column
+3. Move it to **In Progress** and add your name/session: `[Claude – 2026-05-16]`
+4. Commit the TASKS.md update FIRST, before any code:
+   ```
+   git checkout -b feature/your-name-task-slug
+   git commit -m "chore: claim task — [task title]"
+   git push
+   ```
+5. Only then start writing code
+
+**If there is nothing in Backlog:** stop and ask the project owner what to work on.
+
+### Branching rule
+
+```
+main  (protected — PRs only, never push directly)
+├── feature/ahmed-board-manager
+├── feature/claude-extra-boards
+└── fix/claude-sentry-dedup
+```
+
+Branch format: `type/your-name-short-description`
+- `feature/` — new functionality
+- `fix/` — bug fix
+- `docs/` — documentation only
+- `chore/` — version bumps, cleanup
+
+### Versioning on every push (PATCH / MINOR / MAJOR)
+
+| What changed | Bump |
+|---|---|
+| Bug fix, UI tweak, copy | `PATCH` x.x.+1 |
+| New feature or screen | `MINOR` x.+1.0 |
+| Data model, breaking change | `MAJOR` +1.0.0 |
+
+Every push must:
+- [ ] Bump `manifest.json` version
+- [ ] Add entry at top of `CHANGELOG.md`
+- [ ] Add entry at top of `changelog.html`
+- [ ] Pass `bash pre-flight.sh`
+- [ ] Update `TASKS.md` (mark task done, update HANDOFF.md)
+
+### After finishing
+
+1. Mark task **Done** in `TASKS.md` with version and commit hash
+2. Update `HANDOFF.md` with what changed and what's next
+3. Open a Pull Request — do not merge your own PR
+4. Project owner reviews and merges
+
+---
+
+## 14. TASKS.md is the single source of truth
+
+`TASKS.md` in the repo root is the authoritative list of all planned, in-progress, and completed work.
+
+- **Check it before starting.** If your task isn't there, add it and get approval before starting.
+- **Claim it before coding.** Unclaimed = available. In-progress = taken. Done = shipped.
+- **No two contributors work on the same task simultaneously.**
+- GitHub Issues are optional supplements — `TASKS.md` is always the primary list.
+
