@@ -15,8 +15,9 @@ let state = {
   sprintHistory: [],
   currentSprint: null,
   sentryIssues: [],
-  sentryViews: [],   // per-view: [{label, viewId, issues, count}]
+  sentryViews: [],
   supportTickets: [],
+  extraBoardsData: [],
   isLoading: false
 };
 
@@ -141,15 +142,16 @@ async function loadData() {
     // Load from local cache first for instant render
     const cacheResult = await chrome.storage.local.get([
       'sprintHistory', 'currentSprint', 'sentryIssues',
-      'sentryViews', 'supportTickets', 'alerts'
+      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData'
     ]);
     
-    state.sprintHistory = cacheResult.sprintHistory || [];
-    state.currentSprint = cacheResult.currentSprint || null;
-    state.sentryIssues = cacheResult.sentryIssues || [];
-    state.sentryViews = cacheResult.sentryViews || [];
-    state.supportTickets = cacheResult.supportTickets || [];
-    state.alerts = cacheResult.alerts || [];
+    state.sprintHistory    = cacheResult.sprintHistory    || [];
+    state.currentSprint    = cacheResult.currentSprint    || null;
+    state.sentryIssues     = cacheResult.sentryIssues     || [];
+    state.sentryViews      = cacheResult.sentryViews      || [];
+    state.supportTickets   = cacheResult.supportTickets   || [];
+    state.alerts           = cacheResult.alerts           || [];
+    state.extraBoardsData  = cacheResult.extraBoardsData  || [];
     
     console.log('[popup] Data loaded from cache');
   } catch (error) {
@@ -315,8 +317,73 @@ function updateContextBar(screenId) {
 }
 
 /**
- * Render a screen's content
+ * Render extra boards as collapsible sections below the main sprint
  */
+function renderExtraBoards() {
+  const container = document.getElementById('extra-boards-container');
+  if (!container) return;
+
+  const boards = state.extraBoardsData || [];
+  if (boards.length === 0) { container.innerHTML = ''; return; }
+
+  const STATUS_COLORS = {
+    'done': '#22c55e', 'in progress': '#3b82f6', 'in review': '#8b5cf6',
+    'blocked': '#ef4444', 'todo': 'var(--text-muted)', 'to do': 'var(--text-muted)',
+    'qa rejected': '#f59e0b', 'open': 'var(--text-muted)'
+  };
+  const statusColor = s => STATUS_COLORS[(s || '').toLowerCase()] || 'var(--text-muted)';
+  const statusIcon  = cat => ({ done: '✓', inprogress: '●', new: '○' })[cat] || '○';
+
+  container.innerHTML = boards.map((board, idx) => {
+    const sectionId = `extra-board-${idx}`;
+    const progress  = board.totalPoints > 0
+      ? `${board.completedPoints}/${board.totalPoints}pt`
+      : `${board.completedStories}/${board.totalStories} tickets`;
+
+    const storyRows = (board.stories || []).map(s => {
+      const duePart = s.dueDate ? formatDueDate(s.dueDate) : '';
+      return `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
+          <span style="font-size:12px;color:${statusColor(s.status)};flex-shrink:0;padding-top:1px;">${statusIcon(s.statusCategory)}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.summary)}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+              ${escapeHtml(s.key)}${s.assignee ? ` · ${escapeHtml(s.assignee)}` : ''}${s.points > 0 ? ` · ${s.points}pt` : ''}${duePart ? ` · ${duePart}` : ''}
+            </div>
+          </div>
+          <span style="font-size:10px;color:${statusColor(s.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(s.status)}</span>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="section">
+        <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
+          <div>
+            <div class="section-label" style="margin-bottom:2px;">${escapeHtml(board.boardLabel)}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(board.sprintName || 'No active sprint')} · ${progress}</div>
+          </div>
+          <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;">▶</span>
+        </div>
+        <div id="${sectionId}-body" style="display:none; margin-top:6px;">
+          ${storyRows || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No stories found</div>'}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Wire up toggles
+  boards.forEach((_, idx) => {
+    const sectionId = `extra-board-${idx}`;
+    const header  = document.getElementById(`${sectionId}-header`);
+    const body    = document.getElementById(`${sectionId}-body`);
+    const chevron = document.getElementById(`${sectionId}-chevron`);
+    if (!header) return;
+    header.addEventListener('click', () => {
+      const collapsed = body.style.display === 'none';
+      body.style.display = collapsed ? '' : 'none';
+      chevron.textContent = collapsed ? '▼' : '▶';
+    });
+  });
+}
 function renderScreen(screenId) {
   switch (screenId) {
     case 'auth':
@@ -441,6 +508,9 @@ function renderTodayScreen() {
     if (collapsedSummary) collapsedSummary.textContent = 'No active sprint';
     if (glanceSubtitle) glanceSubtitle.textContent = '';
   }
+
+  // Extra boards — collapsible sections
+  renderExtraBoards();
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');

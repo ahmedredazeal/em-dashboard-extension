@@ -64,6 +64,7 @@ async function checkDashboard() {
       supportTickets: [],
       sentryIssues: [],
       sentryViews: [],
+      extraBoardsData: [],
       slaHours: 48
     };
     
@@ -72,6 +73,7 @@ async function checkDashboard() {
       state.sprintHistory = jiraData.value.sprintHistory || [];
       state.currentSprint = jiraData.value.currentSprint || null;
       state.supportTickets = jiraData.value.supportTickets || [];
+      state.extraBoardsData = jiraData.value.extraBoardsData || [];
     } else {
       console.error('[background] Jira fetch failed:', jiraData.reason);
     }
@@ -101,7 +103,8 @@ async function checkDashboard() {
       currentSprint: state.currentSprint,
       supportTickets: state.supportTickets,
       sentryIssues: state.sentryIssues,
-      sentryViews: state.sentryViews || []
+      sentryViews: state.sentryViews || [],
+      extraBoardsData: state.extraBoardsData || []
     });
     console.log('[background] Saved data to storage:', {
       sprintHistory: state.sprintHistory.length,
@@ -245,27 +248,92 @@ async function fetchJiraData(settings) {
     console.warn('[background] Failed to fetch support tickets:', err.message);
   }
   
-  // Extra boards (for future use - we'll display them as additional sections)
-  const extraBoardsData = [];
+  // Extra boards — fetch active sprint + stories for each
   if (settings.squad?.extraBoards && settings.squad.extraBoards.length > 0) {
     console.log(`[background] Fetching ${settings.squad.extraBoards.length} extra boards`);
-    for (const extraBoardId of settings.squad.extraBoards) {
+    
+    for (const boardSpec of settings.squad.extraBoards) {
+      // Parse "Name|BoardID" or just "BoardID"
+      let boardLabel, boardId;
+      if (typeof boardSpec === 'object') {
+        boardLabel = boardSpec.name;
+        boardId = boardSpec.id;
+      } else if (String(boardSpec).includes('|')) {
+        const [name, id] = String(boardSpec).split('|').map(s => s.trim());
+        boardLabel = name;
+        boardId = parseInt(id, 10);
+      } else {
+        boardId = parseInt(String(boardSpec), 10);
+        boardLabel = `Board ${boardId}`;
+      }
+      
       try {
-        const sprint = await client.getActiveSprint(extraBoardId);
-        extraBoardsData.push({ boardId: extraBoardId, activeSprint: sprint });
+        console.log(`[background] Extra board "${boardLabel}" (id=${boardId})`);
+        const activeSprint = await client.getActiveSprint(boardId);
+        
+        // Get stories for this board's project key if we can identify it
+        let stories = [];
+        try {
+          // Use squad key as fallback (same project, different board)
+          const sprintStories = await client.getSprintStories(
+            activeSprint.id, squadKey, storyPointsField
+          );
+          const getPoints = (s) => {
+            const v = s.fields?.[storyPointsField];
+            return typeof v === 'number' ? v : 0;
+          };
+          const done = sprintStories.filter(s => {
+            const cat = s.fields.status?.statusCategory?.key || '';
+            return cat === 'done';
+          });
+          
+          stories = sprintStories.map(s => ({
+            key: s.key,
+            summary: s.fields.summary || '',
+            status: s.fields.status?.name || '',
+            statusCategory: s.fields.status?.statusCategory?.key || '',
+            assignee: s.fields.assignee?.displayName || null,
+            points: getPoints(s),
+            dueDate: s.fields.duedate || null
+          }));
+          
+          const totalPoints = sprintStories.reduce((sum, s) => sum + getPoints(s), 0);
+          const completedPoints = done.reduce((sum, s) => sum + getPoints(s), 0);
+          
+          state.extraBoardsData.push({
+            boardId,
+            boardLabel,
+            sprintName: activeSprint.name,
+            startDate: activeSprint.startDate,
+            endDate: activeSprint.endDate,
+            totalStories: sprintStories.length,
+            completedStories: done.length,
+            totalPoints,
+            completedPoints,
+            stories
+          });
+        } catch (storyErr) {
+          // Stories fetch failed — still show sprint name
+          state.extraBoardsData.push({
+            boardId,
+            boardLabel,
+            sprintName: activeSprint.name,
+            startDate: activeSprint.startDate,
+            endDate: activeSprint.endDate,
+            totalStories: 0,
+            completedStories: 0,
+            totalPoints: 0,
+            completedPoints: 0,
+            stories: []
+          });
+        }
       } catch (err) {
-        console.warn(`[background] Extra board ${extraBoardId}: ${err.message}`);
+        console.warn(`[background] Extra board ${boardId}: ${err.message}`);
       }
     }
   }
   
-  return {
-    sprintHistory,
-    currentSprint,
-    supportTickets,
-    extraBoardsData
-  };
-}
+  return { sprintHistory, currentSprint, supportTickets, extraBoardsData: state.extraBoardsData };
 
 /**
  * Fetch Sentry data from saved views

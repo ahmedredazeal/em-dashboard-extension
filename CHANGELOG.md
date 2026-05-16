@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.1.9 (2026-05-16) — Extra Boards Fully Working
+
+**Fixed:**
+- Extra boards were fetched but never saved to storage (pipeline broken)
+- `popup.js` never read or rendered extra boards
+- `fetchJiraData` return value didn't include `extraBoardsData`
+- State object was missing `extraBoardsData` field
+
+**Added:**
+- Extra boards render as collapsible sections below main sprint (same style, collapsed by default)
+- Each section shows: board label, sprint name, `X/Ypt` progress
+- Story list with assignee, points, due date per ticket
+- Settings now accept `Name|BoardID` format (one per line) with clear hint text
+
+---
+
 ## v1.1.8 (2026-05-12) — Due Dates, Icon Fix, Decimal Fix
 
 **Fixed:**

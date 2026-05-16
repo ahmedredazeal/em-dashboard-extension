@@ -39,7 +39,9 @@
     document.getElementById('squad-name').value = settings.squad.name || '';
     // Extra boards (comma-separated)
     if (Array.isArray(settings.squad.extraBoards)) {
-      document.getElementById('squad-extra-boards').value = settings.squad.extraBoards.join(', ');
+      document.getElementById('squad-extra-boards').value = settings.squad.extraBoards
+        .map(b => typeof b === 'object' ? `${b.name}|${b.id}` : String(b))
+        .join('\n');
     }
   }
   
@@ -182,9 +184,17 @@
           key: document.getElementById('squad-key').value.trim().toUpperCase(),
           name: document.getElementById('squad-name').value.trim(),
           extraBoards: document.getElementById('squad-extra-boards').value
-            .split(',')
-            .map(s => parseInt(s.trim(), 10))
-            .filter(n => Number.isFinite(n))
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line)
+            .map(line => {
+              if (line.includes('|')) {
+                const [name, id] = line.split('|').map(s => s.trim());
+                return { name, id: parseInt(id, 10) };
+              }
+              return { name: `Board ${line}`, id: parseInt(line, 10) };
+            })
+            .filter(b => Number.isFinite(b.id))
         },
         ui: {
           theme: document.querySelector('input[name="theme"]:checked')?.value || 'browser',

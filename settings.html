@@ -119,9 +119,12 @@
       </div>
 
       <div class="field">
-        <label for="squad-extra-boards">Extra boards <small style="color:var(--text-muted);font-weight:normal;">(optional, comma-separated)</small></label>
-        <input type="text" id="squad-extra-boards" placeholder="e.g. 123, 456" autocomplete="off"/>
-        <span class="field-hint">Extra board IDs to monitor (e.g. support board). The main project's active sprint is detected automatically.</span>
+        <label for="squad-extra-boards">Extra boards <small style="color:var(--text-muted);font-weight:normal;">(optional, one per line)</small></label>
+        <textarea id="squad-extra-boards" rows="3" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;" placeholder="Support Board|456&#10;POS Board|789"></textarea>
+        <span class="field-hint">
+          Format: <code>Name|BoardID</code> — one per line. Name is shown as the section label.<br/>
+          Find board ID in Jira board URL: <code>/jira/software/projects/HRM/boards/<strong>42</strong></code>
+        </span>
       </div>
     </div>
 
