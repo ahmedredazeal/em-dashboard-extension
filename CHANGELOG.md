@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.2.3 (2026-05-16) — Unit Tests + Verbose Extra-Boards Logging
+
+**Added:**
+- `src/parsers.js` — pure parsing functions (no DOM, no chrome.*) for extra board specs, Sentry view specs, story points extraction, story normalization, done-status detection
+- `tests/parsers.test.js` — 32 unit tests covering all parsing edge cases (object/string/null/blank/invalid inputs, round-trip persistence)
+- `package.json` — minimal ES-module config; `npm test` runs the suite
+- Pre-flight step 1c: runs the test suite, fails the build if any test fails
+- Verbose logging throughout the extra-boards fetch pipeline so service worker console reveals exactly where things break
+
+**Changed:**
+- `background.js` now uses the tested `parseExtraBoardSpec`, `normalizeStory`, `isStoryDone` instead of duplicated inline logic — one tested path for all data shapes
+
+**Why:** Previous 4 fixes shipped without verification because there was no way to test parsing in isolation. Now the core logic is locked behind 32 assertions that run before every release.
+
+---
+
 ## v1.2.2 (2026-05-20) — Fix Extra Boards Not Rendering (Scope Bugs)
 
 **Fixed:**

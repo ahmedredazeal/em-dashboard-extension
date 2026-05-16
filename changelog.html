@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.3</div>
+      <div class="cl-desc">
+        <strong>Unit tests + verbose logging:</strong> Extracted parsing logic into pure functions in <code>src/parsers.js</code> with 32 unit tests covering all input shapes (object, string, null, invalid). Added <code>tests/parsers.test.js</code> and wired it into pre-flight — no release ships if a test fails. Verbose logging added to the extra-boards fetch pipeline so the service worker console reveals exactly where data flow breaks.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.2</div>
       <div class="cl-desc">
         <strong>Fix: extra boards not rendering (two scope bugs):</strong> (1) <code>storyPointsField</code> was declared <code>const</code> inside a <code>try{}</code> block — block-scoped, so the extra boards loop couldn't see it. Fixed by declaring with <code>let</code> before the try block. (2) Loop variable <code>boardId</code> silently overwrote the outer <code>boardId</code> (main sprint board). Renamed to <code>extraBoardId</code>. Both bugs caused extra boards to fail silently with no render.

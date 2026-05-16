@@ -8,6 +8,7 @@
 import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
+import { parseExtraBoardSpec, parseSentryViewSpec, normalizeStory, isStoryDone } from './src/parsers.js';
 
 /**
  * Initialize on extension install/update
@@ -109,7 +110,9 @@ async function checkDashboard() {
       sprintHistory: state.sprintHistory.length,
       currentSprint: state.currentSprint ? state.currentSprint.name : null,
       supportTickets: state.supportTickets.length,
-      sentryIssues: state.sentryIssues.length
+      sentryIssues: state.sentryIssues.length,
+      extraBoardsData: state.extraBoardsData?.length || 0,
+      extraBoardLabels: (state.extraBoardsData || []).map(b => `${b.boardLabel}(${b.boardId}):${b.stories?.length || 0}st`)
     });
     
     // Update badge
@@ -250,79 +253,61 @@ async function fetchJiraData(settings) {
   
   // Extra boards — fetch active sprint + stories for each
   const extraBoardsData = [];
-  if (settings.squad?.extraBoards && settings.squad.extraBoards.length > 0) {
-    console.log(`[background] Fetching ${settings.squad.extraBoards.length} extra boards`);
+  const rawExtraBoards = settings.squad?.extraBoards || [];
+  console.log(`[background] Extra boards config: ${JSON.stringify(rawExtraBoards)}`);
+  
+  if (rawExtraBoards.length > 0) {
+    console.log(`[background] Processing ${rawExtraBoards.length} extra board(s)`);
     
-    for (const boardSpec of settings.squad.extraBoards) {
-      let boardLabel, extraBoardId;
-      if (typeof boardSpec === 'object') {
-        boardLabel = boardSpec.name;
-        extraBoardId = boardSpec.id;
-      } else if (String(boardSpec).includes('|')) {
-        const [name, id] = String(boardSpec).split('|').map(s => s.trim());
-        boardLabel = name;
-        extraBoardId = parseInt(id, 10);
-      } else {
-        extraBoardId = parseInt(String(boardSpec), 10);
-        boardLabel = `Board ${extraBoardId}`;
+    for (const boardSpec of rawExtraBoards) {
+      const parsed = parseExtraBoardSpec(boardSpec);
+      if (!parsed) {
+        console.warn(`[background] Skipping invalid extra board spec:`, boardSpec);
+        continue;
       }
+      const { label: boardLabel, id: extraBoardId } = parsed;
       
       try {
-        console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId})`);
+        console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId}) — fetching active sprint...`);
         const activeSprint = await client.getActiveSprint(extraBoardId);
+        console.log(`[background] Extra board ${extraBoardId}: active sprint = "${activeSprint.name}" (id=${activeSprint.id})`);
         
         let stories = [];
+        let totalPoints = 0, completedPoints = 0, doneCount = 0;
         try {
-          const sprintStories = await client.getSprintStories(
-            activeSprint.id, squadKey, storyPointsField
-          );
-          const getPoints = (s) => {
-            const v = s.fields?.[storyPointsField];
-            return typeof v === 'number' ? v : 0;
-          };
-          const done = sprintStories.filter(s =>
-            (s.fields.status?.statusCategory?.key || '') === 'done'
-          );
+          const sprintStories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
+          console.log(`[background] Extra board ${extraBoardId}: fetched ${sprintStories.length} stories`);
           
-          stories = sprintStories.map(s => ({
-            key: s.key,
-            summary: s.fields.summary || '',
-            status: s.fields.status?.name || '',
-            statusCategory: s.fields.status?.statusCategory?.key || '',
-            assignee: s.fields.assignee?.displayName || null,
-            points: getPoints(s),
-            dueDate: s.fields.duedate || null
-          }));
-          
-          const totalPoints = sprintStories.reduce((sum, s) => sum + getPoints(s), 0);
-          const completedPoints = done.reduce((sum, s) => sum + getPoints(s), 0);
-          
-          extraBoardsData.push({
-            boardId: extraBoardId, boardLabel,
-            sprintName: activeSprint.name,
-            startDate: activeSprint.startDate,
-            endDate: activeSprint.endDate,
-            totalStories: sprintStories.length,
-            completedStories: done.length,
-            totalPoints, completedPoints, stories
-          });
+          stories = sprintStories.map(s => normalizeStory(s, storyPointsField));
+          totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
+          const done = sprintStories.filter(isStoryDone);
+          doneCount = done.length;
+          completedPoints = done
+            .map(s => normalizeStory(s, storyPointsField).points)
+            .reduce((sum, p) => sum + p, 0);
         } catch (storyErr) {
-          console.warn(`[background] Extra board ${extraBoardId} stories failed:`, storyErr.message);
-          extraBoardsData.push({
-            boardId: extraBoardId, boardLabel,
-            sprintName: activeSprint.name,
-            startDate: activeSprint.startDate,
-            endDate: activeSprint.endDate,
-            totalStories: 0, completedStories: 0,
-            totalPoints: 0, completedPoints: 0, stories: []
-          });
+          console.warn(`[background] Extra board ${extraBoardId} stories fetch failed:`, storyErr.message);
         }
+        
+        extraBoardsData.push({
+          boardId: extraBoardId, boardLabel,
+          sprintName: activeSprint.name,
+          startDate: activeSprint.startDate,
+          endDate: activeSprint.endDate,
+          totalStories: stories.length,
+          completedStories: doneCount,
+          totalPoints, completedPoints, stories
+        });
+        console.log(`[background] Extra board ${extraBoardId}: pushed to extraBoardsData (${stories.length} stories)`);
       } catch (err) {
-        console.warn(`[background] Extra board ${extraBoardId}: ${err.message}`);
+        console.warn(`[background] Extra board ${extraBoardId} failed:`, err.message);
       }
     }
+  } else {
+    console.log('[background] No extra boards configured');
   }
   
+  console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
   return { sprintHistory, currentSprint, supportTickets, extraBoardsData };
 }
 

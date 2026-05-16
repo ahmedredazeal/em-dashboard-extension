@@ -13,7 +13,7 @@ ERRORS=0
 
 # 1. Syntax check all JS files
 echo "1. Checking JS syntax..."
-for file in popup.js settings.js background.js src/*.js; do
+for file in popup.js settings.js background.js src/*.js tests/*.js; do
   if [ -f "$file" ]; then
     if node --check "$file" 2>&1; then
       echo "   ✓ $file"
@@ -23,6 +23,18 @@ for file in popup.js settings.js background.js src/*.js; do
     fi
   fi
 done
+
+# 1c. Run unit tests
+echo ""
+echo "1c. Running unit tests..."
+if node tests/parsers.test.js > /tmp/test-output.txt 2>&1; then
+  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
+  echo "   ✓ $SUMMARY"
+else
+  echo "   ✗ Tests failed:"
+  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
+  ERRORS=$((ERRORS + 1))
+fi
 
 # Extra: brace balance check (catches missing closing braces that node --check misses in ES modules)
 echo ""

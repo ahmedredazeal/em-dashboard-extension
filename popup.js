@@ -321,9 +321,12 @@ function updateContextBar(screenId) {
  */
 function renderExtraBoards() {
   const container = document.getElementById('extra-boards-container');
-  if (!container) return;
+  if (!container) { console.warn('[popup] extra-boards-container element not found'); return; }
 
   const boards = state.extraBoardsData || [];
+  console.log(`[popup] renderExtraBoards: ${boards.length} board(s) to render`,
+    boards.map(b => `${b.boardLabel}(${b.boardId})`));
+  
   if (boards.length === 0) { container.innerHTML = ''; return; }
 
   const STATUS_COLORS = {

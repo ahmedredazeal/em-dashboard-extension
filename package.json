@@ -1,0 +1,8 @@
+{
+  "name": "em-dashboard-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/parsers.test.js"
+  }
+}
