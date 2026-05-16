@@ -5,9 +5,22 @@
 
 ---
 
-## Current version: v1.1.4
+## Current version: v1.1.9
 
-## Last session: Ahmed + Claude — 2026-05-12
+## Last session: Ahmed + Claude — 2026-05-16
+
+### ⚠️ Workflow note
+
+All work from v1.0.0 → v1.1.9 was shipped by pushing directly to `main` without GitHub Issues, branches, or PRs. This violates CONTRIBUTING.md.
+
+**Retroactive fix:**
+- `scripts/create-issues.sh` — run this once from your machine to create all 21 retroactive issues
+- Going forward: every piece of work MUST start with a GitHub Issue and a feature branch
+
+**From v1.2.0 onwards the workflow will be:**
+```
+create issue → branch feature/claude-issue-N → work → PR → review → merge
+```
 
 ### What was completed this session
 
