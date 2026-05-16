@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.2 (2026-05-20) — Fix Extra Boards Not Rendering (Scope Bugs)
+
+**Fixed:**
+- `storyPointsField` declared `const` inside `try {}` block — block-scoped, invisible to the extra boards loop below it. Fixed by declaring `let storyPointsField = 'customfield_10016'` before the try block and assigning inside it.
+- `boardId` loop variable in extra boards loop overwrote the outer `boardId` (main sprint's board). Renamed loop variable to `extraBoardId` to avoid collision.
+- Both bugs meant extra boards silently failed to fetch, so nothing rendered.
+
+---
+
 ## v1.2.1 (2026-05-20) — Fix ReferenceError: state is not defined
 
 **Fixed:**

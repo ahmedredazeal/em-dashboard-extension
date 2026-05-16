@@ -157,6 +157,7 @@ async function fetchJiraData(settings) {
   // Always auto-discover main board from project key
   let currentSprint = null;
   let boardId = null;
+  let storyPointsField = 'customfield_10016'; // default, overridden by board config
   try {
     console.log(`[background] Auto-discovering board for ${squadKey}...`);
     const activeSprint = await client.getActiveSprintByProject(squadKey);
@@ -165,7 +166,7 @@ async function fetchJiraData(settings) {
     console.log('[background] Active sprint:', activeSprint.name, 'id=' + activeSprint.id);
     
     // Auto-detect story points field from board configuration
-    const storyPointsField = await client.getStoryPointsField(boardId);
+    storyPointsField = await client.getStoryPointsField(boardId);
     console.log(`[background] Story points field: ${storyPointsField}`);
     
     const stories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
@@ -253,22 +254,22 @@ async function fetchJiraData(settings) {
     console.log(`[background] Fetching ${settings.squad.extraBoards.length} extra boards`);
     
     for (const boardSpec of settings.squad.extraBoards) {
-      let boardLabel, boardId;
+      let boardLabel, extraBoardId;
       if (typeof boardSpec === 'object') {
         boardLabel = boardSpec.name;
-        boardId = boardSpec.id;
+        extraBoardId = boardSpec.id;
       } else if (String(boardSpec).includes('|')) {
         const [name, id] = String(boardSpec).split('|').map(s => s.trim());
         boardLabel = name;
-        boardId = parseInt(id, 10);
+        extraBoardId = parseInt(id, 10);
       } else {
-        boardId = parseInt(String(boardSpec), 10);
-        boardLabel = `Board ${boardId}`;
+        extraBoardId = parseInt(String(boardSpec), 10);
+        boardLabel = `Board ${extraBoardId}`;
       }
       
       try {
-        console.log(`[background] Extra board "${boardLabel}" (id=${boardId})`);
-        const activeSprint = await client.getActiveSprint(boardId);
+        console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId})`);
+        const activeSprint = await client.getActiveSprint(extraBoardId);
         
         let stories = [];
         try {
@@ -297,7 +298,7 @@ async function fetchJiraData(settings) {
           const completedPoints = done.reduce((sum, s) => sum + getPoints(s), 0);
           
           extraBoardsData.push({
-            boardId, boardLabel,
+            boardId: extraBoardId, boardLabel,
             sprintName: activeSprint.name,
             startDate: activeSprint.startDate,
             endDate: activeSprint.endDate,
@@ -306,8 +307,9 @@ async function fetchJiraData(settings) {
             totalPoints, completedPoints, stories
           });
         } catch (storyErr) {
+          console.warn(`[background] Extra board ${extraBoardId} stories failed:`, storyErr.message);
           extraBoardsData.push({
-            boardId, boardLabel,
+            boardId: extraBoardId, boardLabel,
             sprintName: activeSprint.name,
             startDate: activeSprint.startDate,
             endDate: activeSprint.endDate,
@@ -316,7 +318,7 @@ async function fetchJiraData(settings) {
           });
         }
       } catch (err) {
-        console.warn(`[background] Extra board ${boardId}: ${err.message}`);
+        console.warn(`[background] Extra board ${extraBoardId}: ${err.message}`);
       }
     }
   }

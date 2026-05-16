@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.2</div>
+      <div class="cl-desc">
+        <strong>Fix: extra boards not rendering (two scope bugs):</strong> (1) <code>storyPointsField</code> was declared <code>const</code> inside a <code>try{}</code> block — block-scoped, so the extra boards loop couldn't see it. Fixed by declaring with <code>let</code> before the try block. (2) Loop variable <code>boardId</code> silently overwrote the outer <code>boardId</code> (main sprint board). Renamed to <code>extraBoardId</code>. Both bugs caused extra boards to fail silently with no render.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.1</div>
       <div class="cl-desc">
         <strong>Fix: ReferenceError state is not defined:</strong> <code>fetchJiraData()</code> was referencing <code>state.extraBoardsData</code> but <code>state</code> only exists inside <code>checkDashboard()</code>. This caused every Jira fetch to throw a ReferenceError, meaning sprint data never rendered. Fixed by using a local <code>extraBoardsData</code> array inside <code>fetchJiraData()</code> and returning it as part of the result.
