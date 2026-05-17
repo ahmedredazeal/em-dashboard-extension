@@ -188,7 +188,8 @@ test('full Jira issue shape', () => {
     priority: 'High',
     points: 5,
     type: 'Story',
-    dueDate: '2026-06-01'
+    dueDate: '2026-06-01',
+    labels: []
   });
 });
 test('missing assignee → null', () => {

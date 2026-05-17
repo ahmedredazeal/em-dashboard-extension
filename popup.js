@@ -309,95 +309,69 @@ function renderExtraBoards() {
 
   const boards = state.extraBoardsData || [];
   const configuredBoards = state.settings?.squad?.extraBoards || [];
-  
-  console.log(`[popup] renderExtraBoards: configured=${configuredBoards.length} fetched=${boards.length}`);
-  
-  if (configuredBoards.length === 0) { container.innerHTML = ''; return; }
-  if (boards.length === 0) { container.innerHTML = ''; return; }
+  const jiraBase = state.settings?.jira?.baseUrl || '';
 
-  const STATUS_COLORS = {
-    'done': '#22c55e', 'in progress': '#3b82f6', 'in review': '#8b5cf6',
-    'blocked': '#ef4444', 'todo': 'var(--text-muted)', 'to do': 'var(--text-muted)',
-    'qa rejected': '#f59e0b', 'open': 'var(--text-muted)'
-  };
-  const statusColor = s => STATUS_COLORS[(s || '').toLowerCase()] || 'var(--text-muted)';
-  const statusIcon  = cat => ({ done: '✓', inprogress: '●', new: '○' })[cat] || '○';
+  if (configuredBoards.length === 0 || boards.length === 0) { container.innerHTML = ''; return; }
 
   container.innerHTML = boards.map((board, idx) => {
     const sectionId = `extra-board-${idx}`;
-    
-    // Error state — API call failed for this board
+
     if (board.error) {
-      // Try to give a helpful hint
       let hint = '';
-      if (board.error.includes('404') || board.error.includes('No active sprint')) {
-        hint = 'No active sprint found. Is this a Kanban board?';
-      } else if (board.error.includes('403') || board.error.includes('401')) {
-        hint = 'Permission denied. Does your Jira token have access to this board?';
-      } else if (board.error.includes('400')) {
-        hint = 'Invalid board ID. Check the board ID in your Jira URL.';
-      }
+      if (board.error.includes('does not support') || board.error.includes('404')) hint = 'No active sprint — is this a Kanban board?';
+      else if (board.error.includes('403') || board.error.includes('401')) hint = 'Permission denied — check your Jira token.';
+      else if (board.error.includes('400')) hint = 'Invalid board ID — check the board URL.';
       return `
         <div class="section">
-          <div style="padding:10px;border-radius:6px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);">
-            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;">${escapeHtml(board.boardLabel)} <span style="color:var(--text-muted);font-weight:400;">(board ${board.boardId})</span></div>
+          <div class="section-label">${escapeHtml(board.boardLabel)}</div>
+          <div style="padding:10px;border-radius:6px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);margin-top:6px;">
             <div style="font-size:12px;color:#ef4444;">⚠ ${escapeHtml(board.error)}</div>
             ${hint ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${hint}</div>` : ''}
           </div>
         </div>`;
     }
-    
-    const progress = board.totalPoints > 0
+
+    const isSupport = board.boardLabel.toLowerCase().includes('support');
+    const isKanban  = board.boardType === 'kanban';
+    const stories   = board.stories || [];
+    const progress  = board.totalPoints > 0
       ? `${board.completedPoints}/${board.totalPoints}pt`
       : `${board.totalStories} issues`;
-    const subLabel = board.boardType === 'kanban'
+    const subLabel  = isKanban
       ? `Kanban · ${progress}`
       : `${board.sprintName || 'No active sprint'} · ${progress}`;
 
-    const storyRows = (board.stories || []).map(s => {
-      const duePart = s.dueDate ? formatDueDate(s.dueDate) : '';
-      return `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
-          <span style="font-size:12px;color:${statusColor(s.status)};flex-shrink:0;padding-top:1px;">${statusIcon(s.statusCategory)}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.summary)}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-              ${escapeHtml(s.key)}${s.assignee ? ` · ${escapeHtml(s.assignee)}` : ''}${s.points > 0 ? ` · ${s.points}pt` : ''}${duePart ? ` · ${duePart}` : ''}
-            </div>
-          </div>
-          <span style="font-size:10px;color:${statusColor(s.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(s.status)}</span>
-        </div>`;
-    }).join('');
-
     return `
       <div class="section">
-        <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
-          <div>
-            <div class="section-label" style="margin-bottom:2px;">${escapeHtml(board.boardLabel)}</div>
-            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
-          </div>
-          <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;">▶</span>
+        <div class="section-label">${escapeHtml(board.boardLabel)}</div>
+        <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
+          <div style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;">${escapeHtml(subLabel)}</div>
+          <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
         </div>
-        <div id="${sectionId}-body" style="display:none; margin-top:6px;">
-          ${storyRows || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No stories found</div>'}
+        <div id="${sectionId}-body" style="display:none;margin-top:6px;">
+          <div style="padding:6px 0 4px;">${ticketSummaryHTML(stories, isSupport)}</div>
+          ${stories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No issues found</div>'}
         </div>
       </div>`;
   }).join('');
 
-  // Wire up toggles
-  boards.forEach((_, idx) => {
+  boards.forEach((board, idx) => {
+    if (board.error) return;
     const sectionId = `extra-board-${idx}`;
     const header  = document.getElementById(`${sectionId}-header`);
     const body    = document.getElementById(`${sectionId}-body`);
     const chevron = document.getElementById(`${sectionId}-chevron`);
-    if (!header) return;
-    header.addEventListener('click', () => {
-      const collapsed = body.style.display === 'none';
-      body.style.display = collapsed ? '' : 'none';
-      chevron.textContent = collapsed ? '▼' : '▶';
-    });
+    if (header) {
+      header.addEventListener('click', () => {
+        const collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        chevron.textContent = collapsed ? '▼' : '▶';
+      });
+    }
+    if (body) wireTicketClicks(body);
   });
 }
+
 function renderScreen(screenId) {
   switch (screenId) {
     case 'auth':
@@ -491,32 +465,15 @@ function renderTodayScreen() {
     if (stories.length > 0 && glanceBody) {
       const existingList = document.getElementById('sprint-story-list');
       if (existingList) existingList.remove();
-      
-      const STATUS_COLORS = {
-        'done': '#22c55e', 'in progress': '#3b82f6', 'in review': '#8b5cf6',
-        'blocked': '#ef4444', 'todo': 'var(--text-muted)', 'to do': 'var(--text-muted)',
-        'qa rejected': '#f59e0b', 'open': 'var(--text-muted)'
-      };
-      const statusColor = (s) => STATUS_COLORS[(s || '').toLowerCase()] || 'var(--text-muted)';
-      const statusIcon = (cat) => ({ done: '✓', inprogress: '●', new: '○' })[cat] || '○';
-      
+      const jiraBase = state.settings?.jira?.baseUrl || '';
+      const isSupport = (sp.boardLabel||sp.boardName||state.settings?.squad?.key||'').toLowerCase().includes('support');
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';
-      listEl.innerHTML = stories.map(s => {
-        const duePart = s.dueDate ? formatDueDate(s.dueDate) : '';
-        return `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
-          <span style="font-size:12px;color:${statusColor(s.status)};flex-shrink:0;padding-top:1px;" title="${escapeHtml(s.status)}">${statusIcon(s.statusCategory)}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.summary)}</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-              ${escapeHtml(s.key)}${s.assignee ? ` · ${escapeHtml(s.assignee)}` : ''}${s.points > 0 ? ` · ${s.points}pt` : ''}${duePart ? ` · ${duePart}` : ''}
-            </div>
-          </div>
-          <span style="font-size:10px;color:${statusColor(s.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(s.status)}</span>
-        </div>`;
-      }).join('');
+      listEl.innerHTML = `
+        <div style="padding:6px 0 4px;">${ticketSummaryHTML(stories, isSupport)}</div>
+        ${stories.map(s => renderTicketRow(s, jiraBase)).join('')}`;
       glanceBody.appendChild(listEl);
+      wireTicketClicks(listEl);
     }
   } else {
     if (collapsedSummary) collapsedSummary.textContent = 'No active sprint';
@@ -744,6 +701,65 @@ function formatDueDate(dateStr) {
   if (days < 0)  return `<span style="color:#ef4444;">⚠ due ${label}</span>`;
   if (days <= 2) return `<span style="color:#f59e0b;">📅 ${label}</span>`;
   return `📅 ${label}`;
+}
+
+// ── Shared ticket rendering helpers ─────────────────────────────────────────
+
+const PRIORITY_DOT = {
+  highest: '<span title="Highest" style="color:#ef4444;font-size:9px;flex-shrink:0;">●</span>',
+  critical:'<span title="Critical" style="color:#ef4444;font-size:9px;flex-shrink:0;">●</span>',
+  high:    '<span title="High"    style="color:#f97316;font-size:9px;flex-shrink:0;">●</span>',
+  medium:  '<span title="Medium"  style="color:#f59e0b;font-size:9px;flex-shrink:0;">●</span>',
+  low:     '<span title="Low"     style="color:#60a5fa;font-size:9px;flex-shrink:0;">●</span>',
+  lowest:  '<span title="Lowest"  style="color:#94a3b8;font-size:9px;flex-shrink:0;">●</span>'
+};
+const TICKET_STATUS_COLORS = {
+  'done':'#22c55e','in progress':'#3b82f6','in review':'#8b5cf6',
+  'blocked':'#ef4444','todo':'var(--text-muted)','to do':'var(--text-muted)',
+  'qa rejected':'#f59e0b','open':'var(--text-muted)'
+};
+function ticketStatusColor(s){ return TICKET_STATUS_COLORS[(s||'').toLowerCase()]||'var(--text-muted)'; }
+function ticketStatusIcon(cat){ return ({done:'✓',inprogress:'●',new:'○'})[cat]||'○'; }
+function priorityDot(p){ return PRIORITY_DOT[(p||'medium').toLowerCase()]||PRIORITY_DOT.medium; }
+
+/** Render one Jira ticket row — clickable, with priority dot */
+function renderTicketRow(story, jiraBaseUrl) {
+  const url = jiraBaseUrl ? `${jiraBaseUrl.replace(/\/$/,'')}/browse/${story.key}` : null;
+  const duePart = story.dueDate ? formatDueDate(story.dueDate) : '';
+  return `
+    <div class="ticket-row" ${url ? `data-url="${escapeHtml(url)}"` : ''} style="display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));${url?'cursor:pointer;':''}">
+      ${priorityDot(story.priority)}
+      <span style="font-size:12px;color:${ticketStatusColor(story.status)};flex-shrink:0;padding-top:1px;" title="${escapeHtml(story.status)}">${ticketStatusIcon(story.statusCategory)}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(story.summary)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+          ${escapeHtml(story.key)}${story.assignee?` · ${escapeHtml(story.assignee)}`:''}${story.points>0?` · ${story.points}pt`:''}${duePart?` · ${duePart}`:''}
+        </div>
+      </div>
+      <span style="font-size:10px;color:${ticketStatusColor(story.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(story.status)}</span>
+    </div>`;
+}
+
+/** "X closed · X in progress · X open" + support SLA badges */
+function ticketSummaryHTML(stories, isSupport) {
+  const closed     = stories.filter(s => s.statusCategory === 'done').length;
+  const inProgress = stories.filter(s => s.statusCategory === 'inprogress').length;
+  const open       = stories.length - closed - inProgress;
+  let html = `<span style="color:var(--text-muted);font-size:11px;">${closed} closed · ${inProgress} in progress · ${open} open</span>`;
+  if (isSupport) {
+    const breached = stories.filter(s => s.labels?.includes('BreachedSLA')).length;
+    const blocked  = stories.filter(s => s.labels?.includes('blocked-external')).length;
+    if (breached > 0) html += ` <span style="color:#ef4444;font-size:11px;font-weight:600;">· ${breached} BreachedSLA 🔴</span>`;
+    if (blocked  > 0) html += ` <span style="color:#f59e0b;font-size:11px;font-weight:600;">· ${blocked} blocked-external ⚠</span>`;
+  }
+  return html;
+}
+
+/** Wire click events on ticket rows inside a container element */
+function wireTicketClicks(container) {
+  container.querySelectorAll('.ticket-row[data-url]').forEach(row => {
+    row.addEventListener('click', () => window.open(row.dataset.url, '_blank'));
+  });
 }
 
 /**

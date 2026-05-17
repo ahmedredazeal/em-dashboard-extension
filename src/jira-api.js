@@ -173,7 +173,7 @@ export class JiraClient {
   async getKanbanBoardIssues(boardId) {
     console.log(`[jira] Fetching Kanban board issues for board ${boardId}`);
     const result = await this._get(
-      `/rest/agile/1.0/board/${boardId}/issue?maxResults=100&fields=summary,status,assignee,issuetype,priority,customfield_10016,customfield_10026,duedate`
+      `/rest/agile/1.0/board/${boardId}/issue?maxResults=100&fields=summary,status,assignee,issuetype,priority,customfield_10016,customfield_10026,duedate,labels`
     );
     console.log(`[jira] Kanban board ${boardId}: ${result.issues?.length || 0} issues`);
     return result.issues || [];
@@ -211,7 +211,7 @@ export class JiraClient {
         'customfield_10016',
         'customfield_10026',
         'subtasks', 'created', 'updated',
-        'duedate'
+        'duedate', 'labels'
       ],
       maxResults: 100
     });

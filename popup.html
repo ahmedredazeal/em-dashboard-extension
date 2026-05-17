@@ -84,14 +84,12 @@
           <div id="alert-inbox"></div>
         </div>
 
-        <!-- Sprint at a glance: collapsible, collapsed by default -->
-        <div class="section">
-          <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
-            <div>
-              <div class="section-label" style="margin-bottom:2px;">Sprint at a glance</div>
-              <div style="font-size:12px;color:var(--text-muted);" id="sprint-glance-collapsed-summary">Loading…</div>
-            </div>
-            <span id="sprint-chevron" style="color:var(--text-muted);font-size:12px;">▶</span>
+        <!-- CURRENT SPRINT section -->
+        <div class="section" id="current-sprint-section">
+          <div class="section-label">Current Sprint</div>
+          <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
+            <div style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;" id="sprint-glance-collapsed-summary">Loading…</div>
+            <span id="sprint-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
           </div>
           <div id="sprint-glance-body" style="display:none; margin-top:6px;">
             <div id="sprint-glance">
@@ -100,7 +98,7 @@
           </div>
         </div>
 
-        <!-- Extra boards: one collapsible section per configured board -->
+        <!-- Extra boards: one section per configured board -->
         <div id="extra-boards-container"></div>
 
         <div class="section">

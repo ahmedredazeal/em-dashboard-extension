@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.2.6 (2026-05-18) — Unified sections + priority + clickable tickets + support analytics
+
+**Added:**
+- Priority colour dot per ticket: 🔴 highest/critical · 🟠 high · 🟡 medium · 🔵 low · ⚪ lowest
+- Clickable Jira ticket rows (opens `/browse/KEY` in browser, same as Sentry)
+- Ticket summary: `X closed · X in progress · X open` at top of each board
+- Support board special analytics: boards named "support" show `BreachedSLA 🔴` and `blocked-external ⚠` counts
+- `labels` field included in Jira story fetch + normalizeStory
+
+**Changed:**
+- Section structure unified: "Current Sprint" and each board use `section-label` + collapsible row, matching Sentry style
+- Shared helpers: `renderTicketRow`, `ticketSummaryHTML`, `wireTicketClicks`, `priorityDot`
+
+---
+
 ## v1.2.5 (2026-05-17) — Incremental rendering: Jira and Sentry independent
 
 **Fixed:**
