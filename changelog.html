@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.5</div>
+      <div class="cl-desc">
+        <strong>Incremental rendering:</strong> Sprint and Sentry sections now update independently. Jira data (sprint, extra boards) renders as soon as it arrives. Sentry renders separately when its slower fetch completes. No more waiting for both sources before anything shows.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.4</div>
       <div class="cl-desc">
         <strong>Actual fix for extra boards:</strong> Root cause was the 2-minute cache grace window — saving settings triggered a popup reload but the fresh-fetch was skipped because the cache was less than 2 minutes old, so old data (with no extra boards) was rendered. Fix: <code>settings-updated</code> handler now zeros the cache timestamp before reloading, forcing a fresh fetch every time. Added 12 integration tests covering the full settings→cache→fetch→render flow.
