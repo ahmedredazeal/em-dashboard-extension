@@ -268,48 +268,83 @@ async function fetchJiraData(settings) {
       const { label: boardLabel, id: extraBoardId } = parsed;
       
       try {
-        console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId}) — fetching active sprint...`);
-        const activeSprint = await client.getActiveSprint(extraBoardId);
-        console.log(`[background] Extra board ${extraBoardId}: active sprint = "${activeSprint.name}" (id=${activeSprint.id})`);
+        console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId}) — fetching...`);
         
-        let stories = [];
-        let totalPoints = 0, completedPoints = 0, doneCount = 0;
+        let boardEntry;
+        
         try {
-          const sprintStories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
-          console.log(`[background] Extra board ${extraBoardId}: fetched ${sprintStories.length} stories`);
+          // Try as a Scrum board first (has active sprint)
+          const activeSprint = await client.getActiveSprint(extraBoardId);
+          console.log(`[background] Extra board ${extraBoardId}: scrum sprint = "${activeSprint.name}"`);
           
-          stories = sprintStories.map(s => normalizeStory(s, storyPointsField));
-          totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
-          const done = sprintStories.filter(isStoryDone);
-          doneCount = done.length;
-          completedPoints = done
-            .map(s => normalizeStory(s, storyPointsField).points)
-            .reduce((sum, p) => sum + p, 0);
-        } catch (storyErr) {
-          console.warn(`[background] Extra board ${extraBoardId} stories fetch failed:`, storyErr.message);
+          let stories = [], totalPoints = 0, completedPoints = 0, doneCount = 0;
+          try {
+            const sprintStories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
+            stories = sprintStories.map(s => normalizeStory(s, storyPointsField));
+            const done = sprintStories.filter(isStoryDone);
+            doneCount = done.length;
+            totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
+            completedPoints = done.map(s => normalizeStory(s, storyPointsField).points).reduce((sum, p) => sum + p, 0);
+          } catch (storyErr) {
+            console.warn(`[background] Extra board ${extraBoardId} stories failed:`, storyErr.message);
+          }
+          
+          boardEntry = {
+            boardId: extraBoardId, boardLabel, boardType: 'scrum',
+            sprintName: activeSprint.name,
+            startDate: activeSprint.startDate, endDate: activeSprint.endDate,
+            totalStories: stories.length, completedStories: doneCount,
+            totalPoints, completedPoints, stories, error: null
+          };
+          
+        } catch (sprintErr) {
+          // "The board does not support sprints" → treat as Kanban board
+          const isKanban = sprintErr.message?.includes('does not support sprints') ||
+                           sprintErr.message?.includes('400');
+          
+          if (isKanban) {
+            console.log(`[background] Extra board ${extraBoardId}: Kanban board, fetching issues directly`);
+            try {
+              const kanbanIssues = await client.getKanbanBoardIssues(extraBoardId);
+              const stories = kanbanIssues.map(s => normalizeStory(s, storyPointsField));
+              const done = kanbanIssues.filter(isStoryDone);
+              const totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
+              const completedPoints = done.map(s => normalizeStory(s, storyPointsField).points).reduce((sum, p) => sum + p, 0);
+              
+              boardEntry = {
+                boardId: extraBoardId, boardLabel, boardType: 'kanban',
+                sprintName: null, startDate: null, endDate: null,
+                totalStories: stories.length, completedStories: done.length,
+                totalPoints, completedPoints, stories, error: null
+              };
+              console.log(`[background] Kanban board ${extraBoardId}: ${stories.length} issues`);
+            } catch (kanbanErr) {
+              boardEntry = {
+                boardId: extraBoardId, boardLabel, boardType: 'kanban',
+                sprintName: null, stories: [],
+                totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
+                error: kanbanErr.message
+              };
+            }
+          } else {
+            // Some other error (401, 404, network)
+            boardEntry = {
+              boardId: extraBoardId, boardLabel, boardType: 'unknown',
+              sprintName: null, stories: [],
+              totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
+              error: sprintErr.message
+            };
+          }
         }
         
-        extraBoardsData.push({
-          boardId: extraBoardId, boardLabel,
-          sprintName: activeSprint.name,
-          startDate: activeSprint.startDate,
-          endDate: activeSprint.endDate,
-          totalStories: stories.length,
-          completedStories: doneCount,
-          totalPoints, completedPoints, stories,
-          error: null
-        });
-        console.log(`[background] Extra board ${extraBoardId}: pushed to extraBoardsData (${stories.length} stories)`);
+        extraBoardsData.push(boardEntry);
+        console.log(`[background] Extra board ${extraBoardId} pushed (type=${boardEntry.boardType}, stories=${boardEntry.stories?.length})`);
+        
       } catch (err) {
-        // Push with error so popup can display what went wrong
-        const msg = err.message || String(err);
-        console.warn(`[background] Extra board ${extraBoardId} failed:`, msg);
         extraBoardsData.push({
-          boardId: extraBoardId, boardLabel,
-          sprintName: null, stories: [],
-          totalStories: 0, completedStories: 0,
-          totalPoints: 0, completedPoints: 0,
-          error: msg
+          boardId: extraBoardId, boardLabel, boardType: 'unknown', sprintName: null, stories: [],
+          totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
+          error: err.message
         });
       }
     }

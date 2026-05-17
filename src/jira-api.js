@@ -166,6 +166,20 @@ export class JiraClient {
   }
 
   /**
+   * Get issues currently on a Kanban board (boards that don't support sprints)
+   * @param {string|number} boardId
+   * @returns {Promise<Array>}
+   */
+  async getKanbanBoardIssues(boardId) {
+    console.log(`[jira] Fetching Kanban board issues for board ${boardId}`);
+    const result = await this._get(
+      `/rest/agile/1.0/board/${boardId}/issue?maxResults=100&fields=summary,status,assignee,issuetype,priority,customfield_10016,customfield_10026,duedate`
+    );
+    console.log(`[jira] Kanban board ${boardId}: ${result.issues?.length || 0} issues`);
+    return result.issues || [];
+  }
+
+  /**
    * Get active sprint by project key (auto-discovers board)
    * @param {string} projectKey
    * @returns {Promise<Object>} sprint with boardId/boardName attached

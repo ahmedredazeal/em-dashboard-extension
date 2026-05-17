@@ -370,7 +370,10 @@ function renderExtraBoards() {
     
     const progress = board.totalPoints > 0
       ? `${board.completedPoints}/${board.totalPoints}pt`
-      : `${board.completedStories}/${board.totalStories} tickets`;
+      : `${board.totalStories} issues`;
+    const subLabel = board.boardType === 'kanban'
+      ? `Kanban · ${progress}`
+      : `${board.sprintName || 'No active sprint'} · ${progress}`;
 
     const storyRows = (board.stories || []).map(s => {
       const duePart = s.dueDate ? formatDueDate(s.dueDate) : '';
@@ -392,7 +395,7 @@ function renderExtraBoards() {
         <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
           <div>
             <div class="section-label" style="margin-bottom:2px;">${escapeHtml(board.boardLabel)}</div>
-            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(board.sprintName || 'No active sprint')} · ${progress}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
           </div>
           <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;">▶</span>
         </div>
