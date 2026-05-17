@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.4</div>
+      <div class="cl-desc">
+        <strong>Actual fix for extra boards:</strong> Root cause was the 2-minute cache grace window — saving settings triggered a popup reload but the fresh-fetch was skipped because the cache was less than 2 minutes old, so old data (with no extra boards) was rendered. Fix: <code>settings-updated</code> handler now zeros the cache timestamp before reloading, forcing a fresh fetch every time. Added 12 integration tests covering the full settings→cache→fetch→render flow.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.3</div>
       <div class="cl-desc">
         <strong>Unit tests + verbose logging:</strong> Extracted parsing logic into pure functions in <code>src/parsers.js</code> with 32 unit tests covering all input shapes (object, string, null, invalid). Added <code>tests/parsers.test.js</code> and wired it into pre-flight — no release ships if a test fails. Verbose logging added to the extra-boards fetch pipeline so the service worker console reveals exactly where data flow breaks.

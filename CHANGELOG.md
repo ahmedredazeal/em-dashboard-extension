@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.2.4 (2026-05-16) — ACTUAL FIX: Extra Boards Cache Bug
+
+**Root cause found:**
+When settings were saved, `settings-updated` fired, popup reloaded — but the 2-minute cache grace window meant the popup **skipped the fresh fetch** and rendered old cached data (which had no extra boards yet).
+
+**Fix:**
+In the `settings-updated` handler, zero out the cache timestamp **before** reloading:
+```js
+await chrome.storage.local.set({ cache: { lastFetch: { jira: 0, sentry: 0 } } });
+location.reload();
+```
+This forces `boot()` to see an infinitely old cache → always fetches fresh data after settings save.
+
+**Added:**
+- `tests/integration.test.js`: 12 tests covering the settings→storage→background→render data flow, including a test that explicitly verifies the cache-invalidation fix
+- Pre-flight now runs both parser tests (32) and integration tests (12) = 44 total assertions per release
+
+---
+
 ## v1.2.3 (2026-05-16) — Unit Tests + Verbose Extra-Boards Logging
 
 **Added:**

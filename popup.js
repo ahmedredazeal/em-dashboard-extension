@@ -139,11 +139,13 @@ function updatePrivacyToggle() {
  */
 async function loadData() {
   try {
-    // Load from local cache first for instant render
     const cacheResult = await chrome.storage.local.get([
-      'sprintHistory', 'currentSprint', 'sentryIssues',
+      'settings', 'sprintHistory', 'currentSprint', 'sentryIssues',
       'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData'
     ]);
+    
+    // Always refresh settings so squad.extraBoards reflects latest save
+    if (cacheResult.settings) state.settings = cacheResult.settings;
     
     state.sprintHistory    = cacheResult.sprintHistory    || [];
     state.currentSprint    = cacheResult.currentSprint    || null;
@@ -153,7 +155,10 @@ async function loadData() {
     state.alerts           = cacheResult.alerts           || [];
     state.extraBoardsData  = cacheResult.extraBoardsData  || [];
     
-    console.log('[popup] Data loaded from cache');
+    console.log('[popup] Data loaded:', {
+      extraBoardsConfigured: state.settings?.squad?.extraBoards?.length || 0,
+      extraBoardsFetched: state.extraBoardsData.length
+    });
   } catch (error) {
     console.error('[popup] Failed to load data:', error);
   }
@@ -321,13 +326,35 @@ function updateContextBar(screenId) {
  */
 function renderExtraBoards() {
   const container = document.getElementById('extra-boards-container');
-  if (!container) { console.warn('[popup] extra-boards-container element not found'); return; }
+  if (!container) return;
 
   const boards = state.extraBoardsData || [];
-  console.log(`[popup] renderExtraBoards: ${boards.length} board(s) to render`,
-    boards.map(b => `${b.boardLabel}(${b.boardId})`));
+  const configuredBoards = state.settings?.squad?.extraBoards || [];
   
-  if (boards.length === 0) { container.innerHTML = ''; return; }
+  console.log(`[popup] renderExtraBoards:`, {
+    configured: configuredBoards.length,
+    fetched: boards.length,
+    data: boards.map(b => `${b.boardLabel}(${b.boardId}):${b.stories?.length}st`)
+  });
+  
+  // Nothing configured in settings — render nothing
+  if (configuredBoards.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  // Configured but nothing came back from the fetch — show diagnostic
+  if (boards.length === 0) {
+    container.innerHTML = `
+      <div class="section">
+        <div style="padding:10px;border-radius:6px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);font-size:12px;color:var(--text-muted);">
+          ⚠ ${configuredBoards.length} extra board(s) configured but no data fetched yet.<br/>
+          <span style="font-size:11px;">Click ↻ to refresh, or check service worker console for errors.</span><br/>
+          <span style="font-size:10px;margin-top:4px;display:block;">Configured: ${configuredBoards.map(b => typeof b === 'object' ? `${b.name}|${b.id}` : b).join(', ')}</span>
+        </div>
+      </div>`;
+    return;
+  }
 
   const STATUS_COLORS = {
     'done': '#22c55e', 'in progress': '#3b82f6', 'in review': '#8b5cf6',
@@ -749,8 +776,10 @@ function escapeHtml(text) {
  */
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'settings-updated') {
-    console.log('[popup] Settings updated, reloading...');
-    location.reload();
+    console.log('[popup] Settings updated — forcing fresh fetch...');
+    // Clear cache timestamp so boot sequence fetches fresh data on reload
+    chrome.storage.local.set({ cache: { lastFetch: { jira: 0, sentry: 0 } } })
+      .then(() => location.reload());
   }
 });
 

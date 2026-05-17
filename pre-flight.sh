@@ -29,9 +29,18 @@ echo ""
 echo "1c. Running unit tests..."
 if node tests/parsers.test.js > /tmp/test-output.txt 2>&1; then
   SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ $SUMMARY"
+  echo "   ✓ parsers: $SUMMARY"
 else
-  echo "   ✗ Tests failed:"
+  echo "   ✗ Parser tests failed:"
+  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
+  ERRORS=$((ERRORS + 1))
+fi
+
+if node tests/integration.test.js > /tmp/test-output.txt 2>&1; then
+  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
+  echo "   ✓ integration: $SUMMARY"
+else
+  echo "   ✗ Integration tests failed:"
   cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
   ERRORS=$((ERRORS + 1))
 fi
