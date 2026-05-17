@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.7</div>
+      <div class="cl-desc">
+        <strong>Ticket counts in collapsed header + statusCategory fix:</strong> Fixed critical bug — Jira statusCategory for in-progress is <code>indeterminate</code> not <code>inprogress</code>, causing "0 In Progress" even when tickets were in progress. Renamed "closed" → "QA Accepted". Ticket counts (X QA Accepted · X In Progress · X Open) and support badges now appear in the collapsed header — always visible without expanding.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.6</div>
       <div class="cl-desc">
         <strong>Unified sections + priority + clickable tickets:</strong> Priority colour dot on every ticket (red→orange→amber→blue→grey). All Jira ticket rows are clickable (opens Jira in browser). Ticket summary shows X closed / in progress / open at top of each board. Support boards show BreachedSLA 🔴 and blocked-external ⚠ label counts. "Current Sprint" and extra boards now use the same section-label + collapsible style as Sentry.

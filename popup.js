@@ -345,11 +345,13 @@ function renderExtraBoards() {
       <div class="section">
         <div class="section-label">${escapeHtml(board.boardLabel)}</div>
         <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
-          <div style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;">${escapeHtml(subLabel)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
+            <div style="margin-top:3px;">${collapsedBoardSummary(stories, isSupport)}</div>
+          </div>
           <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
         </div>
         <div id="${sectionId}-body" style="display:none;margin-top:6px;">
-          <div style="padding:6px 0 4px;">${ticketSummaryHTML(stories, isSupport)}</div>
           ${stories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No issues found</div>'}
         </div>
       </div>`;
@@ -458,20 +460,24 @@ function renderTodayScreen() {
     }
     
     if (collapsedSummary) collapsedSummary.textContent = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pt · Day ${sp.daysElapsed}/${sp.totalDays} · ${statusText}`;
-    if (glanceSubtitle) glanceSubtitle.textContent = `${sp.completedPoints}/${sp.totalPoints} pts · Day ${sp.daysElapsed}/${sp.totalDays}`;
+    if (glanceSubtitle) glanceSubtitle.textContent = '';
     
-    // Story list in body
+    // Ticket counts in collapsed header (always visible)
+    const countEl = document.getElementById('sprint-glance-ticket-counts');
     const stories = sp.stories || [];
+    const isSupport = (sp.boardLabel||sp.boardName||state.settings?.squad?.key||'').toLowerCase().includes('support');
+    if (countEl && stories.length > 0) {
+      countEl.innerHTML = collapsedBoardSummary(stories, isSupport);
+    }
+    
+    // Story list in body (no summary line — it's in the header now)
     if (stories.length > 0 && glanceBody) {
       const existingList = document.getElementById('sprint-story-list');
       if (existingList) existingList.remove();
       const jiraBase = state.settings?.jira?.baseUrl || '';
-      const isSupport = (sp.boardLabel||sp.boardName||state.settings?.squad?.key||'').toLowerCase().includes('support');
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';
-      listEl.innerHTML = `
-        <div style="padding:6px 0 4px;">${ticketSummaryHTML(stories, isSupport)}</div>
-        ${stories.map(s => renderTicketRow(s, jiraBase)).join('')}`;
+      listEl.innerHTML = stories.map(s => renderTicketRow(s, jiraBase)).join('');
       glanceBody.appendChild(listEl);
       wireTicketClicks(listEl);
     }
@@ -719,7 +725,7 @@ const TICKET_STATUS_COLORS = {
   'qa rejected':'#f59e0b','open':'var(--text-muted)'
 };
 function ticketStatusColor(s){ return TICKET_STATUS_COLORS[(s||'').toLowerCase()]||'var(--text-muted)'; }
-function ticketStatusIcon(cat){ return ({done:'✓',inprogress:'●',new:'○'})[cat]||'○'; }
+function ticketStatusIcon(cat){ return ({done:'✓',indeterminate:'●',new:'○'})[cat]||'○'; }
 function priorityDot(p){ return PRIORITY_DOT[(p||'medium').toLowerCase()]||PRIORITY_DOT.medium; }
 
 /** Render one Jira ticket row — clickable, with priority dot */
@@ -740,19 +746,32 @@ function renderTicketRow(story, jiraBaseUrl) {
     </div>`;
 }
 
-/** "X closed · X in progress · X open" + support SLA badges */
-function ticketSummaryHTML(stories, isSupport) {
-  const closed     = stories.filter(s => s.statusCategory === 'done').length;
-  const inProgress = stories.filter(s => s.statusCategory === 'inprogress').length;
-  const open       = stories.length - closed - inProgress;
-  let html = `<span style="color:var(--text-muted);font-size:11px;">${closed} closed · ${inProgress} in progress · ${open} open</span>`;
+/**
+ * Ticket counts — corrected statusCategory keys (Jira uses 'indeterminate' for in-progress)
+ */
+function ticketCounts(stories) {
+  const qaAccepted = stories.filter(s => s.statusCategory === 'done').length;
+  const inProgress = stories.filter(s => s.statusCategory === 'indeterminate').length;
+  const open       = stories.length - qaAccepted - inProgress;
+  const breached   = stories.filter(s => s.labels?.includes('BreachedSLA')).length;
+  const blocked    = stories.filter(s => s.labels?.includes('blocked-external')).length;
+  return { qaAccepted, inProgress, open, breached, blocked };
+}
+
+/** Collapsed header summary — always visible without expanding */
+function collapsedBoardSummary(stories, isSupport) {
+  const c = ticketCounts(stories);
+  let html = `<span style="font-size:11px;color:var(--text-muted);">${c.qaAccepted} QA Accepted · ${c.inProgress} In Progress · ${c.open} Open</span>`;
   if (isSupport) {
-    const breached = stories.filter(s => s.labels?.includes('BreachedSLA')).length;
-    const blocked  = stories.filter(s => s.labels?.includes('blocked-external')).length;
-    if (breached > 0) html += ` <span style="color:#ef4444;font-size:11px;font-weight:600;">· ${breached} BreachedSLA 🔴</span>`;
-    if (blocked  > 0) html += ` <span style="color:#f59e0b;font-size:11px;font-weight:600;">· ${blocked} blocked-external ⚠</span>`;
+    if (c.breached > 0) html += ` <span style="color:#ef4444;font-size:11px;font-weight:600;">· ${c.breached} BreachedSLA 🔴</span>`;
+    if (c.blocked  > 0) html += ` <span style="color:#f59e0b;font-size:11px;font-weight:600;">· ${c.blocked} blocked-external ⚠</span>`;
   }
   return html;
+}
+
+/** ticketSummaryHTML kept for backward compat — delegates to collapsedBoardSummary */
+function ticketSummaryHTML(stories, isSupport) {
+  return collapsedBoardSummary(stories, isSupport);
 }
 
 /** Wire click events on ticket rows inside a container element */

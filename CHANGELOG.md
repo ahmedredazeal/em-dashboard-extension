@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.7 (2026-05-18) — Ticket counts in collapsed header + statusCategory fix
+
+**Fixed:**
+- statusCategory inprogress was wrong — Jira key is indeterminate → 0 in progress bug
+- Summary line was inside expandable body (invisible when collapsed)
+- Renamed closed to QA Accepted
+
+**Changed:**
+- Ticket counts in collapsed header (always visible without expanding)
+- Support badges also in header
+
+---
+
 ## v1.2.6 (2026-05-18) — Unified sections + priority + clickable tickets + support analytics
 
 **Added:**
