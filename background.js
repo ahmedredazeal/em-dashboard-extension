@@ -52,83 +52,68 @@ async function checkDashboard() {
     
     console.log('[background] Fetching data...');
     
-    // Fetch data concurrently
-    const [jiraData, sentryData] = await Promise.allSettled([
-      fetchJiraData(settings),
-      fetchSentryData(settings)
-    ]);
-    
-    // Build state object for alert rules
+    // Build shared state
     const state = {
-      sprintHistory: [],
-      currentSprint: null,
-      supportTickets: [],
-      sentryIssues: [],
-      sentryViews: [],
-      slaHours: 48
+      sprintHistory: [], currentSprint: null,
+      supportTickets: [], sentryIssues: [],
+      sentryViews: [], slaHours: 48
     };
-    
-    // Populate state from fetched data
-    if (jiraData.status === 'fulfilled') {
-      state.sprintHistory = jiraData.value.sprintHistory || [];
-      state.currentSprint = jiraData.value.currentSprint || null;
-      state.supportTickets = jiraData.value.supportTickets || [];
-      state.extraBoardsData = jiraData.value.extraBoardsData || [];
-    } else {
-      console.error('[background] Jira fetch failed:', jiraData.reason);
+
+    /**
+     * Save whatever is currently in state to storage and notify the popup.
+     * Called after EACH source completes so the popup updates incrementally.
+     */
+    async function saveAndNotify(source) {
+      await chrome.storage.local.set({
+        sprintHistory: state.sprintHistory,
+        currentSprint: state.currentSprint,
+        supportTickets: state.supportTickets,
+        sentryIssues: state.sentryIssues,
+        sentryViews: state.sentryViews || [],
+        extraBoardsData: state.extraBoardsData || []
+      });
+      // Push to popup if it is open (ignore error if not)
+      chrome.runtime.sendMessage({ type: 'partial-update', source })
+        .catch(() => {});
+      console.log(`[background] Saved + notified popup (source: ${source})`);
     }
+
+    // Launch both fetches concurrently but handle each as it resolves
+    const jiraPromise = fetchJiraData(settings)
+      .then(async data => {
+        state.sprintHistory   = data.sprintHistory   || [];
+        state.currentSprint   = data.currentSprint   || null;
+        state.supportTickets  = data.supportTickets  || [];
+        state.extraBoardsData = data.extraBoardsData || [];
+        await saveAndNotify('jira');
+      })
+      .catch(err => console.error('[background] Jira fetch failed:', err.message));
+
+    const sentryPromise = fetchSentryData(settings)
+      .then(async data => {
+        state.sentryIssues = data.issues      || [];
+        state.sentryViews  = data.viewResults || [];
+        await saveAndNotify('sentry');
+      })
+      .catch(err => console.error('[background] Sentry fetch failed:', err.message));
+
+    // Wait for both to finish before running alert rules + badge
+    await Promise.allSettled([jiraPromise, sentryPromise]);
     
-    if (sentryData.status === 'fulfilled') {
-      state.sentryIssues = sentryData.value.issues || [];
-      state.sentryViews = sentryData.value.viewResults || [];
-    } else {
-      console.error('[background] Sentry fetch failed:', sentryData.reason);
-    }
-    
-    // Run alert rules
+    // Run alert rules over complete state
     const newAlerts = alerts.checkAlerts(state);
     console.log(`[background] ${newAlerts.length} new alerts fired`);
     
-    // Merge with existing alerts
     const existingResult = await chrome.storage.local.get(['alerts']);
     const existingAlerts = existingResult.alerts || [];
     const mergedAlerts = alerts.mergeAlerts(existingAlerts, newAlerts);
     
-    // Save alerts
     await chrome.storage.local.set({ alerts: mergedAlerts });
-    
-    // CRITICAL: Save fetched data to storage so popup.js can render it
-    await chrome.storage.local.set({
-      sprintHistory: state.sprintHistory,
-      currentSprint: state.currentSprint,
-      supportTickets: state.supportTickets,
-      sentryIssues: state.sentryIssues,
-      sentryViews: state.sentryViews || [],
-      extraBoardsData: state.extraBoardsData || []
-    });
-    console.log('[background] Saved data to storage:', {
-      sprintHistory: state.sprintHistory.length,
-      currentSprint: state.currentSprint ? state.currentSprint.name : null,
-      supportTickets: state.supportTickets.length,
-      sentryIssues: state.sentryIssues.length,
-      extraBoardsData: state.extraBoardsData?.length || 0,
-      extraBoardLabels: (state.extraBoardsData || []).map(b => `${b.boardLabel}(${b.boardId}):${b.stories?.length || 0}st`)
-    });
-    
-    // Update badge
     await updateBadge(mergedAlerts);
-    
-    // Send desktop notifications for high-severity new alerts
     await notifyHighSeverity(newAlerts, settings);
     
-    // Update cache timestamp
     await chrome.storage.local.set({
-      cache: {
-        lastFetch: {
-          jira: Date.now(),
-          sentry: Date.now()
-        }
-      }
+      cache: { lastFetch: { jira: Date.now(), sentry: Date.now() } }
     });
     
     console.log('[background] Dashboard check complete');
@@ -452,17 +437,16 @@ async function notifyHighSeverity(newAlerts, settings) {
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'refresh-dashboard') {
-    // Manual refresh requested from popup
-    checkDashboard().then(() => {
-      sendResponse({ success: true });
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true; // async response
+    // Acknowledge immediately — popup will receive 'partial-update' messages
+    // as each data source (jira, sentry) completes independently.
+    sendResponse({ success: true, async: true });
+    checkDashboard().catch(err =>
+      console.error('[background] checkDashboard failed:', err.message)
+    );
+    return false; // sync response already sent
   }
   
   if (message.type === 'acknowledge-alert') {
-    // Acknowledge an alert
     acknowledgeAlert(message.alertId).then(() => {
       sendResponse({ success: true });
     }).catch(error => {

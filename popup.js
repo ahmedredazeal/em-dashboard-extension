@@ -175,38 +175,17 @@ async function refreshDashboard() {
   const collapsedSummary = document.getElementById('sprint-glance-collapsed-summary');
   if (collapsedSummary) collapsedSummary.textContent = 'Loading…';
   
-  // Show loading in Sentry section
-  const spikes = document.getElementById('sentry-spikes');
-  const sentryEmpty = document.getElementById('sentry-empty');
-  const sentryTotal = document.getElementById('sentry-total');
-  if (spikes) spikes.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center;">Loading issues…</div>';
-  if (sentryEmpty) sentryEmpty.classList.add('hidden'); // hide empty while loading
-  if (sentryTotal) sentryTotal.textContent = '…';
-  
   const refreshBtn = document.getElementById('context-refresh');
   if (refreshBtn) { refreshBtn.style.opacity = '0.4'; refreshBtn.style.pointerEvents = 'none'; }
   
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
-    
-    if (response && response.success) {
-      await loadData();
-      renderCurrentScreen();
-      console.log('[popup] Dashboard refreshed');
-      
-      // Start timer from now
-      startRefreshTimer(Date.now());
-      
-      const errBanner = document.getElementById('error-banner');
-      if (errBanner) errBanner.remove();
-    } else {
-      const errMsg = response?.error || 'Unknown error - check service worker console';
-      console.error('[popup] Refresh failed:', errMsg);
-      showErrorBanner(errMsg);
-    }
+    // Send start message — background responds immediately (async: true)
+    // Actual data arrives via 'partial-update' messages as each source completes
+    await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
+    console.log('[popup] Refresh started — waiting for partial-update messages');
   } catch (error) {
-    console.error('[popup] Refresh request failed:', error);
-    showErrorBanner(`Connection failed: ${error.message}`);
+    console.error('[popup] Failed to start refresh:', error);
+    showErrorBanner(`Could not reach background: ${error.message}`);
   } finally {
     state.isLoading = false;
     if (refreshBtn) { refreshBtn.style.opacity = '1'; refreshBtn.style.pointerEvents = 'auto'; }
@@ -780,9 +759,20 @@ function escapeHtml(text) {
  * Listen for settings updates from settings page
  */
 chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'partial-update') {
+    console.log(`[popup] Partial update received: ${message.source}`);
+    loadData().then(() => {
+      renderCurrentScreen();
+      // Start/reset timer when Jira data arrives (that's when the fetch "started")
+      if (message.source === 'jira') startRefreshTimer(Date.now());
+      // Remove any error banners on success
+      const errBanner = document.getElementById('error-banner');
+      if (errBanner) errBanner.remove();
+    }).catch(e => console.error('[popup] partial-update render failed:', e));
+    return;
+  }
   if (message.type === 'settings-updated') {
     console.log('[popup] Settings updated — forcing fresh fetch...');
-    // Clear cache timestamp so boot sequence fetches fresh data on reload
     chrome.storage.local.set({ cache: { lastFetch: { jira: 0, sentry: 0 } } })
       .then(() => location.reload());
   }

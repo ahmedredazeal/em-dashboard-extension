@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.2.5 (2026-05-17) — Incremental rendering: Jira and Sentry independent
+
+**Fixed:**
+- Sprint showed "Loading…" until Sentry finished (both sources were batched)
+- Sentry showed "Loading issues…" for the full slow-Sentry duration
+
+**Changed:**
+- `checkDashboard` saves each source to storage as it completes + sends `partial-update` message
+- Popup listens for `partial-update` and re-renders immediately per source
+- Jira (sprint/boards) renders fast; Sentry renders when ready
+- `refreshDashboard()` is fire-and-forget; button re-enables immediately
+
+---
+
 ## v1.2.4 (2026-05-16) — ACTUAL FIX: Extra Boards Cache Bug
 
 **Root cause found:**
