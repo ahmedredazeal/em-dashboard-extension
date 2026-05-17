@@ -331,30 +331,10 @@ function renderExtraBoards() {
   const boards = state.extraBoardsData || [];
   const configuredBoards = state.settings?.squad?.extraBoards || [];
   
-  console.log(`[popup] renderExtraBoards:`, {
-    configured: configuredBoards.length,
-    fetched: boards.length,
-    data: boards.map(b => `${b.boardLabel}(${b.boardId}):${b.stories?.length}st`)
-  });
+  console.log(`[popup] renderExtraBoards: configured=${configuredBoards.length} fetched=${boards.length}`);
   
-  // Nothing configured in settings — render nothing
-  if (configuredBoards.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-  
-  // Configured but nothing came back from the fetch — show diagnostic
-  if (boards.length === 0) {
-    container.innerHTML = `
-      <div class="section">
-        <div style="padding:10px;border-radius:6px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);font-size:12px;color:var(--text-muted);">
-          ⚠ ${configuredBoards.length} extra board(s) configured but no data fetched yet.<br/>
-          <span style="font-size:11px;">Click ↻ to refresh, or check service worker console for errors.</span><br/>
-          <span style="font-size:10px;margin-top:4px;display:block;">Configured: ${configuredBoards.map(b => typeof b === 'object' ? `${b.name}|${b.id}` : b).join(', ')}</span>
-        </div>
-      </div>`;
-    return;
-  }
+  if (configuredBoards.length === 0) { container.innerHTML = ''; return; }
+  if (boards.length === 0) { container.innerHTML = ''; return; }
 
   const STATUS_COLORS = {
     'done': '#22c55e', 'in progress': '#3b82f6', 'in review': '#8b5cf6',
@@ -366,7 +346,29 @@ function renderExtraBoards() {
 
   container.innerHTML = boards.map((board, idx) => {
     const sectionId = `extra-board-${idx}`;
-    const progress  = board.totalPoints > 0
+    
+    // Error state — API call failed for this board
+    if (board.error) {
+      // Try to give a helpful hint
+      let hint = '';
+      if (board.error.includes('404') || board.error.includes('No active sprint')) {
+        hint = 'No active sprint found. Is this a Kanban board?';
+      } else if (board.error.includes('403') || board.error.includes('401')) {
+        hint = 'Permission denied. Does your Jira token have access to this board?';
+      } else if (board.error.includes('400')) {
+        hint = 'Invalid board ID. Check the board ID in your Jira URL.';
+      }
+      return `
+        <div class="section">
+          <div style="padding:10px;border-radius:6px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);">
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;">${escapeHtml(board.boardLabel)} <span style="color:var(--text-muted);font-weight:400;">(board ${board.boardId})</span></div>
+            <div style="font-size:12px;color:#ef4444;">⚠ ${escapeHtml(board.error)}</div>
+            ${hint ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${hint}</div>` : ''}
+          </div>
+        </div>`;
+    }
+    
+    const progress = board.totalPoints > 0
       ? `${board.completedPoints}/${board.totalPoints}pt`
       : `${board.completedStories}/${board.totalStories} tickets`;
 

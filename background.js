@@ -296,11 +296,21 @@ async function fetchJiraData(settings) {
           endDate: activeSprint.endDate,
           totalStories: stories.length,
           completedStories: doneCount,
-          totalPoints, completedPoints, stories
+          totalPoints, completedPoints, stories,
+          error: null
         });
         console.log(`[background] Extra board ${extraBoardId}: pushed to extraBoardsData (${stories.length} stories)`);
       } catch (err) {
-        console.warn(`[background] Extra board ${extraBoardId} failed:`, err.message);
+        // Push with error so popup can display what went wrong
+        const msg = err.message || String(err);
+        console.warn(`[background] Extra board ${extraBoardId} failed:`, msg);
+        extraBoardsData.push({
+          boardId: extraBoardId, boardLabel,
+          sprintName: null, stories: [],
+          totalStories: 0, completedStories: 0,
+          totalPoints: 0, completedPoints: 0,
+          error: msg
+        });
       }
     }
   } else {
