@@ -290,7 +290,7 @@ async function fetchJiraData(settings) {
           if (isKanban) {
             console.log(`[background] Extra board ${extraBoardId}: Kanban board, fetching issues directly`);
             try {
-              const kanbanIssues = await client.getKanbanBoardIssues(extraBoardId);
+              const kanbanIssues = await client.getKanbanBoardIssues(extraBoardId, storyPointsField);
               const stories = kanbanIssues.map(s => normalizeStory(s, storyPointsField));
               const done = kanbanIssues.filter(isStoryDone);
               const totalPoints = stories.reduce((sum, s) => sum + s.points, 0);

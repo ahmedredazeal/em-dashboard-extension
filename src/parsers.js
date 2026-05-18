@@ -111,13 +111,21 @@ export function getStoryPoints(issue, fieldCandidates) {
 export function normalizeStory(issue, storyPointsField) {
   const fields = issue.fields || {};
   const fallbacks = [storyPointsField, 'customfield_10016', 'customfield_10026', 'customfield_10004'];
+  const priority = fields.priority?.name || 'Medium';
+  
+  // Log unexpected priority names so we can add them to the mapping
+  const knownPriorities = ['highest','critical','high','medium','low','lowest'];
+  if (priority !== 'Medium' && !knownPriorities.includes(priority.toLowerCase())) {
+    console.log(`[parsers] Unknown priority: "${priority}" on ${issue.key}`);
+  }
+  
   return {
     key: issue.key,
     summary: fields.summary || '',
     status: fields.status?.name || '',
     statusCategory: fields.status?.statusCategory?.key || '',
     assignee: fields.assignee?.displayName || null,
-    priority: fields.priority?.name || 'Medium',
+    priority,
     points: getStoryPoints(issue, fallbacks),
     type: fields.issuetype?.name || 'Story',
     dueDate: fields.duedate || null,
