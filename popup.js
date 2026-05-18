@@ -343,7 +343,10 @@ function renderExtraBoards() {
 
     return `
       <div class="section">
-        <div class="section-label">${escapeHtml(board.boardLabel)}</div>
+        <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>${escapeHtml(board.boardLabel)}</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${board.totalStories} TOTAL</span>
+        </div>
         <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
@@ -427,6 +430,10 @@ function renderTodayScreen() {
     });
   }
   
+  // Update section title: "Current Sprint (HRM Sprint 64)" + total count
+  const sprintTitleEl = document.getElementById('current-sprint-title');
+  const sprintTotalEl = document.getElementById('current-sprint-total');
+  
   // Sprint at a glance — collapsible (collapsed by default)
   const glanceSubtitle = document.getElementById('sprint-glance-subtitle');
   const glanceBody = document.getElementById('sprint-glance');
@@ -447,6 +454,10 @@ function renderTodayScreen() {
   
   if (state.currentSprint) {
     const sp = state.currentSprint;
+    
+    // Section title + total count
+    if (sprintTitleEl) sprintTitleEl.textContent = `Current Sprint (${sp.name})`;
+    if (sprintTotalEl) sprintTotalEl.textContent = `${sp.totalStories} TICKETS`;
     const prediction = metrics.sprintBurndownPrediction(sp);
     const onTrack = prediction.onTrack;
     
@@ -482,6 +493,8 @@ function renderTodayScreen() {
       wireTicketClicks(listEl);
     }
   } else {
+    if (sprintTitleEl) sprintTitleEl.textContent = 'Current Sprint';
+    if (sprintTotalEl) sprintTotalEl.textContent = '';
     if (collapsedSummary) collapsedSummary.textContent = 'No active sprint';
     if (glanceSubtitle) glanceSubtitle.textContent = '';
   }

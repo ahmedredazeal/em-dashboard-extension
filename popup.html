@@ -86,7 +86,10 @@
 
         <!-- CURRENT SPRINT section -->
         <div class="section" id="current-sprint-section">
-          <div class="section-label">Current Sprint</div>
+          <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span id="current-sprint-title">Current Sprint</span>
+            <span id="current-sprint-total" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
+          </div>
           <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;color:var(--text-muted);" id="sprint-glance-collapsed-summary">Loading…</div>

@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.2.9 (2026-05-18) — Sprint name in title + ticket counts on section headers
+
+**Changed:**
+- Current Sprint section title now shows sprint name in brackets:
+  'Current Sprint (HRM Sprint 64)'  with 'N TICKETS' on the right
+- When no sprint loaded: title stays 'Current Sprint' with no count
+- Extra board section titles now show total on the right: 'SUPPORT BOARD  100 TOTAL'
+- Consistent with Sentry sections which show '40 TOTAL' on the right
+
+---
+
 ## v1.2.8 (2026-05-18) — Real status counts + Kanban board filter fix
 
 **Fixed:**
