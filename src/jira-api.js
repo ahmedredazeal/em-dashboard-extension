@@ -174,10 +174,33 @@ export class JiraClient {
    * @param {string} storyPointsField
    * @returns {Promise<Array>}
    */
+  /**
+   * Get issues on a Kanban board using the board's own filter JQL.
+   * This is the reliable approach for Jira Cloud — gets the board's filter,
+   * then searches with full field list so priority is always returned.
+   */
   async getKanbanBoardIssues(boardId, storyPointsField = 'customfield_10016') {
-    console.log(`[jira] Fetching Kanban board issues for board ${boardId} via search API`);
+    console.log(`[jira] Fetching Kanban board ${boardId} via board filter`);
+
+    // Get board details including filter id
+    const board = await this._get(`/rest/agile/1.0/board/${boardId}`);
+    const filterId = board.filter?.id;
+
+    let jql;
+    if (filterId) {
+      // Get the board's filter JQL — most accurate
+      const filter = await this._get(`/rest/api/3/filter/${filterId}`);
+      jql = filter.jql;
+      console.log(`[jira] Board ${boardId} filter JQL: ${jql}`);
+    } else {
+      // Fallback: use board location project key
+      const projectKey = board.location?.projectKey;
+      if (!projectKey) throw new Error(`Board ${boardId} has no filter or project key`);
+      jql = `project = ${projectKey}`;
+    }
+
     const result = await this._search({
-      jql: `board = ${boardId} ORDER BY created DESC`,
+      jql: `(${jql}) ORDER BY created DESC`,
       fields: [
         'summary', 'status', 'assignee', 'issuetype', 'priority',
         storyPointsField, 'customfield_10016', 'customfield_10026',
@@ -185,6 +208,7 @@ export class JiraClient {
       ],
       maxResults: 100
     });
+
     console.log(`[jira] Kanban board ${boardId}: ${result.issues?.length || 0} issues`);
     return result.issues || [];
   }

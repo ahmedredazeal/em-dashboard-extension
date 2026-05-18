@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.2.8</div>
+      <div class="cl-desc">
+        <strong>Real status counts + Kanban board filter fix:</strong> Status summary now shows actual status names from your data (QA Accepted, QA Rejected, In Progress, QA Testing, Open…) instead of trying to bucket by statusCategory. Support/Kanban extra boards now fetch via the board's own filter JQL — fixes empty board data in Jira Cloud.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.2.7</div>
       <div class="cl-desc">
         <strong>Ticket counts in collapsed header + statusCategory fix:</strong> Fixed critical bug — Jira statusCategory for in-progress is <code>indeterminate</code> not <code>inprogress</code>, causing "0 In Progress" even when tickets were in progress. Renamed "closed" → "QA Accepted". Ticket counts (X QA Accepted · X In Progress · X Open) and support badges now appear in the collapsed header — always visible without expanding.

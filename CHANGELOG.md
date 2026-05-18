@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.2.8 (2026-05-18) — Real status counts + Kanban board filter fix
+
+**Fixed:**
+- Status counts showed wrong values (4 QA Accepted not visible, QA Rejected missing)
+  Root cause: counting by statusCategory buckets (done/indeterminate) does not match
+  actual workflow status names. Now shows counts by real status name (QA Accepted,
+  QA Rejected, In Progress, Open, QA Testing — whatever is in the data).
+- Support board (Kanban extra board) returned no data
+  Root cause: 'board = {id}' JQL doesn't work in Jira Cloud
+  Fix: GET board details → filter.id → GET filter JQL → search with that JQL
+  This ensures all fields including priority are returned correctly.
+
+---
+
 ## v1.2.7 (2026-05-18) — Ticket counts in collapsed header + statusCategory fix
 
 **Fixed:**

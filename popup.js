@@ -747,24 +747,39 @@ function renderTicketRow(story, jiraBaseUrl) {
 }
 
 /**
- * Ticket counts — corrected statusCategory keys (Jira uses 'indeterminate' for in-progress)
+ * Ticket counts — grouped by actual status names (not just category buckets).
+ * Shows the real distribution from Jira, whatever the workflow is.
  */
 function ticketCounts(stories) {
-  const qaAccepted = stories.filter(s => s.statusCategory === 'done').length;
-  const inProgress = stories.filter(s => s.statusCategory === 'indeterminate').length;
-  const open       = stories.length - qaAccepted - inProgress;
-  const breached   = stories.filter(s => s.labels?.includes('BreachedSLA')).length;
-  const blocked    = stories.filter(s => s.labels?.includes('blocked-external')).length;
-  return { qaAccepted, inProgress, open, breached, blocked };
+  // Group by status name, case-insensitive
+  const byStatus = {};
+  for (const s of stories) {
+    const name = s.status || 'Unknown';
+    byStatus[name] = (byStatus[name] || 0) + 1;
+  }
+  
+  // Labels for support analytics
+  const breached = stories.filter(s => s.labels?.includes('BreachedSLA')).length;
+  const blocked  = stories.filter(s => s.labels?.includes('blocked-external')).length;
+  
+  return { byStatus, breached, blocked, total: stories.length };
 }
 
-/** Collapsed header summary — always visible without expanding */
+/** Collapsed header summary — shows real status distribution */
 function collapsedBoardSummary(stories, isSupport) {
-  const c = ticketCounts(stories);
-  let html = `<span style="font-size:11px;color:var(--text-muted);">${c.qaAccepted} QA Accepted · ${c.inProgress} In Progress · ${c.open} Open</span>`;
+  const { byStatus, breached, blocked } = ticketCounts(stories);
+  
+  // Sort statuses: done-category last, show all non-zero
+  const statusParts = Object.entries(byStatus)
+    .sort((a, b) => b[1] - a[1]) // highest count first
+    .map(([name, count]) => `${count} ${name}`)
+    .join(' · ');
+  
+  let html = `<span style="font-size:11px;color:var(--text-muted);">${statusParts || 'No tickets'}</span>`;
+  
   if (isSupport) {
-    if (c.breached > 0) html += ` <span style="color:#ef4444;font-size:11px;font-weight:600;">· ${c.breached} BreachedSLA 🔴</span>`;
-    if (c.blocked  > 0) html += ` <span style="color:#f59e0b;font-size:11px;font-weight:600;">· ${c.blocked} blocked-external ⚠</span>`;
+    if (breached > 0) html += ` <span style="color:#ef4444;font-size:11px;font-weight:600;">· ${breached} BreachedSLA 🔴</span>`;
+    if (blocked  > 0) html += ` <span style="color:#f59e0b;font-size:11px;font-weight:600;">· ${blocked} blocked-external ⚠</span>`;
   }
   return html;
 }
