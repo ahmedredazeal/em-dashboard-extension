@@ -241,18 +241,17 @@ async function fetchJiraData(settings) {
         normalizedStories
       );
       
-      // Timesheet — fetch worklogs individually for every sprint issue
-      // (inline worklog field only returns data for issues WHERE someone logged time;
-      //  fetching per-issue gives complete coverage for the whole team)
+      // Timesheet — one JQL call covering all issues (including subtasks) with
+      // worklogs in the sprint period. Subtasks are NOT in the sprint directly,
+      // so worklogDate filter is the only reliable way to capture them.
       let allWorklogs = [];
       try {
-        const worklogResults = await Promise.allSettled(
-          stories.map(s => client.getIssueWorklogs(s.key))
+        allWorklogs = await client.getSprintWorklogs(
+          squadKey,
+          activeSprint.startDate,
+          activeSprint.endDate
         );
-        for (const r of worklogResults) {
-          if (r.status === 'fulfilled') allWorklogs.push(...r.value);
-        }
-        console.log(`[background] Collected ${allWorklogs.length} total worklogs from ${stories.length} issues`);
+        console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries`);
       } catch (wlErr) {
         console.warn('[background] Worklog fetch failed (non-fatal):', wlErr.message);
       }

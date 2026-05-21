@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.3.5</div>
+      <div class="cl-desc">
+        <strong>Timesheet: worklogDate JQL covers subtasks in one call:</strong> Team members log time on subtasks (e.g. [FE] Implementation) which are not in the sprint directly. New <code>getSprintWorklogs()</code> uses JQL <code>worklogDate &gt;= start AND &lt;= end</code> to get ALL worklogged issues including subtasks with a single API call.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.3.4</div>
       <div class="cl-desc">
         <strong>Timesheet: fetch all sprint worklogs per-issue + doc fixes:</strong> Worklog inline field only returns data for issues where someone explicitly logged time. Now fetches worklogs individually for every sprint issue in parallel, giving complete team coverage. Manifest version corrected; changelog.html entries for v1.3.1–v1.3.3 added.

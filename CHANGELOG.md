@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3.5 (2026-05-21) — Timesheet: worklogDate JQL covers all subtasks
+
+**Fixed:**
+- Team members log time on subtasks ([FE] Implementation, etc.) not parent stories
+- Subtasks are not directly in the sprint, so per-story worklog fetch missed them
+- Per-issue API was also N calls (1 per sprint story) even after v1.3.4
+
+**Changed:**
+- New jira-api method: getSprintWorklogs(project, startDate, endDate)
+  Uses JQL: project = X AND worklogDate >= start AND worklogDate <= end
+  Returns ALL issues with worklogs in the sprint period, including subtasks
+  Only 1 API call; rare fallback for issues with >20 inline worklogs
+
+---
+
 ## v1.3.4 (2026-05-21) — Timesheet complete team coverage + doc fixes
 
 **Fixed:**

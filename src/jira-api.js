@@ -272,8 +272,62 @@ export class JiraClient {
   }
 
   /**
-   * Get full worklog list for a single issue.
-   * Use when issue.fields.worklog.total > issue.fields.worklog.maxResults.
+   * Get ALL worklogs logged during a sprint period — including subtasks.
+   * Uses JQL worklogDate filter: one search call covers all issue types.
+   *
+   * This is the correct approach when team members log time on subtasks
+   * (e.g. "[FE] Implementation") rather than parent stories, since
+   * subtasks may not be directly assigned to the sprint.
+   *
+   * @param {string} projectKey
+   * @param {string} sprintStartDate - ISO date string
+   * @param {string} sprintEndDate   - ISO date string
+   * @returns {Promise<Array>} flat array of worklog objects
+   */
+  async getSprintWorklogs(projectKey, sprintStartDate, sprintEndDate) {
+    const start = new Date(sprintStartDate).toISOString().slice(0, 10);
+    const end   = new Date(sprintEndDate).toISOString().slice(0, 10);
+    const jql   = `project = ${projectKey} AND worklogDate >= "${start}" AND worklogDate <= "${end}"`;
+    
+    console.log(`[jira] Fetching sprint worklogs: ${jql}`);
+    
+    const result = await this._search({
+      jql,
+      fields: ['summary', 'worklog', 'issuetype'],
+      maxResults: 200
+    });
+    
+    const issues = result.issues || [];
+    console.log(`[jira] ${issues.length} issues have worklogs in sprint period`);
+    
+    // Collect inline worklogs, flag issues needing a full fetch (>20 worklogs)
+    const allWorklogs = [];
+    const needsFullFetch = [];
+    
+    for (const issue of issues) {
+      const wl = issue.fields?.worklog;
+      if (!wl) continue;
+      allWorklogs.push(...(wl.worklogs || []));
+      if (wl.total > (wl.maxResults || 20)) {
+        needsFullFetch.push(issue.key);
+      }
+    }
+    
+    // Rare: individual fetch only for issues with >20 worklogs
+    if (needsFullFetch.length > 0) {
+      console.log(`[jira] Full worklog fetch needed for ${needsFullFetch.length} issue(s)`);
+      const extras = await Promise.allSettled(needsFullFetch.map(k => this.getIssueWorklogs(k)));
+      for (const r of extras) {
+        if (r.status === 'fulfilled') allWorklogs.push(...r.value);
+      }
+    }
+    
+    console.log(`[jira] Total worklogs collected: ${allWorklogs.length}`);
+    return allWorklogs;
+  }
+
+  /**
+   * Get full worklog list for a single issue (fallback for >20 worklogs).
    * @param {string} issueKey
    * @returns {Promise<Array>}
    */
