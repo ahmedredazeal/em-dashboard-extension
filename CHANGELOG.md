@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.3 (2026-05-21) — Fix dynamic import in service worker
+
+**Fixed:** Used dynamic import() in background.js (service worker). import() is disallowed in ServiceWorkerGlobalScope. Fixed by moving dayIndex to the static import at the top of background.js.
+
+---
+
 ## v1.3.2 (2026-05-21) — Analytics fixes
 
 **Fixed:**

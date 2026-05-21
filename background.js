@@ -9,7 +9,7 @@ import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, normalizeStory, isStoryDone } from './src/parsers.js';
-import { attachCloseTimestamps } from './src/changelog-parser.js';
+import { attachCloseTimestamps, dayIndex } from './src/changelog-parser.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
@@ -193,13 +193,12 @@ async function fetchJiraData(settings) {
     
     // Fallback: if a story is in done status but has no changelog close date,
     // use the `updated` field — it's the last time the ticket changed state
-    const { dayIndex: computeDayIndex } = await import('./src/changelog-parser.js');
     const normalizedStories = withChangelog.map((story, i) => {
       if (story.closedAt === null && story.statusCategory === 'done') {
         const raw = stories[i];
         const updated = raw?.fields?.updated;
         if (updated) {
-          const closeDay = computeDayIndex(updated, activeSprint.startDate);
+          const closeDay = dayIndex(updated, activeSprint.startDate);
           return { ...story, closedAt: updated, closedDay: Math.max(0, closeDay) };
         }
       }
