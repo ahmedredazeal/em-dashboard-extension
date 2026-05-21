@@ -38,16 +38,21 @@ export class JiraClient {
 
   /**
    * Search using new JQL endpoint (POST /rest/api/3/search/jql)
-   * The old GET /rest/api/3/search is deprecated.
+   * NOTE: 'expand' must be a query-string param, NOT in the POST body.
    */
   async _search(body) {
-    const url = `${this.baseUrl}/rest/api/3/search/jql`;
-    console.log(`[jira] POST /rest/api/3/search/jql`, body.jql);
+    // Pull expand out of body and move to URL param (Jira ignores it in body)
+    const { expand, ...cleanBody } = body;
+    let url = `${this.baseUrl}/rest/api/3/search/jql`;
+    if (expand && expand.length > 0) {
+      url += `?expand=${Array.isArray(expand) ? expand.join(',') : expand}`;
+    }
+    console.log(`[jira] POST /rest/api/3/search/jql${expand ? '?expand=' + expand : ''}`, cleanBody.jql);
     
     const response = await fetch(url, {
       method: 'POST',
       headers: this.headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(cleanBody)
     });
     
     if (!response.ok) {
