@@ -375,13 +375,12 @@ function renderExtraBoards() {
     }
 
     const isSupport = board.boardLabel.toLowerCase().includes('support');
-    // For support boards, hide closed tickets — focus on actionable open tickets
+    const stories   = board.stories || [];  // ← must be before displayStories
+    const isKanban  = board.boardType === 'kanban';
     const displayStories = isSupport
       ? stories.filter(s => s.statusCategory !== 'done')
       : stories;
     const closedCount = stories.length - displayStories.length;
-    const isKanban  = board.boardType === 'kanban';
-    const stories   = board.stories || [];
     const progress  = board.totalPoints > 0
       ? `${board.completedPoints}/${board.totalPoints}pt`
       : `${board.totalStories} issues`;
@@ -485,61 +484,115 @@ function renderSprintAnalytics() {
   
   wrap.style.display = '';
   
+  // ── Sprint progress bar (top of analytics) ──────────────────────────
+  const currentStories = state.currentSprint?.stories || [];
+  const progressHtml = currentStories.length > 0 ? buildSprintProgressBar(currentStories) : '';
+  
   // ── Burndown ──────────────────────────────────────────────────────
   const bd = analytics.burndown;
-  let burndownHtml = '';
-  if (bd && bd.ideal && bd.ideal.length > 0) {
-    burndownHtml = buildBurndownSVG(bd);
-  } else {
-    burndownHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No point data available yet.</div>';
-  }
+  let burndownHtml = (bd && bd.ideal?.length > 0)
+    ? buildBurndownSVG(bd)
+    : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No point data yet.</div>';
   
-  // ── Timesheet ─────────────────────────────────────────────────────
+  // ── Timesheet with inline member filter ───────────────────────────
   const ts = analytics.timesheet || [];
   const monitored = state.settings?.analytics?.monitoredMembers;
-  const filteredTs = monitored && monitored.length > 0
-    ? ts.filter(m => monitored.includes(m.name))
-    : ts;
-  let timesheetHtml = '';
-  if (filteredTs.length > 0) {
-    timesheetHtml = buildTimesheetSVG(filteredTs, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2');
-  } else {
-    timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data for this sprint yet.</div>';
-  }
+  const filteredTs = monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
+  const discoveredMembers = state.settings?.analytics?.discoveredMembers || ts.map(m => m.name);
   
+  // Member filter popover
+  const memberFilterHtml = discoveredMembers.length > 0 ? `
+    <div style="position:relative;display:inline-block;">
+      <button id="member-filter-btn" title="Filter team members"
+        style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;padding:2px 6px;color:var(--text-muted);font-size:11px;cursor:pointer;line-height:1.4;">
+        👥 ${filteredTs.length}/${discoveredMembers.length}
+      </button>
+      <div id="member-filter-popover"
+        style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:99;
+               background:var(--surface,#1a1b23);border:1px solid var(--border);border-radius:8px;
+               padding:10px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;
+                    display:flex;justify-content:space-between;align-items:center;">
+          <span>Team members</span>
+          <span id="member-filter-select-all" style="color:var(--primary,#6366f1);cursor:pointer;">All</span>
+        </div>
+        <div id="member-filter-list" style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
+          ${discoveredMembers.map(name => {
+            const checked = !monitored || monitored.length === 0 || monitored.includes(name);
+            return `<label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;">
+              <input type="checkbox" class="member-filter-cb" data-name="${escapeHtml(name)}"
+                ${checked ? 'checked' : ''}
+                style="accent-color:var(--primary,#6366f1);width:13px;height:13px;"/>
+              ${escapeHtml(name)}
+            </label>`;
+          }).join('')}
+        </div>
+        <button id="member-filter-apply"
+          style="margin-top:10px;width:100%;padding:5px;background:var(--primary,#6366f1);
+                 border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer;">Apply</button>
+      </div>
+    </div>` : '';
+  
+  let timesheetHtml = filteredTs.length > 0
+    ? buildTimesheetSVG(filteredTs, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2')
+    : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet.</div>';
+  
+  // ── Layout (side-by-side if wide enough) ──────────────────────────
   const contentEl = document.getElementById('sprint-analytics-content');
   if (!contentEl) return;
-  
-  // Measure available width — side by side if >= 520px, else stacked
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
   const sideBySide = panelWidth >= 520;
-  
-  const outerStyle = sideBySide
-    ? 'display:flex;gap:12px;align-items:flex-start;'
-    : '';
-  const chartWrapStyle = sideBySide
-    ? 'flex:1;min-width:0;'
-    : 'margin-bottom:12px;';
+  const outerStyle = sideBySide ? 'display:flex;gap:12px;align-items:flex-start;' : '';
+  const chartWrapStyle = sideBySide ? 'flex:1;min-width:0;' : 'margin-bottom:12px;';
   
   content.innerHTML = `
+    ${progressHtml}
     <div style="${outerStyle}">
       <div style="${chartWrapStyle}">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.3px;">BURNDOWN</div>
         ${burndownHtml}
       </div>
       <div style="${chartWrapStyle}">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.3px;">TIME LOGGED</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</span>
+          ${memberFilterHtml}
+        </div>
         ${timesheetHtml}
       </div>
     </div>`;
   
-  // Re-render if panel is resized past the breakpoint
+  // Wire member filter popover
+  const filterBtn = document.getElementById('member-filter-btn');
+  const popover   = document.getElementById('member-filter-popover');
+  if (filterBtn && popover) {
+    filterBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      popover.style.display = popover.style.display === 'none' ? '' : 'none';
+    });
+    document.addEventListener('click', () => { if (popover) popover.style.display = 'none'; }, { once: true });
+    
+    document.getElementById('member-filter-select-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.member-filter-cb').forEach(cb => cb.checked = true);
+    });
+    
+    document.getElementById('member-filter-apply')?.addEventListener('click', async () => {
+      const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked')).map(cb => cb.dataset.name);
+      // Save to settings
+      const r = await chrome.storage.local.get(['settings']);
+      const s = r.settings || {};
+      s.analytics = { ...s.analytics, monitoredMembers: selected };
+      await chrome.storage.local.set({ settings: s });
+      state.settings = s;
+      popover.style.display = 'none';
+      renderSprintAnalytics(); // re-render with new filter
+    });
+  }
+  
+  // Re-render on resize
   if (!wrap._resizeObserver) {
     wrap._resizeObserver = new ResizeObserver(() => {
-      const newWidth = contentEl.offsetWidth || 380;
-      const wasSideBySide = sideBySide;
-      const isSideBySide = newWidth >= 520;
-      if (wasSideBySide !== isSideBySide) renderSprintAnalytics();
+      const newWidth = (document.getElementById('sprint-analytics-content')?.offsetWidth) || 380;
+      if ((newWidth >= 520) !== sideBySide) renderSprintAnalytics();
     });
     wrap._resizeObserver.observe(wrap);
   }
@@ -627,16 +680,7 @@ function renderTodayScreen() {
     if (stories.length > 0 && glanceBody) {
       const existingList = document.getElementById('sprint-story-list');
       if (existingList) existingList.remove();
-      const existingProg = document.getElementById('sprint-progress-bar');
-      if (existingProg) existingProg.remove();
       
-      // Progress bar
-      const progEl = document.createElement('div');
-      progEl.id = 'sprint-progress-bar';
-      progEl.innerHTML = buildSprintProgressBar(stories);
-      glanceBody.insertBefore(progEl, glanceBody.firstChild);
-      
-      // Story list
       const jiraBase = state.settings?.jira?.baseUrl || '';
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';

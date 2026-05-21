@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3.9 (2026-05-21) — TDZ fix + progress bar in analytics + inline member filter
+
+**Fixed:**
+- ReferenceError: Cannot access 'stories' before initialization
+  TDZ: const stories was declared AFTER code using it in renderExtraBoards
+  Fix: move const stories = board.stories to before displayStories/closedCount
+
+**Changed:**
+- Sprint progress bar moved from ticket list into Sprint Analytics section (top)
+- Team member filter moved from Settings page into inline popover on the timesheet
+  chart header: 👥 N/M button opens a checklist, Apply saves and re-renders chart
+  No longer requires loading dashboard first before configuring members in Settings
+
+---
+
 ## v1.3.8 (2026-05-21) — Sprint progress bar + per-section loading indicators
 
 **Added:**
