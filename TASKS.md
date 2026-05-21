@@ -42,7 +42,7 @@ _Nothing currently in progress — T-21, T-22 next session_
 |---|---|---|---|---|
 | T-18 | Phase 1: changelog-parser.js + burndown.js + tests | feature | M | Pure functions, no UI. 3 series: ideal/estimate/actual |
 | T-19 | Phase 2: timesheet.js + jira-api worklog + tests | feature | M | Week1/Week2 hours per member, working days configurable |
-| T-20 | Phase 3: SVG chart renderer + wire into Today screen | feature | L | chart-svg.js, collapsed area under Current Sprint |
+| T-20 | Phase 3: SVG chart renderer + wire into Today screen | v1.3.0–v1.3.4 | Claude | Complete with fixes |
 | T-21 | Phase 4: sprint-cache.js + sprint-change prompt | feature | M | Cache by sprint name, keep/delete when sprint changes |
 | T-22 | Phase 5: Settings — work week toggle + cache manager | feature | M | Multi-select sprints + delete, default Sun-Thu |
 | # | Task | Type | Size | Notes |

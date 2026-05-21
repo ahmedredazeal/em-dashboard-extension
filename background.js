@@ -163,7 +163,7 @@ async function fetchJiraData(settings) {
     
     const stories = await client.getSprintStories(
       activeSprint.id, squadKey, storyPointsField,
-      { withChangelog: true, withWorklogs: true }
+      { withChangelog: true }
     );
     console.log(`[background] Fetched ${stories.length} stories from sprint (with changelog+worklogs)`);
     
@@ -241,19 +241,20 @@ async function fetchJiraData(settings) {
         normalizedStories
       );
       
-      // Timesheet — extract worklogs from the sprint stories response
-      const { worklogs: inlineWorklogs, needsFullFetch } = extractWorklogs(stories);
-      let allWorklogs = [...inlineWorklogs];
-      
-      // Fetch full worklogs for issues that had more than the inline limit
-      if (needsFullFetch.length > 0) {
-        console.log(`[background] Fetching full worklogs for ${needsFullFetch.length} issues...`);
-        const fullWlResults = await Promise.allSettled(
-          needsFullFetch.map(key => client.getIssueWorklogs(key))
+      // Timesheet — fetch worklogs individually for every sprint issue
+      // (inline worklog field only returns data for issues WHERE someone logged time;
+      //  fetching per-issue gives complete coverage for the whole team)
+      let allWorklogs = [];
+      try {
+        const worklogResults = await Promise.allSettled(
+          stories.map(s => client.getIssueWorklogs(s.key))
         );
-        for (const r of fullWlResults) {
+        for (const r of worklogResults) {
           if (r.status === 'fulfilled') allWorklogs.push(...r.value);
         }
+        console.log(`[background] Collected ${allWorklogs.length} total worklogs from ${stories.length} issues`);
+      } catch (wlErr) {
+        console.warn('[background] Worklog fetch failed (non-fatal):', wlErr.message);
       }
       
       const timesheetRaw = computeTimesheet(allWorklogs, activeSprint.startDate, workingDays);

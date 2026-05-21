@@ -3,6 +3,31 @@
 > **Read this before starting any work.**
 > Update this at the end of every session.
 
+## Current version: v1.3.4
+
+## Last session: Ahmed + Claude — 2026-05-21
+
+### Completed (v1.3.0 → v1.3.4)
+- ✅ T-20: Sprint analytics section — burndown chart + timesheet chart
+- ✅ Burndown: 3 series (ideal/estimate/actual), actual uses changelog + updated fallback
+- ✅ Timesheet: horizontal bar chart, per-issue worklog fetch for full team coverage
+- ✅ Sprint-change detection: banner prompts keep/delete on sprint rotation
+- ✅ Analytics above ticket list, collapsed by default
+- ✅ All doc/version tracking fixed (manifest, changelog.html, CHANGELOG.md)
+
+### Known state
+- Analytics section appears under Current Sprint → collapsed by default
+- Burndown shows actual line from changelog transitions (falls back to updated date)
+- Timesheet shows ALL team members who logged time in the sprint
+- Cache keyed by sprint name; sprint-change banner prompts keep/delete
+- Working days: settings.ui.workingDays default [0,1,2,3,4] = Sun-Thu (T-22 pending)
+
+### Next: T-21 + T-22 (Session 3)
+- T-21: sprint cache manager in Settings (multi-select + delete)
+- T-22: work week checkbox grid in Settings (Sun/Mon/Tue/Wed/Thu/Fri/Sat)
+
+---
+
 ## Current version: v1.2.9 (chart logic complete, not yet wired to UI)
 
 ## Last session: Ahmed + Claude — 2026-05-20

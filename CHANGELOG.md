@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.3.4 (2026-05-21) — Timesheet complete team coverage + doc fixes
+
+**Fixed:**
+- Timesheet only showed 2 members: inline worklog field only returns entries for issues
+  where someone explicitly logged time. Now fetches worklogs per-issue for ALL sprint
+  issues in parallel (using getIssueWorklogs), giving complete team coverage
+- manifest.json version was stuck at 1.3.0 — corrected to track all patches
+- changelog.html missing entries for v1.3.1, v1.3.2, v1.3.3 — all added
+- CHANGELOG.md missing v1.3.1 entry — added
+
+---
+
+## v1.3.1 (2026-05-21) — Fix expand=changelog as URL query param
+
+**Fixed:**
+- Jira POST /rest/api/3/search/jql returns 400 "Invalid request payload" when
+  expand is in the request body. Fixed by appending ?expand=changelog to the URL.
+
+---
+
 ## v1.3.3 (2026-05-21) — Fix dynamic import in service worker
 
 **Fixed:** Used dynamic import() in background.js (service worker). import() is disallowed in ServiceWorkerGlobalScope. Fixed by moving dayIndex to the static import at the top of background.js.

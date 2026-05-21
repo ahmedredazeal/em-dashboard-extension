@@ -17,6 +17,34 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.3.4</div>
+      <div class="cl-desc">
+        <strong>Timesheet: fetch all sprint worklogs per-issue + doc fixes:</strong> Worklog inline field only returns data for issues where someone explicitly logged time. Now fetches worklogs individually for every sprint issue in parallel, giving complete team coverage. Manifest version corrected; changelog.html entries for v1.3.1–v1.3.3 added.
+      </div>
+    </div>
+
+    <div class="cl-row">
+      <div class="cl-ver major">v1.3.3</div>
+      <div class="cl-desc">
+        <strong>Fix: dynamic import() disallowed in service worker:</strong> <code>await import()</code> inside a service worker is banned by the HTML spec. Fixed by adding <code>dayIndex</code> to the static import at the top of background.js.
+      </div>
+    </div>
+
+    <div class="cl-row">
+      <div class="cl-ver major">v1.3.2</div>
+      <div class="cl-desc">
+        <strong>Analytics fixes:</strong> Burndown actual line fallback using ticket <code>updated</code> date for done stories without changelog close timestamp. Timesheet redesigned as horizontal bar chart (scales to any number of members). Sprint Analytics section moved above ticket list and collapsed by default.
+      </div>
+    </div>
+
+    <div class="cl-row">
+      <div class="cl-ver major">v1.3.1</div>
+      <div class="cl-desc">
+        <strong>Fix: expand=changelog as URL query param:</strong> Jira POST /rest/api/3/search/jql ignores <code>expand</code> in the request body and returns 400. Fixed by appending <code>?expand=changelog</code> to the URL instead.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.3.0</div>
       <div class="cl-desc">
         <strong>Sprint Analytics Charts:</strong> New collapsible section under Current Sprint (expanded by default) showing a burndown chart with 3 series (ideal/by-due-date/actual from changelog) and a timesheet grouped bar chart (week1 vs week2 hours per member from Jira worklogs). Sprint-change banner prompts to keep or delete old analytics. Data cached per sprint name.
