@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.3.0 (2026-05-21) — Sprint Analytics Charts (Burndown + Timesheet)
+
+**Added:**
+- Sprint analytics section under Current Sprint, expanded by default
+- Burndown chart with 3 series: Ideal (dashed gray), By due date (blue), Actual (green)
+  — actual line built from Jira changelog transition-to-done timestamps
+- Timesheet grouped bar chart: Week 1 vs Week 2 hours per member
+  — built from Jira worklog data; working days configurable (default Sun-Thu)
+- Sprint-change banner: when active sprint changes, prompts to keep or delete old analytics
+- src/sprint-cache.js: Chrome storage layer keyed by sprint name
+- src/chart-svg.js: standalone SVG chart renderers (no external libs, CSP-safe)
+- Sprint stories now fetched with expand=changelog and worklog fields
+
+---
+
 ## v1.2.9 (2026-05-18) — Sprint name in title + ticket counts on section headers
 
 **Changed:**

@@ -99,10 +99,14 @@ try:
     # Skip elements that are dynamically created (have a createElement nearby)
     # or are accessed with null-check pattern
     dynamic_elements = set()
+    # Elements set via .id assignment
     for elem_id in set(all_ids):
-        # Check if this element is created via createElement and assigned this id
         if re.search(rf"\.id\s*=\s*['\"]{re.escape(elem_id)}['\"]", js):
             dynamic_elements.add(elem_id)
+    # Elements created via innerHTML templates (contain id= in a template literal)
+    template_ids = re.findall(r'id=["\']([^"\']+)["\']', js)
+    for tid in template_ids:
+        dynamic_elements.add(tid)
     
     missing = [e for e in sorted(set(all_ids)) 
                if f'id="{e}"' not in html and e not in dynamic_elements]

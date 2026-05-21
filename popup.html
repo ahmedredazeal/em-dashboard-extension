@@ -102,6 +102,19 @@
               <div class="card-subtitle" id="sprint-glance-subtitle"></div>
             </div>
           </div>
+
+          <!-- Sprint Analytics: burndown + timesheet, expanded by default -->
+          <div id="sprint-analytics-wrap" style="margin-top:8px; display:none;">
+            <div id="sprint-analytics-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:8px 10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--text-muted);text-transform:uppercase;">Sprint Analytics</span>
+              <span id="analytics-chevron" style="color:var(--text-muted);font-size:12px;">▼</span>
+            </div>
+            <div id="sprint-analytics-body" style="margin-top:6px;">
+              <div id="sprint-analytics-content">
+                <!-- Injected by popup.js -->
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Extra boards: one section per configured board -->

@@ -9,6 +9,10 @@ import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, normalizeStory, isStoryDone } from './src/parsers.js';
+import { attachCloseTimestamps } from './src/changelog-parser.js';
+import { computeBurndownSeries } from './src/burndown.js';
+import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
+import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 
 /**
  * Initialize on extension install/update
@@ -157,8 +161,11 @@ async function fetchJiraData(settings) {
     storyPointsField = await client.getStoryPointsField(boardId);
     console.log(`[background] Story points field: ${storyPointsField}`);
     
-    const stories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
-    console.log(`[background] Fetched ${stories.length} stories from sprint`);
+    const stories = await client.getSprintStories(
+      activeSprint.id, squadKey, storyPointsField,
+      { withChangelog: true, withWorklogs: true }
+    );
+    console.log(`[background] Fetched ${stories.length} stories from sprint (with changelog+worklogs)`);
     
     // Extract story points using detected field + common fallbacks
     const POINT_FIELDS = [storyPointsField, 'customfield_10016', 'customfield_10026', 'customfield_10004'];
@@ -178,18 +185,11 @@ async function fetchJiraData(settings) {
     });
     const completedPoints = completedStories.reduce((sum, s) => sum + getPoints(s), 0);
     
-    // Normalize stories for popup display
-    const normalizedStories = stories.map(s => ({
-      key: s.key,
-      summary: s.fields.summary || '',
-      status: s.fields.status?.name || '',
-      statusCategory: s.fields.status?.statusCategory?.key || '',
-      assignee: s.fields.assignee?.displayName || null,
-      priority: s.fields.priority?.name || 'Medium',
-      points: getPoints(s),
-      type: s.fields.issuetype?.name || 'Story',
-      dueDate: s.fields.duedate || null
-    }));
+    // Normalize stories using tested normalizeStory from parsers.js
+    const baseStories = stories.map(s => normalizeStory(s, storyPointsField));
+    
+    // Attach changelog close timestamps for burndown actual line
+    const normalizedStories = attachCloseTimestamps(stories, baseStories, activeSprint.startDate);
     
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
     const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
@@ -211,9 +211,65 @@ async function fetchJiraData(settings) {
       completedPoints,
       totalDays,
       daysElapsed,
-      stories: normalizedStories  // Include full story list for popup display
+      stories: normalizedStories
     };
-    console.log('[background] Current sprint:', currentSprint);
+    console.log('[background] Current sprint:', currentSprint.name, `${totalPoints}pt/${totalDays}d`);
+    
+    // Compute and cache sprint analytics (burndown + timesheet)
+    try {
+      const workingDays = settings.ui?.workingDays || [0, 1, 2, 3, 4]; // Sun-Thu default
+      
+      // Burndown
+      const burndown = computeBurndownSeries(
+        { startDate: activeSprint.startDate, totalDays, totalPoints },
+        normalizedStories
+      );
+      
+      // Timesheet — extract worklogs from the sprint stories response
+      const { worklogs: inlineWorklogs, needsFullFetch } = extractWorklogs(stories);
+      let allWorklogs = [...inlineWorklogs];
+      
+      // Fetch full worklogs for issues that had more than the inline limit
+      if (needsFullFetch.length > 0) {
+        console.log(`[background] Fetching full worklogs for ${needsFullFetch.length} issues...`);
+        const fullWlResults = await Promise.allSettled(
+          needsFullFetch.map(key => client.getIssueWorklogs(key))
+        );
+        for (const r of fullWlResults) {
+          if (r.status === 'fulfilled') allWorklogs.push(...r.value);
+        }
+      }
+      
+      const timesheetRaw = computeTimesheet(allWorklogs, activeSprint.startDate, workingDays);
+      const timesheet = sortTimesheetMembers(timesheetRaw);
+      
+      // Detect sprint change (notify popup if sprint rotated)
+      const oldSprintName = await detectSprintChange(activeSprint.name);
+      if (oldSprintName) {
+        console.log(`[background] Sprint changed: "${oldSprintName}" → "${activeSprint.name}"`);
+        chrome.runtime.sendMessage({
+          type: 'sprint-changed',
+          oldSprintName,
+          newSprintName: activeSprint.name
+        }).catch(() => {}); // popup may not be open
+      }
+      
+      // Save to cache
+      await setCachedSprintData(activeSprint.name, {
+        burndown,
+        timesheet,
+        sprintId: activeSprint.id,
+        totalDays,
+        startDate: activeSprint.startDate,
+        endDate: activeSprint.endDate,
+        week1Label: 'Week 1',
+        week2Label: 'Week 2'
+      });
+      
+      console.log(`[background] Analytics cached for "${activeSprint.name}": burndown hasActual=${burndown.hasActualData}, members=${timesheet.length}`);
+    } catch (analyticsErr) {
+      console.warn('[background] Analytics computation failed (non-fatal):', analyticsErr.message);
+    }
   } catch (err) {
     console.error('[background] Failed to fetch active sprint:', err.message);
   }

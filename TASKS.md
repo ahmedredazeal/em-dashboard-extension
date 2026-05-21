@@ -24,7 +24,7 @@
 
 ## 🔄 In Progress
 
-_Nothing currently in progress — T-20 next session_
+_Nothing currently in progress — T-21, T-22 next session_
 
 ---
 

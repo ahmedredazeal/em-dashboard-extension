@@ -18,6 +18,7 @@ let state = {
   sentryViews: [],
   supportTickets: [],
   extraBoardsData: [],
+  sprintAnalytics: null,
   isLoading: false
 };
 
@@ -155,9 +156,20 @@ async function loadData() {
     state.alerts           = cacheResult.alerts           || [];
     state.extraBoardsData  = cacheResult.extraBoardsData  || [];
     
+    // Load sprint analytics from separate cache key
+    if (state.currentSprint?.name) {
+      const cacheKey = 'sprintAnalyticsCache';
+      const analyticsResult = await chrome.storage.local.get([cacheKey]);
+      const analyticsCache = analyticsResult[cacheKey] || {};
+      state.sprintAnalytics = analyticsCache[state.currentSprint.name] || null;
+    } else {
+      state.sprintAnalytics = null;
+    }
+    
     console.log('[popup] Data loaded:', {
       extraBoardsConfigured: state.settings?.squad?.extraBoards?.length || 0,
-      extraBoardsFetched: state.extraBoardsData.length
+      extraBoardsFetched: state.extraBoardsData.length,
+      hasAnalytics: !!state.sprintAnalytics
     });
   } catch (error) {
     console.error('[popup] Failed to load data:', error);
@@ -404,6 +416,66 @@ function renderCurrentScreen() {
 }
 
 /**
+ * Render sprint analytics section (burndown + timesheet charts).
+ * Called from renderTodayScreen after the sprint section renders.
+ */
+function renderSprintAnalytics() {
+  const wrap    = document.getElementById('sprint-analytics-wrap');
+  const content = document.getElementById('sprint-analytics-content');
+  const header  = document.getElementById('sprint-analytics-header');
+  const body    = document.getElementById('sprint-analytics-body');
+  const chevron = document.getElementById('analytics-chevron');
+  
+  if (!wrap || !content) return;
+  
+  // Wire collapse toggle once
+  if (header && !header.dataset.wired) {
+    header.dataset.wired = '1';
+    header.addEventListener('click', () => {
+      const collapsed = body.style.display === 'none';
+      body.style.display = collapsed ? '' : 'none';
+      chevron.textContent = collapsed ? '▼' : '▶';
+    });
+  }
+  
+  const analytics = state.sprintAnalytics;
+  if (!analytics) {
+    wrap.style.display = 'none';
+    return;
+  }
+  
+  wrap.style.display = '';
+  
+  // ── Burndown ──────────────────────────────────────────────────────
+  const bd = analytics.burndown;
+  let burndownHtml = '';
+  if (bd && bd.ideal && bd.ideal.length > 0) {
+    burndownHtml = buildBurndownSVG(bd);
+  } else {
+    burndownHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No point data available yet.</div>';
+  }
+  
+  // ── Timesheet ─────────────────────────────────────────────────────
+  const ts = analytics.timesheet || [];
+  let timesheetHtml = '';
+  if (ts.length > 0) {
+    timesheetHtml = buildTimesheetSVG(ts, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2');
+  } else {
+    timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data for this sprint yet.</div>';
+  }
+  
+  content.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.3px;">BURNDOWN</div>
+      ${burndownHtml}
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.3px;">TIME LOGGED</div>
+      ${timesheetHtml}
+    </div>`;
+}
+
+/**
  * Render TODAY screen
  */
 function renderTodayScreen() {
@@ -501,6 +573,9 @@ function renderTodayScreen() {
 
   // Extra boards — collapsible sections
   renderExtraBoards();
+  
+  // Sprint analytics charts (burndown + timesheet)
+  renderSprintAnalytics();
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');
@@ -722,7 +797,126 @@ function formatDueDate(dateStr) {
   return `📅 ${label}`;
 }
 
-// ── Shared ticket rendering helpers ─────────────────────────────────────────
+// ── Inline SVG chart builders ────────────────────────────────────────────
+// (Ported from src/chart-svg.js — popup.js cannot import src/ at runtime in MV3)
+
+const _C = { ideal:'#94a3b8', estimate:'#60a5fa', actual:'#34d399', week1:'#6366f1', week2:'#a78bfa', grid:'rgba(148,163,184,0.2)', text:'var(--color-text-secondary,#94a3b8)' };
+
+function _niceStep(max, steps=4) {
+  if (!max) return 1;
+  const raw = max / steps;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  return ([1,2,5,10].find(m => m*mag >= raw) || 10) * mag;
+}
+
+function buildBurndownSVG(bd) {
+  const W=320, H=175, PAD={top:12,right:16,bottom:42,left:36};
+  const PW=W-PAD.left-PAD.right, PH=H-PAD.top-PAD.bottom;
+  const { ideal, estimate, actual, labels, totalPoints, totalDays, hasActualData } = bd;
+  const step = _niceStep(totalPoints, 4);
+  const yMax = Math.ceil(totalPoints / step) * step || 1;
+  const px = d => PAD.left + (d/totalDays)*PW;
+  const py = v => PAD.top + PH - (Math.max(0,v)/yMax)*PH;
+  const poly = (arr,col,dash='') => {
+    const pts = arr.map((v,i)=>`${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  };
+  let grid='', ylbl='';
+  for (let v=0; v<=yMax; v+=step) {
+    const y=py(v).toFixed(1);
+    grid+=`<line x1="${PAD.left}" y1="${y}" x2="${W-PAD.right}" y2="${y}" stroke="${_C.grid}" stroke-width="1"/>`;
+    ylbl+=`<text x="${PAD.left-4}" y="${y}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${v}</text>`;
+  }
+  const xStep = totalDays<=7?1:2;
+  let xlbl='';
+  for (let d=0; d<=totalDays; d+=xStep) {
+    const lbl = (labels&&labels[d]) ? labels[d].replace(/\s\d{4}$/,'') : `D${d}`;
+    xlbl+=`<text x="${px(d).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="${_C.text}" font-size="10" font-family="system-ui">${lbl}</text>`;
+  }
+  const ly=H-8;
+  const legend=`
+    <line x1="${PAD.left}" y1="${ly}" x2="${PAD.left+14}" y2="${ly}" stroke="${_C.ideal}" stroke-width="2" stroke-dasharray="4 2"/>
+    <text x="${PAD.left+18}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Ideal</text>
+    <line x1="${PAD.left+52}" y1="${ly}" x2="${PAD.left+66}" y2="${ly}" stroke="${_C.estimate}" stroke-width="2"/>
+    <text x="${PAD.left+70}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">By due date</text>
+    ${hasActualData ? `<line x1="${PAD.left+140}" y1="${ly}" x2="${PAD.left+154}" y2="${ly}" stroke="${_C.actual}" stroke-width="2"/><text x="${PAD.left+158}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Actual</text>` : `<text x="${PAD.left+140}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" opacity="0.5">Actual: no data yet</text>`}`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    ${grid}<line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${H-PAD.bottom}" stroke="${_C.grid}" stroke-width="1"/>
+    <line x1="${PAD.left}" y1="${H-PAD.bottom}" x2="${W-PAD.right}" y2="${H-PAD.bottom}" stroke="${_C.grid}" stroke-width="1"/>
+    ${ylbl}${xlbl}${poly(ideal,_C.ideal,'5 3')}${poly(estimate,_C.estimate)}
+    ${hasActualData?poly(actual,_C.actual):''}${legend}</svg>`;
+}
+
+function buildTimesheetSVG(members, w1Lbl='Week 1', w2Lbl='Week 2') {
+  if (!members.length) return '';
+  const BW=14, BG=4, GG=8, GRP=BW*2+BG+GG;
+  const PAD={top:12,right:16,bottom:52,left:36};
+  const PH=100, n=members.length;
+  const PW=n*(GRP)-GG, W=PAD.left+PW+PAD.right, H=PAD.top+PH+PAD.bottom;
+  const maxH=Math.max(...members.map(m=>Math.max(m.week1,m.week2,0.1)));
+  const step=_niceStep(maxH,4), yMax=Math.ceil(maxH/step)*step||1;
+  const bh=h=>Math.max(1,(h/yMax)*PH);
+  const by=h=>PAD.top+PH-bh(h);
+  const gx=i=>PAD.left+i*GRP;
+  let grid='',ylbl='';
+  for (let v=0; v<=yMax; v+=step) {
+    const y=(PAD.top+PH-(v/yMax)*PH).toFixed(1);
+    grid+=`<line x1="${PAD.left}" y1="${y}" x2="${PAD.left+PW}" y2="${y}" stroke="${_C.grid}" stroke-width="1"/>`;
+    ylbl+=`<text x="${PAD.left-4}" y="${y}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${v}</text>`;
+  }
+  let bars='',xlbl='';
+  members.forEach((m,i)=>{
+    const x=gx(i);
+    bars+=`<rect x="${x}" y="${by(m.week1).toFixed(1)}" width="${BW}" height="${bh(m.week1).toFixed(1)}" fill="${_C.week1}" rx="2"/>`;
+    bars+=`<rect x="${x+BW+BG}" y="${by(m.week2).toFixed(1)}" width="${BW}" height="${bh(m.week2).toFixed(1)}" fill="${_C.week2}" rx="2"/>`;
+    const name=m.name.split(' ')[0].substring(0,8);
+    xlbl+=`<text x="${(x+BW+BG/2).toFixed(1)}" y="${PAD.top+PH+14}" text-anchor="middle" fill="${_C.text}" font-size="10" font-family="system-ui">${name}</text>`;
+  });
+  const ly=H-12;
+  const legend=`<rect x="${PAD.left}" y="${ly-6}" width="10" height="10" fill="${_C.week1}" rx="2"/>
+    <text x="${PAD.left+14}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w1Lbl}</text>
+    <rect x="${PAD.left+68}" y="${ly-6}" width="10" height="10" fill="${_C.week2}" rx="2"/>
+    <text x="${PAD.left+82}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w2Lbl}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    ${grid}<line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+PH}" stroke="${_C.grid}" stroke-width="1"/>
+    <line x1="${PAD.left}" y1="${PAD.top+PH}" x2="${PAD.left+PW}" y2="${PAD.top+PH}" stroke="${_C.grid}" stroke-width="1"/>
+    ${ylbl}${bars}${xlbl}${legend}</svg>`;
+}
+
+/**
+ * Sprint-change banner — ask user to keep or delete old sprint analytics
+ */
+function showSprintChangedBanner(oldSprintName) {
+  const existing = document.getElementById('sprint-changed-banner');
+  if (existing) existing.remove();
+  
+  const banner = document.createElement('div');
+  banner.id = 'sprint-changed-banner';
+  banner.style.cssText = 'padding:10px 12px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;margin-bottom:8px;font-size:12px;color:var(--text);';
+  banner.innerHTML = `
+    <div style="margin-bottom:6px;">Sprint <strong>"${escapeHtml(oldSprintName)}"</strong> is no longer active. Keep its analytics for history?</div>
+    <div style="display:flex;gap:8px;">
+      <button id="keep-sprint-analytics" style="padding:4px 10px;background:var(--surface-raised,#1f2937);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;cursor:pointer;">Keep</button>
+      <button id="delete-sprint-analytics" style="padding:4px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;color:#ef4444;font-size:12px;cursor:pointer;">Delete</button>
+    </div>`;
+  
+  const screenContainer = document.getElementById('screen-container');
+  if (screenContainer) screenContainer.prepend(banner);
+  
+  document.getElementById('keep-sprint-analytics')?.addEventListener('click', () => banner.remove());
+  document.getElementById('delete-sprint-analytics')?.addEventListener('click', async () => {
+    const { deleteCachedSprintData } = await import('./src/sprint-cache.js').catch(() => ({}));
+    if (deleteCachedSprintData) await deleteCachedSprintData(oldSprintName);
+    else {
+      // Fallback: direct storage access
+      const r = await chrome.storage.local.get(['sprintAnalyticsCache']);
+      const c = r.sprintAnalyticsCache || {};
+      delete c[oldSprintName];
+      await chrome.storage.local.set({ sprintAnalyticsCache: c });
+    }
+    banner.remove();
+  });
+}
 
 const PRIORITY_DOT = {
   highest: '<span title="Highest" style="color:#ef4444;font-size:9px;flex-shrink:0;">●</span>',
@@ -832,6 +1026,10 @@ chrome.runtime.onMessage.addListener((message) => {
       const errBanner = document.getElementById('error-banner');
       if (errBanner) errBanner.remove();
     }).catch(e => console.error('[popup] partial-update render failed:', e));
+    return;
+  }
+  if (message.type === 'sprint-changed') {
+    showSprintChangedBanner(message.oldSprintName);
     return;
   }
   if (message.type === 'settings-updated') {
