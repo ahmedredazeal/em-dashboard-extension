@@ -183,18 +183,37 @@ async function refreshDashboard() {
   console.log('[popup] Requesting dashboard refresh...');
   state.isLoading = true;
   
-  // Show loading indicator on sprint collapsed summary
+  // ── Show loading indicators across ALL sections ────────────────────
+  // Sprint header
   const collapsedSummary = document.getElementById('sprint-glance-collapsed-summary');
   if (collapsedSummary) collapsedSummary.textContent = 'Loading…';
+  const sprintCountEl = document.getElementById('sprint-glance-ticket-counts');
+  if (sprintCountEl) sprintCountEl.innerHTML = '';
   
+  // Sentry sections
+  const spikes = document.getElementById('sentry-spikes');
+  const sentryEmpty = document.getElementById('sentry-empty');
+  const sentryTotal = document.getElementById('sentry-total');
+  if (spikes) spikes.innerHTML = `<div style="padding:12px;text-align:center;font-size:12px;color:var(--text-muted);">Loading…</div>`;
+  if (sentryEmpty) sentryEmpty.classList.add('hidden');
+  if (sentryTotal) sentryTotal.textContent = '…';
+  
+  // Extra boards — keep visible but show refreshing state  
+  const extraContainer = document.getElementById('extra-boards-container');
+  if (extraContainer) {
+    extraContainer.querySelectorAll('.section-label').forEach(el => {
+      const count = el.querySelector('span:last-child');
+      if (count) count.textContent = '…';
+    });
+  }
+  
+  // Refresh button disable
   const refreshBtn = document.getElementById('context-refresh');
   if (refreshBtn) { refreshBtn.style.opacity = '0.4'; refreshBtn.style.pointerEvents = 'none'; }
   
   try {
-    // Send start message — background responds immediately (async: true)
-    // Actual data arrives via 'partial-update' messages as each source completes
     await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
-    console.log('[popup] Refresh started — waiting for partial-update messages');
+    console.log('[popup] Refresh started — data arrives via partial-update messages');
   } catch (error) {
     console.error('[popup] Failed to start refresh:', error);
     showErrorBanner(`Could not reach background: ${error.message}`);
@@ -810,7 +829,7 @@ function _niceStep(max, steps=4) {
 }
 
 function buildBurndownSVG(bd) {
-  const W=320, H=175, PAD={top:12,right:16,bottom:42,left:36};
+  const W=320, H=150, PAD={top:10,right:16,bottom:38,left:36};
   const PW=W-PAD.left-PAD.right, PH=H-PAD.top-PAD.bottom;
   const { ideal, estimate, actual, labels, totalPoints, totalDays, hasActualData } = bd;
   const step = _niceStep(totalPoints, 4);
@@ -850,14 +869,13 @@ function buildBurndownSVG(bd) {
 function buildTimesheetSVG(members, w1Lbl='Week 1', w2Lbl='Week 2') {
   if (!members.length) return '';
   
-  // Horizontal grouped bar chart — scales to any number of members
   const W = 300;
-  const NAME_W = 72;   // left column for names
-  const PW = W - NAME_W - 8; // plot width
-  const BAR_H = 9;
-  const ROW_H = 28;    // height per member (two bars + gap)
+  const NAME_W = 100;  // wider for full names
+  const PW = W - NAME_W - 8;
+  const BAR_H = 7;     // slimmer bars
+  const ROW_H = 20;    // tighter rows
   const PAD_TOP = 8;
-  const PAD_BOT = 30;  // room for legend
+  const PAD_BOT = 28;
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
   
   const maxHours = Math.max(...members.map(m => Math.max(m.week1, m.week2, 0.1)));
@@ -867,37 +885,35 @@ function buildTimesheetSVG(members, w1Lbl='Week 1', w2Lbl='Week 2') {
   let rows = '';
   members.forEach((m, i) => {
     const y1 = PAD_TOP + i * ROW_H;
-    const y2 = y1 + BAR_H + 4;
+    const y2 = y1 + BAR_H + 2;
     const w1 = bw(m.week1), w2 = bw(m.week2);
-    const firstName = m.name.split(' ')[0].substring(0, 9);
+    // Full display name, truncated only if very long
+    const displayName = m.name.length > 14 ? m.name.substring(0, 13) + '…' : m.name;
     rows += `
-      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${firstName}</text>
+      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="9.5" font-family="system-ui">${displayName}</text>
       <rect x="${baseX}" y="${y1}" width="${w1.toFixed(1)}" height="${BAR_H}" fill="${_C.week1}" rx="2"/>
       ${m.week1 > 0 ? `<text x="${baseX + w1 + 3}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${m.week1}h</text>` : ''}
       <rect x="${baseX}" y="${y2}" width="${w2.toFixed(1)}" height="${BAR_H}" fill="${_C.week2}" rx="2"/>
       ${m.week2 > 0 ? `<text x="${baseX + w2 + 3}" y="${y2 + BAR_H/2 + 1}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${m.week2}h</text>` : ''}`;
   });
   
-  // Grid lines (vertical, light)
   let grid = '';
   const steps = 4;
   for (let i = 1; i <= steps; i++) {
     const x = (baseX + (i / steps) * PW).toFixed(1);
     grid += `<line x1="${x}" y1="${PAD_TOP}" x2="${x}" y2="${H - PAD_BOT}" stroke="${_C.grid}" stroke-width="1"/>`;
     const label = Math.round((i / steps) * maxHours);
-    grid += `<text x="${x}" y="${H - PAD_BOT + 11}" text-anchor="middle" fill="${_C.text}" font-size="9" font-family="system-ui">${label}h</text>`;
+    grid += `<text x="${x}" y="${H - PAD_BOT + 10}" text-anchor="middle" fill="${_C.text}" font-size="9" font-family="system-ui">${label}h</text>`;
   }
   
-  // Axis
   const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="${_C.grid}" stroke-width="1"/>`;
   
-  // Legend
-  const ly = H - 10;
+  const ly = H - 8;
   const legend = `
-    <rect x="${baseX}" y="${ly - 5}" width="9" height="9" fill="${_C.week1}" rx="2"/>
-    <text x="${baseX + 13}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w1Lbl}</text>
-    <rect x="${baseX + 66}" y="${ly - 5}" width="9" height="9" fill="${_C.week2}" rx="2"/>
-    <text x="${baseX + 79}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w2Lbl}</text>`;
+    <rect x="${baseX}" y="${ly - 5}" width="9" height="7" fill="${_C.week1}" rx="1"/>
+    <text x="${baseX + 13}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${w1Lbl}</text>
+    <rect x="${baseX + 60}" y="${ly - 5}" width="9" height="7" fill="${_C.week2}" rx="1"/>
+    <text x="${baseX + 73}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${w2Lbl}</text>`;
   
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
     ${grid}${ax}${rows}${legend}</svg>`;

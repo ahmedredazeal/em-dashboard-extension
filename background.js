@@ -242,18 +242,21 @@ async function fetchJiraData(settings) {
       );
       
       // Timesheet — one JQL call covering all issues (including subtasks) with
-      // worklogs in the sprint period. Subtasks are NOT in the sprint directly,
-      // so worklogDate filter is the only reliable way to capture them.
+      // worklogs in the sprint period. Uses worklogDate filter since subtasks
+      // are not directly in the sprint.
       let allWorklogs = [];
       try {
-        allWorklogs = await client.getSprintWorklogs(
-          squadKey,
-          activeSprint.startDate,
-          activeSprint.endDate
+        // Race the worklog fetch against a 15s timeout to avoid killing the service worker
+        const worklogPromise = client.getSprintWorklogs(
+          squadKey, activeSprint.startDate, activeSprint.endDate
         );
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
+        );
+        allWorklogs = await Promise.race([worklogPromise, timeoutPromise]);
         console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries`);
       } catch (wlErr) {
-        console.warn('[background] Worklog fetch failed (non-fatal):', wlErr.message);
+        console.warn('[background] Worklog fetch skipped (non-fatal):', wlErr.message);
       }
       
       const timesheetRaw = computeTimesheet(allWorklogs, activeSprint.startDate, workingDays);

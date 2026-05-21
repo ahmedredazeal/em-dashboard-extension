@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.6 (2026-05-21) — Chart polish + refresh loading state + error resilience
+
+**Fixed:**
+- Timesheet: full display names shown (up to 14 chars, then ellipsis) instead of first-name-only
+- Timesheet: smaller chart (ROW_H 28→20, BAR_H 9→7) — fits more members without scrolling
+- Burndown: smaller chart (H 175→150)
+- Refresh button (↻) now shows loading state on ALL sections simultaneously:
+  sprint, sentry views, extra board counts — not just sprint header
+- Background worklog fetch wrapped in 15s timeout to prevent service worker termination
+
+---
+
 ## v1.3.5 (2026-05-21) — Timesheet: worklogDate JQL covers all subtasks
 
 **Fixed:**
