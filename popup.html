@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EM Dashboard</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png"/>
   <link rel="stylesheet" href="styles.css"/>
   <style>
     .section-loading-pill {
@@ -110,14 +112,8 @@
               <span id="current-sprint-total" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
             </div>
           </div>
-          <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:12px;color:var(--text-muted);" id="sprint-glance-collapsed-summary">Loading…</div>
-              <div id="sprint-glance-ticket-counts" style="margin-top:3px;"></div>
-            </div>
-            <span id="sprint-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
-          </div>
-          <!-- Sprint Analytics: above ticket list, collapsed by default -->
+          <!-- Sprint Analytics: rendered ABOVE the sprint collapsible so the
+               sprint header+body (ticket list) stay visually grouped. -->
           <div id="sprint-analytics-wrap" style="margin-top:8px; display:none;">
             <div id="sprint-analytics-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:8px 10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
               <span style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--text-muted);text-transform:uppercase;">Sprint Analytics</span>
@@ -129,6 +125,14 @@
             <div id="sprint-analytics-body" style="margin-top:6px; display:none;">
               <div id="sprint-analytics-content"></div>
             </div>
+          </div>
+
+          <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:8px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;color:var(--text-muted);" id="sprint-glance-collapsed-summary">Loading…</div>
+              <div id="sprint-glance-ticket-counts" style="margin-top:3px;"></div>
+            </div>
+            <span id="sprint-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
           </div>
 
           <div id="sprint-glance-body" style="display:none; margin-top:6px;">

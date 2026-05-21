@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.4.0 (2026-05-21) — Polish: progress by points, card layout, resize, icon
+
+**Fixed (critical):**
+- Sprint progress bar was counting tickets — now counts by STORY POINTS to
+  match the burndown and sprint header (was 52% by ticket count vs 27% by points)
+- Falls back to ticket count only when no story points exist at all
+- Progress bar header shows '(by pt)' or '(by tickets)' for clarity
+
+**Fixed:**
+- Layout did not update when side panel resized past the 520px breakpoint
+  ResizeObserver was comparing against captured const sideBySide value from
+  the initial render. Now persists layout state on wrap.dataset.layout
+- Sprint Analytics moved ABOVE the sprint collapsible header so the sprint
+  collapsible (header + ticket list body) stay visually grouped together
+- Tab icon (favicon) now matches the action icon — added <link rel='icon'>
+  to popup.html pointing at icons/icon32.png and icons/icon16.png
+
+**Changed:**
+- Burndown and Time Logged charts now wrapped in styled cards matching
+  the Sprint Progress card style
+- Chart cards use --surface (darker) vs --surface-raised (collapsibles)
+  for visual hierarchy
+
+---
+
 ## v1.3.9 (2026-05-21) — TDZ fix + progress bar in analytics + inline member filter
 
 **Fixed:**

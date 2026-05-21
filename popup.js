@@ -542,22 +542,30 @@ function renderSprintAnalytics() {
   if (!contentEl) return;
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
   const sideBySide = panelWidth >= 520;
-  const outerStyle = sideBySide ? 'display:flex;gap:12px;align-items:flex-start;' : '';
-  const chartWrapStyle = sideBySide ? 'flex:1;min-width:0;' : 'margin-bottom:12px;';
+  wrap.dataset.layout = sideBySide ? 'row' : 'col'; // persist state for resize check
+  
+  const outerStyle = sideBySide ? 'display:flex;gap:8px;align-items:flex-start;' : '';
+  const chartWrapStyle = sideBySide ? 'flex:1;min-width:0;' : 'margin-bottom:8px;';
+  // Card style: darker than collapsible's --surface-raised so charts stand out
+  const cardStyle = 'padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;';
   
   content.innerHTML = `
     ${progressHtml}
     <div style="${outerStyle}">
       <div style="${chartWrapStyle}">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.3px;">BURNDOWN</div>
-        ${burndownHtml}
+        <div style="${cardStyle}">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.3px;">BURNDOWN</div>
+          ${burndownHtml}
+        </div>
       </div>
       <div style="${chartWrapStyle}">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</span>
-          ${memberFilterHtml}
+        <div style="${cardStyle}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</span>
+            ${memberFilterHtml}
+          </div>
+          ${timesheetHtml}
         </div>
-        ${timesheetHtml}
       </div>
     </div>`;
   
@@ -577,22 +585,28 @@ function renderSprintAnalytics() {
     
     document.getElementById('member-filter-apply')?.addEventListener('click', async () => {
       const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked')).map(cb => cb.dataset.name);
-      // Save to settings
       const r = await chrome.storage.local.get(['settings']);
       const s = r.settings || {};
       s.analytics = { ...s.analytics, monitoredMembers: selected };
       await chrome.storage.local.set({ settings: s });
       state.settings = s;
       popover.style.display = 'none';
-      renderSprintAnalytics(); // re-render with new filter
+      renderSprintAnalytics();
     });
   }
   
-  // Re-render on resize
+  // Re-render on resize — compare against current dataset.layout (not captured const)
   if (!wrap._resizeObserver) {
     wrap._resizeObserver = new ResizeObserver(() => {
-      const newWidth = (document.getElementById('sprint-analytics-content')?.offsetWidth) || 380;
-      if ((newWidth >= 520) !== sideBySide) renderSprintAnalytics();
+      const el = document.getElementById('sprint-analytics-content');
+      if (!el) return;
+      const newWidth = el.offsetWidth || 380;
+      const shouldBeSideBySide = newWidth >= 520;
+      const currentLayout = wrap.dataset.layout === 'row';
+      if (shouldBeSideBySide !== currentLayout) {
+        wrap.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
+        renderSprintAnalytics();
+      }
     });
     wrap._resizeObserver.observe(wrap);
   }
@@ -922,24 +936,40 @@ function formatDueDate(dateStr) {
 }
 
 // ── Sprint Progress Bar ────────────────────────────────────────────────────
+// Counts by STORY POINTS (matches the burndown chart + sprint header pt totals).
+// Falls back to ticket count if no points exist at all.
 function buildSprintProgressBar(stories) {
   if (!stories || stories.length === 0) return '';
-  const total = stories.length;
-  const done  = stories.filter(s => s.statusCategory === 'done').length;
-  const inProg = stories.filter(s => s.statusCategory === 'indeterminate').length;
-  const open  = total - done - inProg;
-  const donePct  = Math.round(done  / total * 100);
-  const ipPct    = Math.round(inProg / total * 100);
-  const openPct  = 100 - donePct - ipPct;
   
-  const doneBar  = donePct  > 0 ? `<div style="width:${donePct}%;background:#22c55e;border-radius:3px;min-width:2px;"></div>` : '';
-  const ipBar    = ipPct    > 0 ? `<div style="width:${ipPct}%;background:#3b82f6;border-radius:3px;min-width:2px;"></div>` : '';
-  const openBar  = openPct  > 0 ? `<div style="flex:1;background:rgba(148,163,184,0.15);border-radius:3px;min-width:2px;"></div>` : '';
+  const totalPoints = stories.reduce((s, t) => s + (t.points || 0), 0);
+  const usePoints   = totalPoints > 0;
+  
+  let donePts, inProgPts, openPts, total;
+  if (usePoints) {
+    donePts   = stories.filter(s => s.statusCategory === 'done').reduce((sum,s) => sum + (s.points||0), 0);
+    inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').reduce((sum,s) => sum + (s.points||0), 0);
+    openPts   = totalPoints - donePts - inProgPts;
+    total     = totalPoints;
+  } else {
+    donePts   = stories.filter(s => s.statusCategory === 'done').length;
+    inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').length;
+    openPts   = stories.length - donePts - inProgPts;
+    total     = stories.length;
+  }
+  
+  const donePct  = total > 0 ? Math.round(donePts  / total * 100) : 0;
+  const ipPct    = total > 0 ? Math.round(inProgPts / total * 100) : 0;
+  const openPct  = Math.max(0, 100 - donePct - ipPct);
+  const unit = usePoints ? 'pt' : 'tickets';
+  
+  const doneBar = donePct > 0 ? `<div style="width:${donePct}%;background:#22c55e;border-radius:3px;min-width:2px;"></div>` : '';
+  const ipBar   = ipPct   > 0 ? `<div style="width:${ipPct}%;background:#3b82f6;border-radius:3px;min-width:2px;"></div>` : '';
+  const openBar = openPct > 0 ? `<div style="flex:1;background:rgba(148,163,184,0.15);border-radius:3px;min-width:2px;"></div>` : '';
   
   return `
-    <div style="padding:10px 12px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-bottom:6px;">
+    <div style="padding:10px 12px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-        <span style="font-size:12px;font-weight:600;color:var(--text);">Sprint progress</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);">Sprint progress <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">(by ${unit})</span></span>
         <span style="font-size:12px;font-weight:700;color:#22c55e;">${donePct}% done</span>
       </div>
       <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;gap:2px;background:rgba(148,163,184,0.1);">
