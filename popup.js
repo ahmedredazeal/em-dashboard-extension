@@ -849,38 +849,58 @@ function buildBurndownSVG(bd) {
 
 function buildTimesheetSVG(members, w1Lbl='Week 1', w2Lbl='Week 2') {
   if (!members.length) return '';
-  const BW=14, BG=4, GG=8, GRP=BW*2+BG+GG;
-  const PAD={top:12,right:16,bottom:52,left:36};
-  const PH=100, n=members.length;
-  const PW=n*(GRP)-GG, W=PAD.left+PW+PAD.right, H=PAD.top+PH+PAD.bottom;
-  const maxH=Math.max(...members.map(m=>Math.max(m.week1,m.week2,0.1)));
-  const step=_niceStep(maxH,4), yMax=Math.ceil(maxH/step)*step||1;
-  const bh=h=>Math.max(1,(h/yMax)*PH);
-  const by=h=>PAD.top+PH-bh(h);
-  const gx=i=>PAD.left+i*GRP;
-  let grid='',ylbl='';
-  for (let v=0; v<=yMax; v+=step) {
-    const y=(PAD.top+PH-(v/yMax)*PH).toFixed(1);
-    grid+=`<line x1="${PAD.left}" y1="${y}" x2="${PAD.left+PW}" y2="${y}" stroke="${_C.grid}" stroke-width="1"/>`;
-    ylbl+=`<text x="${PAD.left-4}" y="${y}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${v}</text>`;
-  }
-  let bars='',xlbl='';
-  members.forEach((m,i)=>{
-    const x=gx(i);
-    bars+=`<rect x="${x}" y="${by(m.week1).toFixed(1)}" width="${BW}" height="${bh(m.week1).toFixed(1)}" fill="${_C.week1}" rx="2"/>`;
-    bars+=`<rect x="${x+BW+BG}" y="${by(m.week2).toFixed(1)}" width="${BW}" height="${bh(m.week2).toFixed(1)}" fill="${_C.week2}" rx="2"/>`;
-    const name=m.name.split(' ')[0].substring(0,8);
-    xlbl+=`<text x="${(x+BW+BG/2).toFixed(1)}" y="${PAD.top+PH+14}" text-anchor="middle" fill="${_C.text}" font-size="10" font-family="system-ui">${name}</text>`;
+  
+  // Horizontal grouped bar chart — scales to any number of members
+  const W = 300;
+  const NAME_W = 72;   // left column for names
+  const PW = W - NAME_W - 8; // plot width
+  const BAR_H = 9;
+  const ROW_H = 28;    // height per member (two bars + gap)
+  const PAD_TOP = 8;
+  const PAD_BOT = 30;  // room for legend
+  const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
+  
+  const maxHours = Math.max(...members.map(m => Math.max(m.week1, m.week2, 0.1)));
+  const bw = h => Math.max(1, (h / maxHours) * PW);
+  const baseX = NAME_W;
+  
+  let rows = '';
+  members.forEach((m, i) => {
+    const y1 = PAD_TOP + i * ROW_H;
+    const y2 = y1 + BAR_H + 4;
+    const w1 = bw(m.week1), w2 = bw(m.week2);
+    const firstName = m.name.split(' ')[0].substring(0, 9);
+    rows += `
+      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${firstName}</text>
+      <rect x="${baseX}" y="${y1}" width="${w1.toFixed(1)}" height="${BAR_H}" fill="${_C.week1}" rx="2"/>
+      ${m.week1 > 0 ? `<text x="${baseX + w1 + 3}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${m.week1}h</text>` : ''}
+      <rect x="${baseX}" y="${y2}" width="${w2.toFixed(1)}" height="${BAR_H}" fill="${_C.week2}" rx="2"/>
+      ${m.week2 > 0 ? `<text x="${baseX + w2 + 3}" y="${y2 + BAR_H/2 + 1}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${m.week2}h</text>` : ''}`;
   });
-  const ly=H-12;
-  const legend=`<rect x="${PAD.left}" y="${ly-6}" width="10" height="10" fill="${_C.week1}" rx="2"/>
-    <text x="${PAD.left+14}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w1Lbl}</text>
-    <rect x="${PAD.left+68}" y="${ly-6}" width="10" height="10" fill="${_C.week2}" rx="2"/>
-    <text x="${PAD.left+82}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w2Lbl}</text>`;
+  
+  // Grid lines (vertical, light)
+  let grid = '';
+  const steps = 4;
+  for (let i = 1; i <= steps; i++) {
+    const x = (baseX + (i / steps) * PW).toFixed(1);
+    grid += `<line x1="${x}" y1="${PAD_TOP}" x2="${x}" y2="${H - PAD_BOT}" stroke="${_C.grid}" stroke-width="1"/>`;
+    const label = Math.round((i / steps) * maxHours);
+    grid += `<text x="${x}" y="${H - PAD_BOT + 11}" text-anchor="middle" fill="${_C.text}" font-size="9" font-family="system-ui">${label}h</text>`;
+  }
+  
+  // Axis
+  const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="${_C.grid}" stroke-width="1"/>`;
+  
+  // Legend
+  const ly = H - 10;
+  const legend = `
+    <rect x="${baseX}" y="${ly - 5}" width="9" height="9" fill="${_C.week1}" rx="2"/>
+    <text x="${baseX + 13}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w1Lbl}</text>
+    <rect x="${baseX + 66}" y="${ly - 5}" width="9" height="9" fill="${_C.week2}" rx="2"/>
+    <text x="${baseX + 79}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">${w2Lbl}</text>`;
+  
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
-    ${grid}<line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top+PH}" stroke="${_C.grid}" stroke-width="1"/>
-    <line x1="${PAD.left}" y1="${PAD.top+PH}" x2="${PAD.left+PW}" y2="${PAD.top+PH}" stroke="${_C.grid}" stroke-width="1"/>
-    ${ylbl}${bars}${xlbl}${legend}</svg>`;
+    ${grid}${ax}${rows}${legend}</svg>`;
 }
 
 /**

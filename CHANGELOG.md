@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.2 (2026-05-21) — Analytics fixes
+
+**Fixed:**
+- Burndown actual line missing: added fallback using ticket updated date for done stories
+  without changelog close timestamp (handles Jira instances with limited history)
+- Timesheet chart: replaced vertical column chart with horizontal bar chart — scales to
+  any number of members without clipping or label overlap
+- Sprint Analytics section moved above ticket list (still under Current Sprint section)
+- Sprint Analytics now collapsed by default (▶), matching other sections
+
+---
+
 ## v1.3.0 (2026-05-21) — Sprint Analytics Charts (Burndown + Timesheet)
 
 **Added:**

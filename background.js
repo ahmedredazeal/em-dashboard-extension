@@ -189,7 +189,24 @@ async function fetchJiraData(settings) {
     const baseStories = stories.map(s => normalizeStory(s, storyPointsField));
     
     // Attach changelog close timestamps for burndown actual line
-    const normalizedStories = attachCloseTimestamps(stories, baseStories, activeSprint.startDate);
+    const withChangelog = attachCloseTimestamps(stories, baseStories, activeSprint.startDate);
+    
+    // Fallback: if a story is in done status but has no changelog close date,
+    // use the `updated` field — it's the last time the ticket changed state
+    const { dayIndex: computeDayIndex } = await import('./src/changelog-parser.js');
+    const normalizedStories = withChangelog.map((story, i) => {
+      if (story.closedAt === null && story.statusCategory === 'done') {
+        const raw = stories[i];
+        const updated = raw?.fields?.updated;
+        if (updated) {
+          const closeDay = computeDayIndex(updated, activeSprint.startDate);
+          return { ...story, closedAt: updated, closedDay: Math.max(0, closeDay) };
+        }
+      }
+      return story;
+    });
+    
+    console.log(`[background] Stories with close dates: ${normalizedStories.filter(s=>s.closedAt).length}/${normalizedStories.length}`);
     
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
     const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
