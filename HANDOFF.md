@@ -3,6 +3,41 @@
 > **Read this before starting any work.**
 > Update this at the end of every session.
 
+## Current version: v1.2.9 (chart logic complete, not yet wired to UI)
+
+## Last session: Ahmed + Claude — 2026-05-20
+
+### Completed this session (Phase 1+2)
+- ✅ src/changelog-parser.js — extract done-transition timestamps (isDoneStatus, transitionToDoneTimestamp, attachCloseTimestamps)
+- ✅ src/burndown.js — 3-series burndown: ideal (linear), estimate (by due dates), actual (from changelog)
+- ✅ src/timesheet.js — week1/week2 hours per member; extractWorklogs; sortTimesheetMembers; getUTCDay() for timezone safety
+- ✅ src/jira-api.js — getSprintStories accepts {withChangelog, withWorklogs}; getIssueWorklogs(key) added
+- ✅ pre-flight.sh — all 4 test suites run (119 total: parsers 32, integration 12, burndown 41, timesheet 34)
+- ✅ docs/research-charts.md — full API research + decisions documented
+- ✅ tests/burndown.test.js — 41 tests
+- ✅ tests/timesheet.test.js — 34 tests
+
+### Next session (Phase 3 — T-20)
+
+Branch: feature/claude-t20-charts-svg
+
+Create:
+- src/sprint-cache.js  (cache burndown+timesheet by sprint name)
+- src/chart-svg.js     (SVG renderer: renderBurndownChart, renderTimesheetChart)
+
+Modify:
+- background.js        (call getSprintStories with withChangelog+withWorklogs, compute+save)
+- popup.html           (collapsible sprint-analytics-section, expanded by default)
+- popup.js             (read cache, inject SVG charts)
+
+Key reminders:
+- getUTCDay() NOT getDay() for all day-of-week logic
+- Charts placed in collapsed area under Current Sprint, EXPANDED by default
+- Cache keyed by sprint name, prompt on sprint change (keep/delete)
+- Default working days: [0,1,2,3,4] = Sun-Thu
+
+---
+
 ---
 
 ## Current version: v1.1.9

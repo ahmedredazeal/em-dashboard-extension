@@ -233,25 +233,49 @@ export class JiraClient {
    * @param {string} storyPointsField - detected field ID e.g. "customfield_10016"
    * @returns {Promise<Array>}
    */
-  async getSprintStories(sprintId, projectKey, storyPointsField = 'customfield_10016') {
+  /**
+   * Get all stories in a sprint.
+   * @param {string|number} sprintId
+   * @param {string} projectKey
+   * @param {string} storyPointsField
+   * @param {Object} options
+   * @param {boolean} [options.withChangelog=false] - Include expand=changelog (for burndown actual)
+   * @param {boolean} [options.withWorklogs=false]  - Include worklog field (for timesheet)
+   * @returns {Promise<Array>}
+   */
+  async getSprintStories(sprintId, projectKey, storyPointsField = 'customfield_10016', options = {}) {
+    const { withChangelog = false, withWorklogs = false } = options;
     const jql = `project = ${projectKey} AND sprint = ${sprintId} AND issuetype not in subTaskIssueTypes() ORDER BY rank ASC`;
-    console.log(`[jira] Fetching stories: ${jql}`);
+    console.log(`[jira] Fetching stories: ${jql} (changelog=${withChangelog}, worklogs=${withWorklogs})`);
     
-    const result = await this._search({
-      jql,
-      fields: [
-        'summary', 'status', 'assignee', 'issuetype', 'priority',
-        storyPointsField,
-        'customfield_10016',
-        'customfield_10026',
-        'subtasks', 'created', 'updated',
-        'duedate', 'labels'
-      ],
-      maxResults: 100
-    });
+    const fields = [
+      'summary', 'status', 'assignee', 'issuetype', 'priority',
+      storyPointsField,
+      'customfield_10016',
+      'customfield_10026',
+      'subtasks', 'created', 'updated',
+      'duedate', 'labels'
+    ];
+    if (withWorklogs) fields.push('worklog');
     
+    const body = { jql, fields, maxResults: 100 };
+    if (withChangelog) body.expand = ['changelog'];
+    
+    const result = await this._search(body);
     console.log(`[jira] Found ${result.issues?.length || 0} stories in sprint`);
     return result.issues || [];
+  }
+
+  /**
+   * Get full worklog list for a single issue.
+   * Use when issue.fields.worklog.total > issue.fields.worklog.maxResults.
+   * @param {string} issueKey
+   * @returns {Promise<Array>}
+   */
+  async getIssueWorklogs(issueKey) {
+    console.log(`[jira] Fetching full worklogs for ${issueKey}`);
+    const result = await this._get(`/rest/api/3/issue/${issueKey}/worklog`);
+    return result.worklogs || [];
   }
 
   /**

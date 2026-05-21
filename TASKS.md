@@ -24,13 +24,27 @@
 
 ## 🔄 In Progress
 
-_Nothing currently in progress._
+_Nothing currently in progress — T-20 next session_
 
 ---
 
+## ✅ Done (recent)
+
+| # | Task | Version | Shipped by | Notes |
+|---|---|---|---|---|
+| T-18 | changelog-parser.js + burndown.js (41 tests) | v1.3.0-pre | Claude | Phase 1 complete |
+| T-19 | timesheet.js + jira-api worklog support (34 tests) | v1.3.0-pre | Claude | Phase 2 complete |
+
 ## 📋 Backlog
 
-### v1.2.0 — Board Manager UI
+### v1.3.0 — Sprint Analytics Charts
+| # | Task | Type | Size | Notes |
+|---|---|---|---|---|
+| T-18 | Phase 1: changelog-parser.js + burndown.js + tests | feature | M | Pure functions, no UI. 3 series: ideal/estimate/actual |
+| T-19 | Phase 2: timesheet.js + jira-api worklog + tests | feature | M | Week1/Week2 hours per member, working days configurable |
+| T-20 | Phase 3: SVG chart renderer + wire into Today screen | feature | L | chart-svg.js, collapsed area under Current Sprint |
+| T-21 | Phase 4: sprint-cache.js + sprint-change prompt | feature | M | Cache by sprint name, keep/delete when sprint changes |
+| T-22 | Phase 5: Settings — work week toggle + cache manager | feature | M | Multi-select sprints + delete, default Sun-Thu |
 | # | Task | Type | Size | Notes |
 |---|---|---|---|---|
 | T-01 | Board Manager UI in settings — add/edit/delete boards with custom names | feature | L | Replace single squad form. Drag-to-reorder later. |
