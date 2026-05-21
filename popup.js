@@ -179,18 +179,33 @@ async function loadData() {
 /**
  * Refresh dashboard (trigger background fetch)
  */
+/** Helper: show/hide section loading pills */
+function setSectionLoading(source, loading) {
+  const pills = {
+    jira:   ['sprint-loading-pill', 'analytics-loading-pill'],
+    sentry: ['sentry-loading-pill'],
+    all:    ['sprint-loading-pill', 'analytics-loading-pill', 'sentry-loading-pill']
+  };
+  const ids = pills[source] || [];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('visible', loading);
+  });
+}
+
 async function refreshDashboard() {
   console.log('[popup] Requesting dashboard refresh...');
   state.isLoading = true;
   
-  // ── Show loading indicators across ALL sections ────────────────────
-  // Sprint header
+  // ── Show loading on ALL sections simultaneously ────────────────────
+  setSectionLoading('all', true);
+  
   const collapsedSummary = document.getElementById('sprint-glance-collapsed-summary');
-  if (collapsedSummary) collapsedSummary.textContent = 'Loading…';
+  if (collapsedSummary) collapsedSummary.textContent = 'Refreshing…';
+  
   const sprintCountEl = document.getElementById('sprint-glance-ticket-counts');
   if (sprintCountEl) sprintCountEl.innerHTML = '';
   
-  // Sentry sections
   const spikes = document.getElementById('sentry-spikes');
   const sentryEmpty = document.getElementById('sentry-empty');
   const sentryTotal = document.getElementById('sentry-total');
@@ -198,16 +213,12 @@ async function refreshDashboard() {
   if (sentryEmpty) sentryEmpty.classList.add('hidden');
   if (sentryTotal) sentryTotal.textContent = '…';
   
-  // Extra boards — keep visible but show refreshing state  
+  // Extra boards — show loading on each board's total count
   const extraContainer = document.getElementById('extra-boards-container');
   if (extraContainer) {
-    extraContainer.querySelectorAll('.section-label').forEach(el => {
-      const count = el.querySelector('span:last-child');
-      if (count) count.textContent = '…';
-    });
+    extraContainer.querySelectorAll('.section-loading-pill').forEach(el => el.classList.add('visible'));
   }
   
-  // Refresh button disable
   const refreshBtn = document.getElementById('context-refresh');
   if (refreshBtn) { refreshBtn.style.opacity = '0.4'; refreshBtn.style.pointerEvents = 'none'; }
   
@@ -215,6 +226,7 @@ async function refreshDashboard() {
     await chrome.runtime.sendMessage({ type: 'refresh-dashboard' });
     console.log('[popup] Refresh started — data arrives via partial-update messages');
   } catch (error) {
+    setSectionLoading('all', false);
     console.error('[popup] Failed to start refresh:', error);
     showErrorBanner(`Could not reach background: ${error.message}`);
   } finally {
@@ -381,7 +393,10 @@ function renderExtraBoards() {
       <div class="section">
         <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
           <span>${escapeHtml(board.boardLabel)}</span>
-          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + ' OPEN' : board.totalStories + ' TOTAL'}</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="section-loading-pill" id="board-loading-${idx}">Refreshing</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + ' OPEN' : board.totalStories + ' TOTAL'}</span>
+          </div>
         </div>
         <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
           <div style="flex:1;min-width:0;">
@@ -612,6 +627,16 @@ function renderTodayScreen() {
     if (stories.length > 0 && glanceBody) {
       const existingList = document.getElementById('sprint-story-list');
       if (existingList) existingList.remove();
+      const existingProg = document.getElementById('sprint-progress-bar');
+      if (existingProg) existingProg.remove();
+      
+      // Progress bar
+      const progEl = document.createElement('div');
+      progEl.id = 'sprint-progress-bar';
+      progEl.innerHTML = buildSprintProgressBar(stories);
+      glanceBody.insertBefore(progEl, glanceBody.firstChild);
+      
+      // Story list
       const jiraBase = state.settings?.jira?.baseUrl || '';
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';
@@ -850,6 +875,38 @@ function formatDueDate(dateStr) {
   if (days < 0)  return `<span style="color:#ef4444;">⚠ due ${label}</span>`;
   if (days <= 2) return `<span style="color:#f59e0b;">📅 ${label}</span>`;
   return `📅 ${label}`;
+}
+
+// ── Sprint Progress Bar ────────────────────────────────────────────────────
+function buildSprintProgressBar(stories) {
+  if (!stories || stories.length === 0) return '';
+  const total = stories.length;
+  const done  = stories.filter(s => s.statusCategory === 'done').length;
+  const inProg = stories.filter(s => s.statusCategory === 'indeterminate').length;
+  const open  = total - done - inProg;
+  const donePct  = Math.round(done  / total * 100);
+  const ipPct    = Math.round(inProg / total * 100);
+  const openPct  = 100 - donePct - ipPct;
+  
+  const doneBar  = donePct  > 0 ? `<div style="width:${donePct}%;background:#22c55e;border-radius:3px;min-width:2px;"></div>` : '';
+  const ipBar    = ipPct    > 0 ? `<div style="width:${ipPct}%;background:#3b82f6;border-radius:3px;min-width:2px;"></div>` : '';
+  const openBar  = openPct  > 0 ? `<div style="flex:1;background:rgba(148,163,184,0.15);border-radius:3px;min-width:2px;"></div>` : '';
+  
+  return `
+    <div style="padding:10px 12px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+        <span style="font-size:12px;font-weight:600;color:var(--text);">Sprint progress</span>
+        <span style="font-size:12px;font-weight:700;color:#22c55e;">${donePct}% done</span>
+      </div>
+      <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;gap:2px;background:rgba(148,163,184,0.1);">
+        ${doneBar}${ipBar}${openBar}
+      </div>
+      <div style="display:flex;gap:14px;margin-top:7px;">
+        <span style="font-size:11px;"><span style="font-weight:700;color:#22c55e;">${donePct}%</span> <span style="color:var(--text-muted);">Done</span></span>
+        <span style="font-size:11px;"><span style="font-weight:700;color:#3b82f6;">${ipPct}%</span> <span style="color:var(--text-muted);">In progress</span></span>
+        <span style="font-size:11px;"><span style="font-weight:700;color:var(--text-muted);">${openPct}%</span> <span style="color:var(--text-muted);">Not started</span></span>
+      </div>
+    </div>`;
 }
 
 // ── Inline SVG chart builders ────────────────────────────────────────────
@@ -1092,9 +1149,8 @@ chrome.runtime.onMessage.addListener((message) => {
     console.log(`[popup] Partial update received: ${message.source}`);
     loadData().then(() => {
       renderCurrentScreen();
-      // Start/reset timer when Jira data arrives (that's when the fetch "started")
+      setSectionLoading(message.source, false);
       if (message.source === 'jira') startRefreshTimer(Date.now());
-      // Remove any error banners on success
       const errBanner = document.getElementById('error-banner');
       if (errBanner) errBanner.remove();
     }).catch(e => console.error('[popup] partial-update render failed:', e));

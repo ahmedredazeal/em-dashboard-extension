@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.3.8 (2026-05-21) — Sprint progress bar + per-section loading indicators
+
+**Added:**
+- Sprint progress bar: segmented bar (green=done, blue=in-progress, gray=not started)
+  with percentage labels — shown at top of expanded sprint section
+- Per-section loading pills: each section (Sprint, Sprint Analytics, Sentry, Extra Boards)
+  now has its own pulsing indicator that appears independently when its data is loading
+  Sprint/Analytics/Boards clear when partial-update:jira arrives
+  Sentry clears when partial-update:sentry arrives
+- setSectionLoading(source, loading) helper controls all pills consistently
+
+---
+
 ## v1.3.7 (2026-05-21) — Support board closed filter + team member monitoring + chart layout
 
 **Added:**
