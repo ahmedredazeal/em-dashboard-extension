@@ -49,6 +49,30 @@
   const theme = settings.ui?.theme || 'browser';
   document.querySelector(`input[name="theme"][value="${theme}"]`)?.click();
   
+  // Team members monitoring checkboxes
+  const discoveredMembers = settings.analytics?.discoveredMembers || [];
+  const monitoredMembers  = settings.analytics?.monitoredMembers;
+  // If no explicit monitored list, all discovered members are monitored by default
+  const monitored = monitoredMembers || discoveredMembers;
+  
+  const listEl = document.getElementById('monitored-members-list');
+  if (listEl && discoveredMembers.length > 0) {
+    listEl.innerHTML = discoveredMembers.map(name => `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text);">
+        <input type="checkbox" class="member-checkbox" data-name="${name.replace(/"/g,'&quot;')}"
+          ${monitored.includes(name) ? 'checked' : ''}
+          style="accent-color:var(--primary,#6366f1);width:14px;height:14px;"/>
+        ${name}
+      </label>`).join('');
+  }
+  
+  document.getElementById('select-all-members')?.addEventListener('click', () => {
+    document.querySelectorAll('.member-checkbox').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('deselect-all-members')?.addEventListener('click', () => {
+    document.querySelectorAll('.member-checkbox').forEach(cb => cb.checked = false);
+  });
+  
   // Test Jira connection
   document.getElementById('jira-test-btn').addEventListener('click', async () => {
     const btn = document.getElementById('jira-test-btn');
@@ -204,6 +228,12 @@
           cadenceMin: 30,
           desktopNotifications: false,
           severityFloor: 'medium'
+        },
+        analytics: {
+          discoveredMembers: settings.analytics?.discoveredMembers || [],
+          monitoredMembers: Array.from(
+            document.querySelectorAll('.member-checkbox:checked')
+          ).map(cb => cb.dataset.name)
         }
       };
       

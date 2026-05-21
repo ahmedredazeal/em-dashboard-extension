@@ -363,6 +363,11 @@ function renderExtraBoards() {
     }
 
     const isSupport = board.boardLabel.toLowerCase().includes('support');
+    // For support boards, hide closed tickets — focus on actionable open tickets
+    const displayStories = isSupport
+      ? stories.filter(s => s.statusCategory !== 'done')
+      : stories;
+    const closedCount = stories.length - displayStories.length;
     const isKanban  = board.boardType === 'kanban';
     const stories   = board.stories || [];
     const progress  = board.totalPoints > 0
@@ -376,17 +381,17 @@ function renderExtraBoards() {
       <div class="section">
         <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
           <span>${escapeHtml(board.boardLabel)}</span>
-          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${board.totalStories} TOTAL</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + ' OPEN' : board.totalStories + ' TOTAL'}</span>
         </div>
         <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
-            <div style="margin-top:3px;">${collapsedBoardSummary(stories, isSupport)}</div>
+            <div style="margin-top:3px;">${collapsedBoardSummary(displayStories, isSupport)}${closedCount > 0 ? ` <span style="font-size:10px;color:var(--text-muted);">· ${closedCount} closed hidden</span>` : ''}</div>
           </div>
           <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
         </div>
         <div id="${sectionId}-body" style="display:none;margin-top:6px;">
-          ${stories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No issues found</div>'}
+          ${displayStories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No open issues</div>'}
         </div>
       </div>`;
   }).join('');
@@ -476,22 +481,53 @@ function renderSprintAnalytics() {
   
   // ── Timesheet ─────────────────────────────────────────────────────
   const ts = analytics.timesheet || [];
+  const monitored = state.settings?.analytics?.monitoredMembers;
+  const filteredTs = monitored && monitored.length > 0
+    ? ts.filter(m => monitored.includes(m.name))
+    : ts;
   let timesheetHtml = '';
-  if (ts.length > 0) {
-    timesheetHtml = buildTimesheetSVG(ts, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2');
+  if (filteredTs.length > 0) {
+    timesheetHtml = buildTimesheetSVG(filteredTs, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2');
   } else {
     timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data for this sprint yet.</div>';
   }
   
+  const contentEl = document.getElementById('sprint-analytics-content');
+  if (!contentEl) return;
+  
+  // Measure available width — side by side if >= 520px, else stacked
+  const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
+  const sideBySide = panelWidth >= 520;
+  
+  const outerStyle = sideBySide
+    ? 'display:flex;gap:12px;align-items:flex-start;'
+    : '';
+  const chartWrapStyle = sideBySide
+    ? 'flex:1;min-width:0;'
+    : 'margin-bottom:12px;';
+  
   content.innerHTML = `
-    <div style="margin-bottom:12px;">
-      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.3px;">BURNDOWN</div>
-      ${burndownHtml}
-    </div>
-    <div>
-      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.3px;">TIME LOGGED</div>
-      ${timesheetHtml}
+    <div style="${outerStyle}">
+      <div style="${chartWrapStyle}">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.3px;">BURNDOWN</div>
+        ${burndownHtml}
+      </div>
+      <div style="${chartWrapStyle}">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.3px;">TIME LOGGED</div>
+        ${timesheetHtml}
+      </div>
     </div>`;
+  
+  // Re-render if panel is resized past the breakpoint
+  if (!wrap._resizeObserver) {
+    wrap._resizeObserver = new ResizeObserver(() => {
+      const newWidth = contentEl.offsetWidth || 380;
+      const wasSideBySide = sideBySide;
+      const isSideBySide = newWidth >= 520;
+      if (wasSideBySide !== isSideBySide) renderSprintAnalytics();
+    });
+    wrap._resizeObserver.observe(wrap);
+  }
 }
 
 /**

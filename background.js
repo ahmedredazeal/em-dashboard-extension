@@ -262,6 +262,24 @@ async function fetchJiraData(settings) {
       const timesheetRaw = computeTimesheet(allWorklogs, activeSprint.startDate, workingDays);
       const timesheet = sortTimesheetMembers(timesheetRaw);
       
+      // Persist discovered member names so settings page can show checkboxes
+      const discoveredNames = timesheet.map(m => m.name);
+      if (discoveredNames.length > 0) {
+        const settingsResult = await chrome.storage.local.get(['settings']);
+        const currentSettings = settingsResult.settings || {};
+        const existingNames = currentSettings.analytics?.discoveredMembers || [];
+        const merged = [...new Set([...existingNames, ...discoveredNames])];
+        if (merged.length !== existingNames.length) {
+          await chrome.storage.local.set({
+            settings: {
+              ...currentSettings,
+              analytics: { ...currentSettings.analytics, discoveredMembers: merged }
+            }
+          });
+          console.log(`[background] Discovered ${merged.length} team members for timesheet`);
+        }
+      }
+      
       // Detect sprint change (notify popup if sprint rotated)
       const oldSprintName = await detectSprintChange(activeSprint.name);
       if (oldSprintName) {

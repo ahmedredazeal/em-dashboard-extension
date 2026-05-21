@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.3.7 (2026-05-21) — Support board closed filter + team member monitoring + chart layout
+
+**Added:**
+- Support boards (name contains 'support') now hide closed/QA Accepted tickets
+  from both the collapsed summary and the expanded ticket list
+  Counter shows 'N OPEN' (not TOTAL); closed count shown as '· N closed hidden'
+- Settings: Team members to monitor — checkboxes for each discovered member
+  Members auto-populated after first sprint analytics fetch
+  Unchecked members hidden from the time-logged chart
+  Select all / Deselect all controls
+- Sprint Analytics charts side by side when panel width >= 520px
+  Dynamically switches via ResizeObserver when panel is resized
+  Falls back to stacked below 520px
+
+---
+
 ## v1.3.6 (2026-05-21) — Chart polish + refresh loading state + error resilience
 
 **Fixed:**
