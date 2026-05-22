@@ -967,9 +967,9 @@ function buildSprintProgressBar(stories) {
   const openBar = openPct > 0 ? `<div style="flex:1;background:rgba(148,163,184,0.15);border-radius:3px;min-width:2px;"></div>` : '';
   
   return `
-    <div style="padding:10px 12px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-bottom:8px;">
+    <div style="padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-        <span style="font-size:12px;font-weight:600;color:var(--text);">Sprint progress <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">(by ${unit})</span></span>
+        <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">Sprint progress <span style="font-size:9px;color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:normal;">(by ${unit})</span></span>
         <span style="font-size:12px;font-weight:700;color:#22c55e;">${donePct}% done</span>
       </div>
       <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;gap:2px;background:rgba(148,163,184,0.1);">

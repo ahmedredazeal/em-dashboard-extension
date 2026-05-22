@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.4.1 (2026-05-22) — Tab icon regenerated + progress card style
+
+**Fixed:**
+- Tab icon (side panel) was a rotated/diagonal grid (legacy v1.0 PNG); regenerated
+  icons/icon16/32/48/128.png from the same SVG used in the panel header.
+  All icon sizes now show 4 aligned squares matching the header logo
+- Sprint progress card restyled to match Burndown and Time Logged cards:
+  same darker surface background, border, padding, and uppercase title style
+
+---
+
 ## v1.4.0 (2026-05-21) — Polish: progress by points, card layout, resize, icon
 
 **Fixed (critical):**
