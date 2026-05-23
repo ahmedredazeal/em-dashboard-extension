@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.4.5 (2026-05-23) — HOTFIX: rescue squad config from broken v1.1.0 migration
+
+**Fixed (critical):**
+- v1.4.4 wired runMigrations() into the boot sequence for the first time.
+  This activated an ORPHANED v1.0.0 → v1.1.0 migration that had been sitting
+  in src/migrations.js since v1.1.0 was conceived. That migration deletes
+  settings.squad after copying its data to settings.boards[0] — but the
+  rest of the app code never adopted the boards[] shape, so users running
+  the migration ended up with a missing settings.squad and the error:
+  '[background] Jira fetch failed: Squad project key not configured'
+
+**Recovery:**
+- Added rescueSquadFromBoards(): if settings.squad is missing AND
+  settings.boards[0] exists with a valid key, rebuild settings.squad from
+  settings.boards[0]. Runs FIRST in the migration chain, so affected users
+  automatically recover on their next extension load.
+- Disabled migrateToV1_1_0 — now a no-op. Kept the function signature so
+  the chain still runs; just doesn't do anything that breaks state.
+
+---
+
 ## v1.4.4 (2026-05-23) — Sentry views accept full URLs (BREAKING)
 
 **Breaking:**

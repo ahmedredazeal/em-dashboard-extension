@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.4.5</div>
+      <div class="cl-desc">
+        <strong>HOTFIX:</strong> v1.4.4 accidentally activated an orphaned v1.0.0 → v1.1.0 migration that deletes settings.squad. Sprint and support boards stopped rendering with Squad project key not configured. Added rescue migration that restores settings.squad from settings.boards[0] (the data is preserved there). Disabled the v1.1.0 migration entirely.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.4.4</div>
       <div class="cl-desc">
         <strong>Sentry views accept full URLs (BREAKING):</strong> Replaced the pipe-format textarea with a dynamic row UI — paste a Sentry view URL and we parse the view ID, project IDs, environment, and query automatically. Live preview shows what we extracted. Existing entries are cleared on upgrade with a one-time banner asking users to re-add views. New parseSentryUrl helper + 17 unit tests. Migrations wired into the boot sequence.

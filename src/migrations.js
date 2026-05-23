@@ -4,63 +4,41 @@
  */
 
 /**
- * Migrate settings from v1.0.0 to v1.1.0
- * Changes:
- * - squad → boards[] array
- * - sentry.project → sentry.views[] array
+ * Rescue migration: restore settings.squad from settings.boards[0] if the
+ * v1.0.0 → v1.1.0 migration ran and deleted squad. That migration was never
+ * actually adopted by the rest of the app — the boards[] shape doesn't exist
+ * elsewhere — so any user it ran for has a broken settings.squad. We rebuild
+ * squad from the data that was preserved in boards[0].
+ */
+async function rescueSquadFromBoards(settings) {
+  if (settings.squad) return settings; // squad is fine, nothing to rescue
+  if (!Array.isArray(settings.boards) || settings.boards.length === 0) return settings;
+  
+  const board = settings.boards[0];
+  if (!board.key) return settings; // can't rescue without a key
+  
+  settings.squad = {
+    key:     board.key,
+    name:    board.customName || board.name || '',
+    boardId: board.boardId || null,
+    extraBoards: settings.squad?.extraBoards || []
+  };
+  console.log(`[migration] RESCUED settings.squad from settings.boards[0] (key=${board.key})`);
+  await chrome.storage.local.set({ settings });
+  return settings;
+}
+
+/**
+ * Migrate settings from v1.0.0 to v1.1.0 — DISABLED.
+ * The v1.1.0 → boards[]/sentry.views[] shape was never adopted by app code
+ * (popup.js, background.js, settings.js all still read settings.squad and
+ * settings.sentry.views in the pipe-format). Originally this function was
+ * never called (runMigrations was orphaned). When v1.4.4 wired up
+ * runMigrations, this migration started running and broke users by
+ * deleting settings.squad. Kept as a no-op for safety; rescue logic above
+ * recovers users it already damaged.
  */
 async function migrateToV1_1_0(settings) {
-  console.log('[migration] Checking if v1.0.0 → v1.1.0 migration needed...');
-  
-  let migrated = false;
-  
-  // Migrate squad → boards
-  if (settings.squad && !settings.boards) {
-    settings.boards = [{
-      id: crypto.randomUUID(),
-      key: settings.squad.key,
-      customName: settings.squad.name,
-      boardId: settings.squad.boardId,
-      order: 0,
-      visible: true
-    }];
-    delete settings.squad;
-    migrated = true;
-    console.log('[migration] Migrated squad → boards[]');
-  }
-  
-  // Migrate sentry.project → sentry.views
-  if (settings.sentry && settings.sentry.project && !settings.sentry.views) {
-    // Default: create a single view for the old project
-    settings.sentry.views = [{
-      id: crypto.randomUUID(),
-      viewId: '201661', // Default view ID (all projects)
-      label: 'All Unresolved Issues',
-      showTotal: true,
-      showDetails: false
-    }];
-    delete settings.sentry.project;
-    migrated = true;
-    console.log('[migration] Migrated sentry.project → sentry.views[]');
-  }
-  
-  // Add preferences if not exists
-  if (!settings.preferences) {
-    settings.preferences = {
-      collapsedSections: [],
-      defaultBoard: settings.boards?.[0]?.id || null
-    };
-    migrated = true;
-    console.log('[migration] Added preferences object');
-  }
-  
-  if (migrated) {
-    await chrome.storage.local.set({ settings });
-    console.log('[migration] v1.0.0 → v1.1.0 migration complete');
-  } else {
-    console.log('[migration] No migration needed, already v1.1.0 format');
-  }
-  
   return settings;
 }
 
@@ -124,8 +102,12 @@ export async function runMigrations() {
   
   let settings = result.settings;
   
+  // Rescue must run FIRST — restores settings.squad if a previous run of
+  // the (now-disabled) v1.1.0 migration deleted it
+  settings = await rescueSquadFromBoards(settings);
+  
   // Run migrations in order
-  settings = await migrateToV1_1_0(settings);
+  settings = await migrateToV1_1_0(settings);    // no-op (disabled)
   settings = await migrateToV1_4_4(settings);
   
   return settings;
