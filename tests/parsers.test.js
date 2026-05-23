@@ -9,6 +9,7 @@ import {
   parseExtraBoardSpec,
   parseExtraBoardsTextarea,
   parseSentryViewSpec,
+  parseSentryUrl,
   getStoryPoints,
   normalizeStory,
   isStoryDone
@@ -210,6 +211,108 @@ test('status.name = "closed"', () => {
 });
 test('status.name = "In Progress" → false', () => {
   assert(!isStoryDone({ fields: { status: { name: 'In Progress' } } }));
+});
+
+console.log('\nparseSentryUrl');
+
+const FULL_URL = 'https://zeal.sentry.io/issues/views/205220/?environment=production&project=6042935&project=6163086&project=4508649352265728&query=is%3Aunresolved&sort=date&statsPeriod=7d';
+
+test('full URL → all fields extracted', () => {
+  const r = parseSentryUrl(FULL_URL);
+  assert(r !== null, 'should not be null');
+  assert(r.baseUrl === 'https://zeal.sentry.io', `baseUrl: ${r.baseUrl}`);
+  assert(r.orgSlug === 'zeal', `orgSlug: ${r.orgSlug}`);
+  assert(r.viewId === '205220', `viewId: ${r.viewId}`);
+  assert(deepEqual(r.projectIds, ['6042935', '6163086', '4508649352265728']), `projectIds: ${JSON.stringify(r.projectIds)}`);
+  assert(r.environment === 'production', `environment: ${r.environment}`);
+  assert(r.query === 'is:unresolved', `query: ${r.query}`);
+  assert(r.sort === 'date', `sort: ${r.sort}`);
+  assert(r.statsPeriod === '7d', `statsPeriod: ${r.statsPeriod}`);
+});
+
+test('URL without projects → empty projectIds array', () => {
+  const r = parseSentryUrl('https://zeal.sentry.io/issues/views/201661/?query=is%3Aunresolved');
+  assert(r !== null);
+  assert(deepEqual(r.projectIds, []));
+  assert(r.viewId === '201661');
+});
+
+test('URL without optional params → null fields', () => {
+  const r = parseSentryUrl('https://zeal.sentry.io/issues/views/123/');
+  assert(r !== null);
+  assert(r.viewId === '123');
+  assert(r.environment === null);
+  assert(r.query === null);
+  assert(r.sort === null);
+  assert(r.statsPeriod === null);
+});
+
+test('URL without trailing slash on viewId', () => {
+  const r = parseSentryUrl('https://zeal.sentry.io/issues/views/999?project=42');
+  assert(r !== null);
+  assert(r.viewId === '999');
+  assert(deepEqual(r.projectIds, ['42']));
+});
+
+test('URL with hash fragment → still parses', () => {
+  const r = parseSentryUrl('https://zeal.sentry.io/issues/views/777/?query=is%3Aunresolved#section');
+  assert(r !== null);
+  assert(r.viewId === '777');
+});
+
+test('sentry.io without subdomain → orgSlug null', () => {
+  const r = parseSentryUrl('https://sentry.io/issues/views/100/');
+  assert(r !== null);
+  assert(r.orgSlug === null);
+  assert(r.baseUrl === 'https://sentry.io');
+});
+
+test('extra path after viewId → still parses viewId', () => {
+  const r = parseSentryUrl('https://zeal.sentry.io/issues/views/555/something/');
+  assert(r !== null);
+  assert(r.viewId === '555');
+});
+
+test('non-Sentry URL → null', () => {
+  assert(parseSentryUrl('https://example.com/issues/views/1/') === null);
+});
+
+test('Sentry issue detail page (not a view) → null', () => {
+  assert(parseSentryUrl('https://zeal.sentry.io/issues/12345/') === null);
+});
+
+test('Sentry dashboard page → null', () => {
+  assert(parseSentryUrl('https://zeal.sentry.io/dashboard/') === null);
+});
+
+test('viewId not numeric → null', () => {
+  assert(parseSentryUrl('https://zeal.sentry.io/issues/views/abc/') === null);
+});
+
+test('empty string → null', () => {
+  assert(parseSentryUrl('') === null);
+});
+
+test('null input → null', () => {
+  assert(parseSentryUrl(null) === null);
+});
+
+test('undefined input → null', () => {
+  assert(parseSentryUrl(undefined) === null);
+});
+
+test('non-string input → null', () => {
+  assert(parseSentryUrl(12345) === null);
+});
+
+test('malformed URL → null', () => {
+  assert(parseSentryUrl('not a url') === null);
+});
+
+test('URL with whitespace → trimmed and parsed', () => {
+  const r = parseSentryUrl('   https://zeal.sentry.io/issues/views/42/   ');
+  assert(r !== null);
+  assert(r.viewId === '42');
 });
 
 // ────────────────────────────────────────────────────────────

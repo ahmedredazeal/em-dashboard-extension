@@ -141,3 +141,64 @@ export function isStoryDone(story) {
   const name = (story.fields?.status?.name || '').toLowerCase();
   return cat === 'done' || ['done', 'closed', 'resolved'].includes(name);
 }
+
+/**
+ * Parse a Sentry view URL into its components.
+ * Example URL:
+ *   https://zeal.sentry.io/issues/views/205220/?environment=production
+ *     &project=6042935&project=6163086&query=is%3Aunresolved&sort=date&statsPeriod=7d
+ *
+ * Returns null if the URL cannot be parsed as a Sentry view URL.
+ * Otherwise returns:
+ *   {
+ *     baseUrl:     "https://zeal.sentry.io",
+ *     orgSlug:     "zeal",
+ *     viewId:      "205220",
+ *     projectIds:  ["6042935", "6163086"],   // empty array if not specified
+ *     environment: "production" | null,
+ *     query:       "is:unresolved" | null,
+ *     sort:        "date" | null,
+ *     statsPeriod: "7d" | null
+ *   }
+ *
+ * @param {string} url
+ * @returns {Object | null}
+ */
+export function parseSentryUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  
+  let u;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return null;
+  }
+  
+  // Must be sentry.io domain (zeal.sentry.io, foo.sentry.io, or sentry.io directly)
+  if (!u.hostname.endsWith('sentry.io')) return null;
+  
+  // Path must match /issues/views/<viewId>/?... — viewId is digits
+  // Allow optional trailing slash; allow extra path segments after viewId
+  const match = u.pathname.match(/^\/issues\/views\/(\d+)(?:\/|$)/);
+  if (!match) return null;
+  
+  const viewId = match[1];
+  
+  // Extract repeated project= params
+  const projectIds = u.searchParams.getAll('project');
+  
+  // Derive org slug from subdomain (zeal.sentry.io → "zeal", sentry.io → null)
+  const hostParts = u.hostname.split('.');
+  const orgSlug = hostParts.length >= 3 ? hostParts[0] : null;
+  
+  return {
+    baseUrl:     `${u.protocol}//${u.hostname}`,
+    orgSlug,
+    viewId,
+    projectIds,
+    environment: u.searchParams.get('environment'),
+    query:       u.searchParams.get('query'),
+    sort:        u.searchParams.get('sort'),
+    statsPeriod: u.searchParams.get('statsPeriod'),
+  };
+}

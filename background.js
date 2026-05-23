@@ -8,11 +8,15 @@
 import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
-import { parseExtraBoardSpec, parseSentryViewSpec, normalizeStory, isStoryDone } from './src/parsers.js';
+import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone } from './src/parsers.js';
 import { attachCloseTimestamps, dayIndex } from './src/changelog-parser.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
+import { runMigrations } from './src/migrations.js';
+
+// Run data migrations on service worker init (idempotent — flagged per migration)
+runMigrations().catch(err => console.warn('[background] Migration failed:', err.message));
 
 /**
  * Initialize on extension install/update
@@ -457,25 +461,33 @@ async function fetchSentryData(settings) {
   
   if (settings.sentry.views && settings.sentry.views.length > 0) {
     for (const view of settings.sentry.views) {
-      // Handle both old string format and new object format
-      let label, viewId, projectIds = [];
-      if (typeof view === 'string') {
-        if (view.includes('|')) {
-          [label, viewId] = view.split('|').map(s => s.trim());
-        } else {
-          viewId = view.trim();
-          label = `View ${viewId}`;
-        }
-      } else {
-        label = view.label || `View ${view.viewId}`;
-        viewId = view.viewId;
-        projectIds = view.projectIds || [];
+      // New shape only: {label, url}. Legacy entries should have been cleared
+      // by the v1_4_4_sentry_url_format migration; if any slip through, skip.
+      if (!view || typeof view !== 'object' || !view.url) {
+        console.warn(`[background] Skipping legacy/invalid Sentry view entry:`, view);
+        continue;
       }
       
-      console.log(`[background] Fetching Sentry view "${label}" (${viewId}) projects:[${projectIds.join(',')}]...`);
+      const parsed = parseSentryUrl(view.url);
+      if (!parsed) {
+        console.warn(`[background] Skipping unparseable Sentry view "${view.label}":`, view.url);
+        viewResults.push({
+          label: view.label || 'Invalid URL',
+          viewId: null, issues: [], count: 0,
+          error: 'Could not parse view URL — re-paste from Sentry'
+        });
+        continue;
+      }
+      
+      const label      = view.label || `View ${parsed.viewId}`;
+      const viewId     = parsed.viewId;
+      const projectIds = parsed.projectIds;
+      const environment = parsed.environment || 'production'; // default if URL omits
+      
+      console.log(`[background] Fetching Sentry view "${label}" (${viewId}) projects:[${projectIds.join(',')}] env:${environment}`);
       
       try {
-        const issues = await client.getIssuesFromView(viewId, projectIds, 'production');
+        const issues = await client.getIssuesFromView(viewId, projectIds, environment);
         console.log(`[background] View "${label}" → ${issues.length} issues`);
         viewResults.push({ label, viewId, issues, count: issues.length });
         allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));

@@ -65,6 +65,54 @@ async function migrateToV1_1_0(settings) {
 }
 
 /**
+ * Migrate to v1.4.4 — Sentry views change from pipe-format string array
+ * to {label, url}[] objects. Per user decision: clear old entries entirely
+ * and require fresh entry. Sets a flag so the settings page can show a
+ * one-time banner explaining the reset.
+ */
+async function migrateToV1_4_4(settings) {
+  settings.migrationsApplied = settings.migrationsApplied || {};
+  
+  // Already ran — bail
+  if (settings.migrationsApplied['v1_4_4_sentry_url_format']) {
+    return settings;
+  }
+  
+  const views = settings.sentry?.views;
+  if (!Array.isArray(views)) {
+    // No existing views to clear — still mark migration applied so we don't
+    // re-check forever and so the banner doesn't appear for fresh installs
+    settings.migrationsApplied['v1_4_4_sentry_url_format'] = true;
+    settings.migrationsApplied['v1_4_4_sentry_url_format_dismissed'] = true;
+    await chrome.storage.local.set({ settings });
+    return settings;
+  }
+  
+  // Detect legacy formats: either a pipe-format string, or an object with
+  // viewId/projectIds but no url field
+  const isLegacy = views.some(v =>
+    typeof v === 'string' ||
+    (v && typeof v === 'object' && !v.url && (v.viewId || v.projectIds))
+  );
+  
+  if (isLegacy) {
+    console.log(`[migration] v1.4.4: clearing ${views.length} legacy Sentry view entries`);
+    settings.sentry.views = [];
+    settings.migrationsApplied['v1_4_4_sentry_url_format'] = true;
+    // banner_dismissed deliberately NOT set — settings page will show the
+    // one-time banner until user dismisses it
+  } else {
+    // Already in new format — mark migration applied so we don't run again,
+    // and mark banner dismissed so fresh-install users never see it
+    settings.migrationsApplied['v1_4_4_sentry_url_format'] = true;
+    settings.migrationsApplied['v1_4_4_sentry_url_format_dismissed'] = true;
+  }
+  
+  await chrome.storage.local.set({ settings });
+  return settings;
+}
+
+/**
  * Run all necessary migrations
  */
 export async function runMigrations() {
@@ -78,6 +126,7 @@ export async function runMigrations() {
   
   // Run migrations in order
   settings = await migrateToV1_1_0(settings);
+  settings = await migrateToV1_4_4(settings);
   
   return settings;
 }

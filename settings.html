@@ -75,12 +75,29 @@
       </div>
 
       <div class="field">
-        <label for="sentry-views">Sentry views (one per line)</label>
-        <textarea id="sentry-views" rows="5" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;" placeholder="HRM Issues|201661|5031746,5846291,6042935&#10;POS Issues|205219|5846291,4507680728416256&#10;BE Issues|205221|5031746,4506435424026624&#10;FE Issues|205220|6042935,6163086"></textarea>
-        <span class="field-hint">
-          Format: <code>Label|ViewID|projectId1,projectId2,...</code><br/>
-          Project IDs come from the Sentry view URL parameters: <code>&amp;project=5031746&amp;project=5846291</code><br/>
-          Example: <code>HRM Issues|201661|5031746,5846291,6042935</code>
+        <label>Sentry views</label>
+        <div id="sentry-views-banner" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:var(--text);display:flex;align-items:flex-start;gap:8px;">
+          <span style="color:#f59e0b;flex-shrink:0;">⚠</span>
+          <div style="flex:1;">
+            <strong>Sentry views format changed.</strong> Your previous views were cleared.
+            Please re-add them below by pasting their full URLs from Sentry.
+          </div>
+          <button type="button" id="sentry-views-banner-dismiss" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+        </div>
+        
+        <div id="sentry-views-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        
+        <button type="button" id="add-sentry-view"
+          style="margin-top:8px;padding:6px 12px;background:var(--surface,#1a1b23);
+                 border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:6px;
+                 color:var(--primary,#6366f1);font-size:12px;cursor:pointer;display:inline-flex;
+                 align-items:center;gap:6px;">
+          <span style="font-size:14px;line-height:1;">+</span> Add another view
+        </button>
+        
+        <span class="field-hint" style="display:block;margin-top:8px;">
+          Paste a Sentry view URL — we'll extract view ID, projects, and environment.<br/>
+          Example: <code style="font-size:10px;">https://zeal.sentry.io/issues/views/205220/?project=6042935...</code>
         </span>
       </div>
 
@@ -202,6 +219,6 @@
     </div>
   </div>
 
-  <script src="settings.js"></script>
+  <script src="settings.js" type="module"></script>
 </body>
 </html>

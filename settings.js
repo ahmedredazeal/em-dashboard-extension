@@ -4,7 +4,117 @@
  * Manages Jira + Sentry credentials, squad selection, theme
  */
 
+import { parseSentryUrl } from './src/parsers.js';
+import { runMigrations } from './src/migrations.js';
+
+// ── Sentry view row rendering ──────────────────────────────────────────────
+// Storage shape: settings.sentry.views = [{ label: string, url: string }, ...]
+// Each row in the UI has: label input, URL input, ×, and a preview line below
+// showing what we parsed from the URL.
+
+function renderSentryViewRows(views) {
+  const list = document.getElementById('sentry-views-list');
+  if (!list) return;
+  list.innerHTML = '';
+  
+  // Always show at least one row (empty if no views)
+  const rows = views.length > 0 ? views : [{ label: '', url: '' }];
+  rows.forEach(view => list.appendChild(createSentryViewRow(view)));
+}
+
+function createSentryViewRow(view) {
+  const row = document.createElement('div');
+  row.className = 'sentry-view-row';
+  row.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--surface,#1a1b23);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:6px;';
+  
+  // Top: label + URL + remove button
+  row.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="text" class="sv-label" placeholder="Label (e.g. HRM Issues)"
+        value="${escapeAttr(view.label || '')}"
+        style="width:140px;flex-shrink:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
+               border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
+               color:var(--text);font-size:12px;"/>
+      <input type="url" class="sv-url" placeholder="https://zeal.sentry.io/issues/views/..."
+        value="${escapeAttr(view.url || '')}"
+        style="flex:1;min-width:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
+               border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
+               color:var(--text);font-size:11px;font-family:monospace;"/>
+      <button type="button" class="sv-remove" title="Remove this view"
+        style="background:none;border:none;color:var(--text-muted);cursor:pointer;
+               font-size:16px;line-height:1;padding:4px 8px;flex-shrink:0;">×</button>
+    </div>
+    <div class="sv-preview" style="font-size:10px;color:var(--text-muted);padding-left:4px;min-height:14px;"></div>
+  `;
+  
+  const urlInput   = row.querySelector('.sv-url');
+  const previewEl  = row.querySelector('.sv-preview');
+  const removeBtn  = row.querySelector('.sv-remove');
+  
+  updateRowPreview(urlInput, previewEl);
+  urlInput.addEventListener('input', () => updateRowPreview(urlInput, previewEl));
+  
+  removeBtn.addEventListener('click', () => {
+    row.remove();
+    // Always keep at least one row visible
+    const list = document.getElementById('sentry-views-list');
+    if (list && list.children.length === 0) {
+      list.appendChild(createSentryViewRow({ label: '', url: '' }));
+    }
+  });
+  
+  return row;
+}
+
+function updateRowPreview(urlInput, previewEl) {
+  const url = urlInput.value.trim();
+  if (!url) {
+    previewEl.textContent = '';
+    urlInput.style.borderColor = 'var(--border,rgba(255,255,255,0.1))';
+    return;
+  }
+  
+  const parsed = parseSentryUrl(url);
+  if (!parsed) {
+    previewEl.innerHTML = `<span style="color:#ef4444;">Couldn't parse this URL — make sure it's a Sentry view URL</span>`;
+    urlInput.style.borderColor = '#ef4444';
+    return;
+  }
+  
+  urlInput.style.borderColor = 'rgba(34,197,94,0.5)';
+  const parts = [
+    `View ${parsed.viewId}`,
+    parsed.projectIds.length > 0 ? `${parsed.projectIds.length} project${parsed.projectIds.length > 1 ? 's' : ''}` : 'all projects',
+    parsed.environment || null,
+    parsed.query || null,
+  ].filter(Boolean);
+  previewEl.innerHTML = `<span style="color:#22c55e;">✓</span> ${parts.join(' · ')}`;
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// Read all rows from the DOM and produce the persisted {label, url}[] array.
+// Skips fully-empty rows. Keeps invalid URLs (so the user doesn't lose work);
+// background.js will skip them at fetch time with a warning.
+function collectSentryViewsFromRows() {
+  const list = document.getElementById('sentry-views-list');
+  if (!list) return [];
+  
+  const rows = Array.from(list.querySelectorAll('.sentry-view-row'));
+  return rows
+    .map(row => ({
+      label: row.querySelector('.sv-label')?.value.trim() || '',
+      url:   row.querySelector('.sv-url')?.value.trim() || '',
+    }))
+    .filter(v => v.label || v.url);  // drop fully-blank rows
+}
+
 (async function() {
+  // Run pending migrations first so we read the post-migration shape below
+  await runMigrations().catch(err => console.warn('[settings] Migration failed:', err.message));
+  
   // Load existing settings
   const result = await chrome.storage.local.get(['settings']);
   const settings = result.settings || {};
@@ -20,16 +130,10 @@
     document.getElementById('sentry-url').value = settings.sentry.baseUrl || 'https://zeal.sentry.io';
     document.getElementById('sentry-org').value = settings.sentry.org || '';
     
-    // Handle both old (array of strings) and new (array with projectIds) formats
-    if (settings.sentry.views && Array.isArray(settings.sentry.views)) {
-      document.getElementById('sentry-views').value = settings.sentry.views
-        .map(v => {
-          if (typeof v === 'string') return v; // old format
-          if (v.projectIds?.length) return `${v.label}|${v.viewId}|${v.projectIds.join(',')}`;
-          return `${v.label}|${v.viewId}`;
-        })
-        .join('\n');
-    }
+    // Render Sentry view rows from new {label, url} object array.
+    // Legacy pipe-format strings will be cleared by migration in v1.4.4 — UI doesn't
+    // need to handle them; we just render whatever is in storage.
+    renderSentryViewRows(settings.sentry.views || []);
     
     document.getElementById('sentry-token').value = settings.sentry.token || '';
   }
@@ -48,6 +152,29 @@
   // Select current theme
   const theme = settings.ui?.theme || 'browser';
   document.querySelector(`input[name="theme"][value="${theme}"]`)?.click();
+  
+  // "+ Add another view" — append blank row to Sentry view list
+  document.getElementById('add-sentry-view')?.addEventListener('click', () => {
+    const list = document.getElementById('sentry-views-list');
+    if (list) list.appendChild(createSentryViewRow({ label: '', url: '' }));
+  });
+  
+  // Sentry views migration banner — show if user has the migration flag set
+  // but hasn't dismissed it yet
+  const flags = settings.migrationsApplied || {};
+  if (flags['v1_4_4_sentry_url_format'] && !flags['v1_4_4_sentry_url_format_dismissed']) {
+    const banner = document.getElementById('sentry-views-banner');
+    if (banner) banner.style.display = 'flex';
+  }
+  document.getElementById('sentry-views-banner-dismiss')?.addEventListener('click', async () => {
+    document.getElementById('sentry-views-banner').style.display = 'none';
+    // Persist dismissal
+    const r = await chrome.storage.local.get(['settings']);
+    const s = r.settings || {};
+    s.migrationsApplied = s.migrationsApplied || {};
+    s.migrationsApplied['v1_4_4_sentry_url_format_dismissed'] = true;
+    await chrome.storage.local.set({ settings: s });
+  });
   
   // Test Jira connection
   document.getElementById('jira-test-btn').addEventListener('click', async () => {
@@ -165,19 +292,7 @@
         sentry: {
           baseUrl: document.getElementById('sentry-url').value.trim(),
           org: document.getElementById('sentry-org').value.trim(),
-          views: document.getElementById('sentry-views').value
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line)
-            .map(line => {
-              const parts = line.split('|');
-              const label = parts[0]?.trim() || 'View';
-              const viewId = parts[1]?.trim() || parts[0]?.trim();
-              const projectIds = parts[2]
-                ? parts[2].split(',').map(p => p.trim()).filter(Boolean)
-                : [];
-              return { label, viewId, projectIds };
-            }),
+          views: collectSentryViewsFromRows(),
           token: document.getElementById('sentry-token').value.trim()
         },
         squad: {

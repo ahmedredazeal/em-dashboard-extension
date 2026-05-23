@@ -1,5 +1,37 @@
 # Changelog
 
+## v1.4.4 (2026-05-23) — Sentry views accept full URLs (BREAKING)
+
+**Breaking:**
+- Sentry views are now configured by pasting their full Sentry URL instead of
+  the previous Label|ViewID|projectIds pipe-format
+- On upgrade, existing pipe-format entries are CLEARED. A one-time amber
+  banner appears in Settings asking users to re-add views from their URLs
+
+**Added:**
+- parseSentryUrl(url) — extracts baseUrl, orgSlug, viewId, projectIds[],
+  environment, query, sort, statsPeriod from any Sentry view URL
+  17 new unit tests covering valid, invalid, edge cases, malformed input
+- Dynamic row UI in Settings: label input + URL input + remove button per row
+- Live URL preview: green check + parsed summary on valid URL,
+  red border + error message on invalid
+- + Add another view button appends a blank row
+- Migration v1_4_4_sentry_url_format detects legacy formats and clears them,
+  flagged via settings.migrationsApplied so it runs once
+- runMigrations() now actually wired — called on background.js boot and
+  on settings.js page load (was orphaned dead code)
+
+**Removed:**
+- Sentry views textarea with pipe-delimited format
+- Pipe-format parsing from background.js — only the new shape is consumed
+
+**Why this changed:**
+The pipe-format required users to manually extract viewID and project IDs
+from a Sentry URL. Now they paste the URL we already have access to and
+we parse everything automatically. Less friction, fewer errors.
+
+---
+
 ## v1.4.3 (2026-05-23) — Resize warning, equal chart heights, API-level support filter
 
 **Fixed:**
