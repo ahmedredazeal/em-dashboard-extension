@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.4.6 (2026-05-23) — Sentry settings polish, ticket row simplification, support QA tracking
+
+**Fixed:**
+- Sentry views section now always shows one empty row by default — users no
+  longer have to click + Add another view to get the first input
+- Removed the v1.4.4 migration banner from Settings — no longer needed
+- Ticket rows had two color systems (priority dot + status icon) which was
+  visually confusing. Removed the status icon at the row start; status name
+  on the right (already colored) carries the status info
+- Support board pill text "blocked" → "blocked-external" to match the
+  actual Jira label name and make the source obvious
+
+**Changed:**
+- Support board API filter: was AND statusCategory != Done, now
+  AND status != "Closed". QA Accepted tickets now appear in the list and
+  count toward the done% in the progress bar — the metric is meaningful again
+  (was always stuck at 0% before, since done category was filtered out)
+
+---
+
 ## v1.4.5 (2026-05-23) — HOTFIX: rescue squad config from broken v1.1.0 migration
 
 **Fixed (critical):**

@@ -129,14 +129,12 @@ function collectSentryViewsFromRows() {
   if (settings.sentry) {
     document.getElementById('sentry-url').value = settings.sentry.baseUrl || 'https://zeal.sentry.io';
     document.getElementById('sentry-org').value = settings.sentry.org || '';
-    
-    // Render Sentry view rows from new {label, url} object array.
-    // Legacy pipe-format strings will be cleared by migration in v1.4.4 — UI doesn't
-    // need to handle them; we just render whatever is in storage.
-    renderSentryViewRows(settings.sentry.views || []);
-    
     document.getElementById('sentry-token').value = settings.sentry.token || '';
   }
+  
+  // Always render Sentry view rows — runs even on fresh install (no settings.sentry yet)
+  // so the user always sees one empty row to fill in
+  renderSentryViewRows(settings.sentry?.views || []);
   
   if (settings.squad) {
     document.getElementById('squad-key').value = settings.squad.key || '';
@@ -157,23 +155,6 @@ function collectSentryViewsFromRows() {
   document.getElementById('add-sentry-view')?.addEventListener('click', () => {
     const list = document.getElementById('sentry-views-list');
     if (list) list.appendChild(createSentryViewRow({ label: '', url: '' }));
-  });
-  
-  // Sentry views migration banner — show if user has the migration flag set
-  // but hasn't dismissed it yet
-  const flags = settings.migrationsApplied || {};
-  if (flags['v1_4_4_sentry_url_format'] && !flags['v1_4_4_sentry_url_format_dismissed']) {
-    const banner = document.getElementById('sentry-views-banner');
-    if (banner) banner.style.display = 'flex';
-  }
-  document.getElementById('sentry-views-banner-dismiss')?.addEventListener('click', async () => {
-    document.getElementById('sentry-views-banner').style.display = 'none';
-    // Persist dismissal
-    const r = await chrome.storage.local.get(['settings']);
-    const s = r.settings || {};
-    s.migrationsApplied = s.migrationsApplied || {};
-    s.migrationsApplied['v1_4_4_sentry_url_format_dismissed'] = true;
-    await chrome.storage.local.set({ settings: s });
   });
   
   // Test Jira connection

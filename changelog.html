@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.4.6</div>
+      <div class="cl-desc">
+        <strong>Polish:</strong> Sentry views always show one empty row by default. Removed migration banner. Dropped duplicate status icon from ticket rows (priority dot + right-side status label kept). Support board pill renamed to <code>blocked-external</code>. Support API filter changed to <code>status != Closed</code> so QA Accepted tickets show in the list and count toward done% (was stuck at 0%).
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.4.5</div>
       <div class="cl-desc">
         <strong>HOTFIX:</strong> v1.4.4 accidentally activated an orphaned v1.0.0 → v1.1.0 migration that deletes settings.squad. Sprint and support boards stopped rendering with Squad project key not configured. Added rescue migration that restores settings.squad from settings.boards[0] (the data is preserved there). Disabled the v1.1.0 migration entirely.

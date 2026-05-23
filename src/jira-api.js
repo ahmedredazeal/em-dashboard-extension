@@ -212,9 +212,12 @@ export class JiraClient {
       jql = `project = ${projectKey}`;
     }
 
-    // Append closed filter at API level for support boards — faster + less data over wire
+    // Append closed filter at API level for support boards.
+    // We exclude only status = "Closed" (not the entire Done category) so that
+    // QA Accepted tickets — which sit in statusCategory=done but are about
+    // to ship — still appear in the support list and count toward progress.
     const finalJql = opts.excludeClosed
-      ? `(${jql}) AND statusCategory != Done ORDER BY created DESC`
+      ? `(${jql}) AND status != "Closed" ORDER BY created DESC`
       : `(${jql}) ORDER BY created DESC`;
 
     const result = await this._search({

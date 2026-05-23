@@ -1151,9 +1151,8 @@ function renderTicketRow(story, jiraBaseUrl) {
   const url = jiraBaseUrl ? `${jiraBaseUrl.replace(/\/$/,'')}/browse/${story.key}` : null;
   const duePart = story.dueDate ? formatDueDate(story.dueDate) : '';
   return `
-    <div class="ticket-row" ${url ? `data-url="${escapeHtml(url)}"` : ''} style="display:flex;align-items:flex-start;gap:6px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));${url?'cursor:pointer;':''}">
+    <div class="ticket-row" ${url ? `data-url="${escapeHtml(url)}"` : ''} style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));${url?'cursor:pointer;':''}">
       ${priorityDot(story.priority)}
-      <span style="font-size:12px;color:${ticketStatusColor(story.status)};flex-shrink:0;padding-top:1px;" title="${escapeHtml(story.status)}">${ticketStatusIcon(story.statusCategory)}</span>
       <div style="flex:1;min-width:0;">
         <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(story.summary)}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
@@ -1235,7 +1234,7 @@ function buildMiniProgressBar(stories, opts = {}) {
     pills.push(`<span style="color:#f97316;font-weight:600;">⚠ ${opts.riskText}</span>`);
   }
   if (opts.blockedCount && opts.blockedCount > 0) {
-    pills.push(`<span style="color:#f59e0b;font-weight:600;">⚠ ${opts.blockedCount} blocked</span>`);
+    pills.push(`<span style="color:#f59e0b;font-weight:600;">⚠ ${opts.blockedCount} blocked-external</span>`);
   }
   if (opts.breachedCount && opts.breachedCount > 0) {
     pills.push(`<span style="color:#ef4444;font-weight:700;">🔴 ${opts.breachedCount} SLA</span>`);
