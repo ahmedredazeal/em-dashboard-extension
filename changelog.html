@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.4.3</div>
+      <div class="cl-desc">
+        <strong>Resize warning + equal heights + API-level filter:</strong> Fixed ResizeObserver loop warning by wrapping re-render in rAF. Burndown and Time Logged cards now stretch to equal heights when side by side. Support boards now filter closed tickets at the API level (JQL) instead of fetching everything and hiding client-side — faster and lighter.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.4.2</div>
       <div class="cl-desc">
         <strong>Mini progress bar in collapsed headers:</strong> Sprint and all extra board headers now show a visual mini progress bar with %done, in-flight count, and risk/blocker pills — replacing the dense text breakdown. Support boards also surface unassigned ticket count.

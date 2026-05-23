@@ -382,8 +382,13 @@ async function fetchJiraData(settings) {
           
           if (isKanban) {
             console.log(`[background] Extra board ${extraBoardId}: Kanban board, fetching issues directly`);
+            // Filter closed at the API level for support boards — saves bandwidth
+            // and removes the need for client-side filtering
+            const isSupport = boardLabel.toLowerCase().includes('support');
             try {
-              const kanbanIssues = await client.getKanbanBoardIssues(extraBoardId, storyPointsField);
+              const kanbanIssues = await client.getKanbanBoardIssues(
+                extraBoardId, storyPointsField, { excludeClosed: isSupport }
+              );
               const stories = kanbanIssues.map(s => normalizeStory(s, storyPointsField));
               const done = kanbanIssues.filter(isStoryDone);
               const totalPoints = stories.reduce((sum, s) => sum + s.points, 0);

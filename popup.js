@@ -375,12 +375,10 @@ function renderExtraBoards() {
     }
 
     const isSupport = board.boardLabel.toLowerCase().includes('support');
-    const stories   = board.stories || [];  // ← must be before displayStories
+    const stories   = board.stories || [];  // for support boards these are already API-filtered to exclude closed
     const isKanban  = board.boardType === 'kanban';
-    const displayStories = isSupport
-      ? stories.filter(s => s.statusCategory !== 'done')
-      : stories;
-    const closedCount = stories.length - displayStories.length;
+    // Support boards: API already excluded closed tickets — no client-side filter needed
+    const displayStories = stories;
     const progress  = board.totalPoints > 0
       ? `${board.completedPoints}/${board.totalPoints}pt`
       : `${board.totalStories} issues`;
@@ -400,7 +398,7 @@ function renderExtraBoards() {
         <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
           <div style="flex:1;min-width:0;">
             <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
-            <div style="margin-top:3px;">${collapsedBoardSummary(displayStories, isSupport)}${closedCount > 0 ? ` <span style="font-size:10px;color:var(--text-muted);">· ${closedCount} closed hidden</span>` : ''}</div>
+            <div style="margin-top:3px;">${collapsedBoardSummary(displayStories, isSupport)}</div>
           </div>
           <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
         </div>
@@ -544,10 +542,11 @@ function renderSprintAnalytics() {
   const sideBySide = panelWidth >= 520;
   wrap.dataset.layout = sideBySide ? 'row' : 'col'; // persist state for resize check
   
-  const outerStyle = sideBySide ? 'display:flex;gap:8px;align-items:flex-start;' : '';
-  const chartWrapStyle = sideBySide ? 'flex:1;min-width:0;' : 'margin-bottom:8px;';
+  const outerStyle = sideBySide ? 'display:flex;gap:8px;align-items:stretch;' : '';
+  const chartWrapStyle = sideBySide ? 'flex:1;min-width:0;display:flex;' : 'margin-bottom:8px;';
   // Card style: darker than collapsible's --surface-raised so charts stand out
-  const cardStyle = 'padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;';
+  // height:100% + flex:1 makes cards equal height when in row layout
+  const cardStyle = 'padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
   
   content.innerHTML = `
     ${progressHtml}
@@ -595,18 +594,21 @@ function renderSprintAnalytics() {
     });
   }
   
-  // Re-render on resize — compare against current dataset.layout (not captured const)
+  // Re-render on resize — wrap in rAF to avoid synchronous layout in observer
+  // callback (which would trigger "ResizeObserver loop completed" warnings)
   if (!wrap._resizeObserver) {
     wrap._resizeObserver = new ResizeObserver(() => {
-      const el = document.getElementById('sprint-analytics-content');
-      if (!el) return;
-      const newWidth = el.offsetWidth || 380;
-      const shouldBeSideBySide = newWidth >= 520;
-      const currentLayout = wrap.dataset.layout === 'row';
-      if (shouldBeSideBySide !== currentLayout) {
-        wrap.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
-        renderSprintAnalytics();
-      }
+      requestAnimationFrame(() => {
+        const el = document.getElementById('sprint-analytics-content');
+        if (!el) return;
+        const newWidth = el.offsetWidth || 380;
+        const shouldBeSideBySide = newWidth >= 520;
+        const currentLayout = wrap.dataset.layout === 'row';
+        if (shouldBeSideBySide !== currentLayout) {
+          wrap.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
+          renderSprintAnalytics();
+        }
+      });
     });
     wrap._resizeObserver.observe(wrap);
   }

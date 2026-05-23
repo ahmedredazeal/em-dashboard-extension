@@ -184,8 +184,16 @@ export class JiraClient {
    * This is the reliable approach for Jira Cloud — gets the board's filter,
    * then searches with full field list so priority is always returned.
    */
-  async getKanbanBoardIssues(boardId, storyPointsField = 'customfield_10016') {
-    console.log(`[jira] Fetching Kanban board ${boardId} via board filter`);
+  /**
+   * Get Kanban board issues via the board's own filter
+   * @param {number|string} boardId
+   * @param {string} storyPointsField
+   * @param {Object} opts
+   * @param {boolean} opts.excludeClosed - if true, appends statusCategory != Done
+   * @returns {Promise<Array>}
+   */
+  async getKanbanBoardIssues(boardId, storyPointsField = 'customfield_10016', opts = {}) {
+    console.log(`[jira] Fetching Kanban board ${boardId} via board filter${opts.excludeClosed ? ' (excluding closed)' : ''}`);
 
     // Get board details including filter id
     const board = await this._get(`/rest/agile/1.0/board/${boardId}`);
@@ -204,8 +212,13 @@ export class JiraClient {
       jql = `project = ${projectKey}`;
     }
 
+    // Append closed filter at API level for support boards — faster + less data over wire
+    const finalJql = opts.excludeClosed
+      ? `(${jql}) AND statusCategory != Done ORDER BY created DESC`
+      : `(${jql}) ORDER BY created DESC`;
+
     const result = await this._search({
-      jql: `(${jql}) ORDER BY created DESC`,
+      jql: finalJql,
       fields: [
         'summary', 'status', 'assignee', 'issuetype', 'priority',
         storyPointsField, 'customfield_10016', 'customfield_10026',

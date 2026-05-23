@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.4.3 (2026-05-23) — Resize warning, equal chart heights, API-level support filter
+
+**Fixed:**
+- ResizeObserver loop completed with undelivered notifications warning
+  Caused by synchronous renderSprintAnalytics() call inside the observer
+  Now wrapped in requestAnimationFrame so layout changes happen on next frame
+- Burndown and Time Logged cards now equal heights when side-by-side
+  align-items: stretch on the flex container; each card has flex:1 + 100% width
+
+**Changed:**
+- Support boards now filter closed tickets at the API level (JQL appends
+  statusCategory != Done) instead of fetching all and hiding client-side
+  Faster initial load, less data over wire
+- Removed N closed hidden indicator (we no longer fetch the closed count)
+
+---
+
 ## v1.4.2 (2026-05-22) — Mini progress bar in all collapsed board headers
 
 **Changed:**
