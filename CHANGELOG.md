@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.4.2 (2026-05-22) — Mini progress bar in all collapsed board headers
+
+**Changed:**
+- Sprint header and all extra board headers (including support) now show a
+  visual mini progress bar instead of text status counts
+  Format: [▰▰▰▰▱▱▱▱▱] 48% done · 6 in flight · ⚠ At risk
+- Sprint header: risk text moved from top line to pill format inside the bar
+- Support board header adds unassigned count: 3 unassigned (warns if > 0)
+- Support board also surfaces blocked-external and BreachedSLA as pills
+- In-flight count includes all indeterminate statusCategory tickets
+  (In Progress, QA Testing, QA Rejected, Code Review, etc)
+
+**Removed:**
+- Text status breakdown (15 Closed · 3 In Progress · ...) from collapsed headers
+  This was tier-2 info; replaced with a visual bar that scans in 1 second
+  Status names still visible in the expanded ticket list
+
+---
+
 ## v1.4.1 (2026-05-22) — Tab icon regenerated + progress card style
 
 **Fixed:**

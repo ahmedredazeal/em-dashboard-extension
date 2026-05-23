@@ -670,24 +670,30 @@ function renderTodayScreen() {
     const prediction = metrics.sprintBurndownPrediction(sp);
     const onTrack = prediction.onTrack;
     
-    let statusText;
+    // Headline shows just sprint name + points + day; risk goes into the mini bar pills
+    let topLine = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pt · Day ${sp.daysElapsed}/${sp.totalDays}`;
+    
+    let riskText = '';
     if (prediction.risk === 'early') {
-      statusText = `📊 Too early — expected ${prediction.expectedDailyVelocity}pt/day`;
+      // skip — too early to flag
     } else if (prediction.risk === 'no-data') {
-      statusText = '— No point data';
-    } else {
-      statusText = onTrack ? '✓ On track' : `⚠ At risk (${prediction.dailyVelocity}pt/day, need ${prediction.expectedDailyVelocity}pt/day)`;
+      // skip
+    } else if (!onTrack) {
+      riskText = `At risk · need ${prediction.expectedDailyVelocity}pt/d`;
     }
     
-    if (collapsedSummary) collapsedSummary.textContent = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pt · Day ${sp.daysElapsed}/${sp.totalDays} · ${statusText}`;
+    if (collapsedSummary) collapsedSummary.textContent = topLine;
     if (glanceSubtitle) glanceSubtitle.textContent = '';
     
-    // Ticket counts in collapsed header (always visible)
+    // Mini progress bar in collapsed header (always visible)
     const countEl = document.getElementById('sprint-glance-ticket-counts');
     const stories = sp.stories || [];
     const isSupport = (sp.boardLabel||sp.boardName||state.settings?.squad?.key||'').toLowerCase().includes('support');
     if (countEl && stories.length > 0) {
-      countEl.innerHTML = collapsedBoardSummary(stories, isSupport);
+      countEl.innerHTML = buildMiniProgressBar(stories, {
+        showUnassigned: false,    // not relevant for sprint
+        riskText,
+      });
     }
     
     // Story list in body (no summary line — it's in the header now)
@@ -1176,22 +1182,81 @@ function ticketCounts(stories) {
 }
 
 /** Collapsed header summary — shows real status distribution */
-function collapsedBoardSummary(stories, isSupport) {
-  const { byStatus, breached, blocked } = ticketCounts(stories);
-  
-  // Sort statuses: done-category last, show all non-zero
-  const statusParts = Object.entries(byStatus)
-    .sort((a, b) => b[1] - a[1]) // highest count first
-    .map(([name, count]) => `${count} ${name}`)
-    .join(' · ');
-  
-  let html = `<span style="font-size:11px;color:var(--text-muted);">${statusParts || 'No tickets'}</span>`;
-  
-  if (isSupport) {
-    if (breached > 0) html += ` <span style="color:#ef4444;font-size:11px;font-weight:600;">· ${breached} BreachedSLA 🔴</span>`;
-    if (blocked  > 0) html += ` <span style="color:#f59e0b;font-size:11px;font-weight:600;">· ${blocked} blocked-external ⚠</span>`;
+// ── Mini progress bar for collapsed headers ──────────────────────────────
+// Compact horizontal stacked bar + headline metrics on a single line.
+// Used in sprint header and extra-board headers.
+function buildMiniProgressBar(stories, opts = {}) {
+  if (!stories || stories.length === 0) {
+    return `<span style="font-size:11px;color:var(--text-muted);">No tickets</span>`;
   }
-  return html;
+  
+  const totalPoints = stories.reduce((s, t) => s + (t.points || 0), 0);
+  const usePoints   = totalPoints > 0;
+  
+  let donePts, inProgPts, openPts, total;
+  if (usePoints) {
+    donePts   = stories.filter(s => s.statusCategory === 'done').reduce((sum,s) => sum + (s.points||0), 0);
+    inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').reduce((sum,s) => sum + (s.points||0), 0);
+    openPts   = totalPoints - donePts - inProgPts;
+    total     = totalPoints;
+  } else {
+    donePts   = stories.filter(s => s.statusCategory === 'done').length;
+    inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').length;
+    openPts   = stories.length - donePts - inProgPts;
+    total     = stories.length;
+  }
+  
+  const donePct = total > 0 ? Math.round(donePts  / total * 100) : 0;
+  const ipPct   = total > 0 ? Math.round(inProgPts / total * 100) : 0;
+  const openPct = Math.max(0, 100 - donePct - ipPct);
+  
+  // In-flight count (tickets, not points — easier to action)
+  const inFlightTickets = stories.filter(s => s.statusCategory === 'indeterminate').length;
+  
+  // Unassigned count
+  const unassigned = stories.filter(s => !s.assignee && s.statusCategory !== 'done').length;
+  
+  const doneBar = donePct > 0 ? `<div style="width:${donePct}%;background:#22c55e;border-radius:2px;min-width:1px;"></div>` : '';
+  const ipBar   = ipPct   > 0 ? `<div style="width:${ipPct}%;background:#3b82f6;border-radius:2px;min-width:1px;"></div>` : '';
+  const openBar = openPct > 0 ? `<div style="flex:1;background:rgba(148,163,184,0.2);border-radius:2px;min-width:1px;"></div>` : '';
+  
+  // Build the metric pills (right of the bar)
+  const pills = [];
+  pills.push(`<span style="color:var(--text);font-weight:600;">${donePct}%</span> <span style="color:var(--text-muted);">done</span>`);
+  if (inFlightTickets > 0) {
+    pills.push(`<span style="color:#3b82f6;font-weight:600;">${inFlightTickets}</span> <span style="color:var(--text-muted);">in flight</span>`);
+  }
+  if (opts.showUnassigned && unassigned > 0) {
+    pills.push(`<span style="color:#f59e0b;font-weight:600;">${unassigned}</span> <span style="color:var(--text-muted);">unassigned</span>`);
+  }
+  if (opts.riskText) {
+    pills.push(`<span style="color:#f97316;font-weight:600;">⚠ ${opts.riskText}</span>`);
+  }
+  if (opts.blockedCount && opts.blockedCount > 0) {
+    pills.push(`<span style="color:#f59e0b;font-weight:600;">⚠ ${opts.blockedCount} blocked</span>`);
+  }
+  if (opts.breachedCount && opts.breachedCount > 0) {
+    pills.push(`<span style="color:#ef4444;font-weight:700;">🔴 ${opts.breachedCount} SLA</span>`);
+  }
+  
+  return `
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px;">
+      <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;background:rgba(148,163,184,0.1);width:60px;flex-shrink:0;">
+        ${doneBar}${ipBar}${openBar}
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        ${pills.join('<span style="color:var(--text-muted);">·</span>')}
+      </div>
+    </div>`;
+}
+
+function collapsedBoardSummary(stories, isSupport) {
+  const { breached, blocked } = ticketCounts(stories);
+  return buildMiniProgressBar(stories, {
+    showUnassigned: isSupport,
+    blockedCount:   isSupport ? blocked  : 0,
+    breachedCount:  isSupport ? breached : 0,
+  });
 }
 
 /** ticketSummaryHTML kept for backward compat — delegates to collapsedBoardSummary */
