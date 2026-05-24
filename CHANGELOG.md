@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.5.8 (2026-05-24) — CRITICAL: date format fix for worklog + chart headers
+
+**Fixed (critical):**
+- NaN May – NaN May date headers and empty TIME LOGGED chart:
+  Jira sprint startDate/endDate are ISO datetimes (2026-05-11T00:00:00.000Z).
+  The fmtDate parser did +day on '11T00:00:00.000Z' → NaN.
+  The worklog JQL passed full ISO strings; Jira expects YYYY-MM-DD for worklogDate.
+  All date handling now slices to YYYY-MM-DD before use.
+- Analytics cache stores sliced dates going forward.
+- renderInsights falls back to analytics.startDate when currentSprint.startDate absent.
+- Worklog fetch guard: skips if wlStart or wlEnd is empty after slice.
+
+---
+
 ## v1.5.7 (2026-05-24) — Due date colors + worklog format + support board chart
 
 **Fixed:**

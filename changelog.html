@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.5.8</div>
+      <div class="cl-desc">
+        <strong>CRITICAL date format fix:</strong> Jira sprint dates are ISO datetimes; slicing to YYYY-MM-DD fixes NaN May headers and empty TIME LOGGED chart (worklogDate JQL was getting the full ISO string and matching nothing).
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.5.7</div>
       <div class="cl-desc">
         <strong>Due date colors + worklog format + support chart:</strong> Closed/QA Accepted tickets no longer show red/orange overdue warnings. Old worklog format shows a refresh prompt instead of empty bars. New Support Board Breakdown card in Insights shows status distribution + blocked-external count per status.

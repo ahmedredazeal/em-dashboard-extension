@@ -260,11 +260,15 @@ async function fetchJiraData(settings) {
         )];
         
         let issues = [];
-        if (accountIds.length > 0) {
+        // Slice to YYYY-MM-DD — Jira sprint dates are ISO datetime strings
+        const wlStart = (activeSprint.startDate || '').slice(0, 10);
+        const wlEnd   = (activeSprint.endDate   || '').slice(0, 10);
+        
+        if (!wlStart || !wlEnd) {
+          console.warn('[background] Sprint has no startDate/endDate — skipping worklog fetch');
+        } else if (accountIds.length > 0) {
           // Option A: cross-squad query by author IDs (preferred)
-          const worklogPromise = client.getTeamWorklogs(
-            accountIds, activeSprint.startDate, activeSprint.endDate
-          );
+          const worklogPromise = client.getTeamWorklogs(accountIds, wlStart, wlEnd);
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
           );
@@ -273,7 +277,7 @@ async function fetchJiraData(settings) {
         } else {
           // Fallback: project-scoped query when account IDs unavailable (old cache)
           console.warn('[background] No assignee account IDs — falling back to project-scoped worklog query');
-          const jql = `project = "${squadKey}" AND worklogDate >= "${activeSprint.startDate}" AND worklogDate <= "${activeSprint.endDate}"`;
+          const jql = `project = "${squadKey}" AND worklogDate >= "${wlStart}" AND worklogDate <= "${wlEnd}"`;
           const result = await client._search({
             jql,
             fields: ['worklog','project','issuetype','priority','timeoriginalestimate','summary'],
@@ -284,7 +288,7 @@ async function fetchJiraData(settings) {
         }
         
         allWorklogs = extractWorklogsFromIssues(
-          issues, accountIds, activeSprint.startDate, activeSprint.endDate
+          issues, accountIds, wlStart, wlEnd
         );
         console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries across ${new Set(allWorklogs.map(w=>w.projectKey)).size} projects`);
       } catch (wlErr) {
@@ -331,8 +335,8 @@ async function fetchJiraData(settings) {
         issueTypeSplit,
         sprintId: activeSprint.id,
         totalDays,
-        startDate: activeSprint.startDate,
-        endDate: activeSprint.endDate,
+        startDate: (activeSprint.startDate || '').slice(0, 10),
+        endDate:   (activeSprint.endDate   || '').slice(0, 10),
       });
       
       console.log(`[background] Analytics cached for "${activeSprint.name}": burndown hasActual=${burndown.hasActualData}, members=${timesheet.length}`);

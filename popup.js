@@ -582,11 +582,16 @@ function renderInsights() {
   }
   
   // ── Sprint date range for chart headers ──────────────────────────
-  const sprintStart = state.currentSprint?.startDate || '';
-  const sprintEnd   = state.currentSprint?.endDate   || '';
+  // Dates: prefer currentSprint, fall back to analytics cache. Slice to YYYY-MM-DD.
+  const rawStart = state.currentSprint?.startDate || state.sprintAnalytics?.startDate || '';
+  const rawEnd   = state.currentSprint?.endDate   || state.sprintAnalytics?.endDate   || '';
+  const sprintStart = rawStart.slice(0, 10);
+  const sprintEnd   = rawEnd.slice(0, 10);
+  // Slice to YYYY-MM-DD — Jira returns ISO datetime "2026-05-11T00:00:00.000Z"
   const fmtDate = d => {
     if (!d) return '';
-    const [y, m, day] = d.split('-');
+    const ymd = d.slice(0, 10); // always safe: "2026-05-11" from any format
+    const [y, m, day] = ymd.split('-');
     const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1];
     return `${+day} ${mon}`;
   };
