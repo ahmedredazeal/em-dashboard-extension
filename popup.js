@@ -682,7 +682,7 @@ function renderTodayScreen() {
     } else if (prediction.risk === 'no-data') {
       // skip
     } else if (!onTrack) {
-      riskText = `At risk · need ${prediction.expectedDailyVelocity}pt/d`;
+      riskText = `At risk · need ${Number(prediction.expectedDailyVelocity).toFixed(1)}pt/d`;
     }
     
     if (collapsedSummary) collapsedSummary.textContent = topLine;

@@ -198,8 +198,8 @@ export function sprintBurndownPrediction(sprint) {
       predicted: completedPoints,
       onTrack: completedPoints >= totalPoints,
       risk: completedPoints >= totalPoints ? 'none' : 'goal-missed',
-      dailyVelocity: completedPoints / Math.max(1, totalDays),
-      expectedDailyVelocity
+      dailyVelocity: Math.round((completedPoints / Math.max(1, totalDays)) * 10) / 10,
+      expectedDailyVelocity: Math.round(expectedDailyVelocity * 10) / 10
     };
   }
 

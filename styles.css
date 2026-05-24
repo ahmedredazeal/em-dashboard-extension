@@ -9,6 +9,8 @@
   --bg: #ffffff;
   --bg-secondary: #f9fafb;
   --bg-tertiary: #f3f4f6;
+  --surface: #f3f4f6;          /* card/chart backgrounds */
+  --surface-raised: #e5e7eb;   /* inputs / inner card areas */
   --text: #111827;
   --text-muted: #6b7280;
   --text-lighter: #9ca3af;
@@ -62,6 +64,8 @@
   --bg: #1a1b23;
   --bg-secondary: #22232e;
   --bg-tertiary: #2a2b38;
+  --surface: #11131c;          /* card/chart backgrounds — darker than page bg */
+  --surface-raised: #1f2937;   /* inputs / inner card areas */
   --text: #e2e8f0;
   --text-muted: #94a3b8;
   --text-lighter: #64748b;
@@ -102,6 +106,8 @@
     --bg: #1a1b23;
     --bg-secondary: #22232e;
     --bg-tertiary: #2a2b38;
+    --surface: #11131c;
+    --surface-raised: #1f2937;
     --text: #e2e8f0;
     --text-muted: #94a3b8;
     --text-lighter: #64748b;

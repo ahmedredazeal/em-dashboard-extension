@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.5.1 (2026-05-24) — Light mode fix + decimal rounding
+
+**Fixed:**
+- Light mode: all card and chart backgrounds now adapt correctly. Root cause:
+  --surface and --surface-raised CSS custom properties were used everywhere
+  (card/chart backgrounds, collapsible sections, inputs) but never defined in
+  styles.css — so the dark hex fallbacks always kicked in. Added to all three
+  theme blocks:
+  Light: --surface:#f3f4f6 --surface-raised:#e5e7eb
+  Dark:  --surface:#11131c --surface-raised:#1f2937
+  Browser-dark: same as dark
+- Decimal overflow in risk text: At risk · need 4.846153846153846pt/d
+  Root cause: metrics.sprintBurndownPrediction sprint-ended branch (daysRemaining=0)
+  returned the raw unrounded expectedDailyVelocity. Day 13/13 triggers this path.
+  Fix: added Math.round(x*10)/10 to that branch, matching the other branches.
+  Also added .toFixed(1) guard in popup.js as a second-layer safety net.
+
+---
+
 ## v1.5.0 (2026-05-24) — Sentry trend chart
 
 **Added:**
