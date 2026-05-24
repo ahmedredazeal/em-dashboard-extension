@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.5.6</div>
+      <div class="cl-desc">
+        <strong>Worklog data + quarter fetch fixes + UX cleanup:</strong> TIME LOGGED now shows data via project fallback when accountIds unavailable. Quarter fetch fixed (wrong JiraClient constructor args). Inner sprint/board collapsibles removed — single subsection shows flat. wrap-is-not-defined crash fixed in ResizeObserver.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.5.5</div>
       <div class="cl-desc">
         <strong>Hotfix:</strong> ReferenceError: wrap is not defined in renderInsights — ResizeObserver was referencing the removed sprint-analytics-wrap element; fixed to use insights-content. Extra board sections (Support Board) now collapsible via section-label click, closed by default.

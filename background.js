@@ -259,22 +259,34 @@ async function fetchJiraData(settings) {
             .filter(Boolean)
         )];
         
-        if (accountIds.length === 0) {
-          console.warn('[background] No assignee account IDs in sprint stories — skipping team worklog fetch');
-        } else {
-          // Race against 15s timeout
+        let issues = [];
+        if (accountIds.length > 0) {
+          // Option A: cross-squad query by author IDs (preferred)
           const worklogPromise = client.getTeamWorklogs(
             accountIds, activeSprint.startDate, activeSprint.endDate
           );
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
           );
-          const issues = await Promise.race([worklogPromise, timeoutPromise]);
-          allWorklogs = extractWorklogsFromIssues(
-            issues, accountIds, activeSprint.startDate, activeSprint.endDate
-          );
-          console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries across ${new Set(allWorklogs.map(w=>w.projectKey)).size} projects`);
+          issues = await Promise.race([worklogPromise, timeoutPromise]);
+          console.log(`[background] Cross-squad worklogs: ${issues.length} issues for ${accountIds.length} members`);
+        } else {
+          // Fallback: project-scoped query when account IDs unavailable (old cache)
+          console.warn('[background] No assignee account IDs — falling back to project-scoped worklog query');
+          const jql = `project = "${squadKey}" AND worklogDate >= "${activeSprint.startDate}" AND worklogDate <= "${activeSprint.endDate}"`;
+          const result = await client._search({
+            jql,
+            fields: ['worklog','project','issuetype','priority','timeoriginalestimate','summary'],
+            maxResults: 200,
+          });
+          issues = result.issues || [];
+          console.log(`[background] Project-scoped worklogs (fallback): ${issues.length} issues`);
         }
+        
+        allWorklogs = extractWorklogsFromIssues(
+          issues, accountIds, activeSprint.startDate, activeSprint.endDate
+        );
+        console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries across ${new Set(allWorklogs.map(w=>w.projectKey)).size} projects`);
       } catch (wlErr) {
         console.warn('[background] Worklog fetch skipped (non-fatal):', wlErr.message);
       }
@@ -576,7 +588,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         const stored = await chrome.storage.local.get(['settings']);
         const settings = stored.settings || {};
-        const client = new jiraAPI.JiraClient(settings.jira);
+        const client = new jiraAPI.JiraClient(
+          settings.jira.baseUrl,
+          settings.jira.email,
+          settings.jira.token
+        );
         const issues = await client.getTeamWorklogs(accountIds, startDate, endDate);
         const rawWorklogs = extractWorklogsFromIssues(issues, accountIds, startDate, endDate);
         const members = aggregateWorklogs(rawWorklogs);

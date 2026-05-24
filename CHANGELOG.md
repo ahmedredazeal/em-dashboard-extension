@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.5.6 (2026-05-24) — Worklog data + quarter fetch + UX fixes
+
+**Fixed:**
+- TIME LOGGED shows no data: when sprint stories have no assigneeAccountId (cached
+  from pre-v1.5.4), accountIds array was empty and worklog fetch was skipped.
+  Added fallback: if no account IDs available, queries project=HRM worklogs so
+  at least HRM data loads. Cross-squad query runs on next refresh once fresh
+  stories with accountIds are cached.
+- Quarter fetch: 'baseUrl.replace is not a function' — JiraClient constructor
+  expects (baseUrl, email, token) but handler was passing settings.jira object.
+  Fixed to use settings.jira.baseUrl/email/token like the main Jira client.
+- wrap is not defined crash in renderInsights — ResizeObserver still referenced
+  deleted sprint-analytics-wrap element. Fixed to use contentEl (insights-content).
+
+**Changed:**
+- Current Sprint: removed inner sprint-glance-header toggle. Single subsection
+  shows flat when the section is expanded — no need for an inner collapsible.
+- Extra boards (Support): same treatment. Section label toggles whole content;
+  mini bar + ticket list show flat when expanded.
+
+---
+
 ## v1.5.5 (2026-05-24) — Fix: wrap undefined crash + board sections collapsible
 
 **Fixed:**

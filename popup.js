@@ -755,19 +755,12 @@ function renderTodayScreen() {
   const glanceSubtitle = document.getElementById('sprint-glance-subtitle');
   const glanceBody = document.getElementById('sprint-glance');
   const collapsedSummary = document.getElementById('sprint-glance-collapsed-summary');
-  const sprintHeader = document.getElementById('sprint-glance-header');
   const sprintBody = document.getElementById('sprint-glance-body');
   const sprintChevron = document.getElementById('sprint-chevron');
   
-  // Wire up collapse toggle (only once)
-  if (sprintHeader && !sprintHeader.dataset.wired) {
-    sprintHeader.dataset.wired = '1';
-    sprintHeader.addEventListener('click', () => {
-      const isCollapsed = sprintBody.style.display === 'none';
-      sprintBody.style.display = isCollapsed ? '' : 'none';
-      sprintChevron.textContent = isCollapsed ? '▼' : '▶';
-    });
-  }
+  // Single-subsection: always show sprint-glance-body; hide the inner chevron
+  if (sprintBody) sprintBody.style.display = '';
+  if (sprintChevron) sprintChevron.style.display = 'none';
   
   if (state.currentSprint) {
     const sp = state.currentSprint;
