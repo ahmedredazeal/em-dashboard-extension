@@ -6,6 +6,7 @@
 
 import * as privacyMode from './src/privacy-mode.js';
 import * as metrics from './src/metrics.js';
+import { getTrendSamples } from './src/sentry-trend.js';
 
 // Current state
 let state = {
@@ -728,6 +729,9 @@ function renderTodayScreen() {
   const sentryEmpty = document.getElementById('sentry-empty');
   const totalBadge = document.getElementById('sentry-total');
   
+  // Trend chart — always rendered (async, non-blocking)
+  renderSentryTrend().catch(e => console.warn('[popup] Trend render failed:', e.message));
+  
   // Use per-view data if available, fall back to flat list
   const views = state.sentryViews && state.sentryViews.length > 0
     ? state.sentryViews
@@ -987,6 +991,123 @@ function buildSprintProgressBar(stories) {
         <span style="font-size:11px;"><span style="font-weight:700;color:#22c55e;">${donePct}%</span> <span style="color:var(--text-muted);">Done</span></span>
         <span style="font-size:11px;"><span style="font-weight:700;color:#3b82f6;">${ipPct}%</span> <span style="color:var(--text-muted);">In progress</span></span>
         <span style="font-size:11px;"><span style="font-weight:700;color:var(--text-muted);">${openPct}%</span> <span style="color:var(--text-muted);">Not started</span></span>
+      </div>
+    </div>`;
+}
+
+// ── Sentry Trend Chart ────────────────────────────────────────────────────
+async function renderSentryTrend() {
+  const card = document.getElementById('sentry-trend-card');
+  if (!card) return;
+  
+  const trackedViewId = state.settings?.sentry?.trackedViewId;
+  if (!trackedViewId) {
+    card.style.display = 'none';
+    return;
+  }
+  
+  // Find label for the tracked view
+  const views = state.settings?.sentry?.views || [];
+  const trackedView = views.find(v => {
+    try {
+      const p = v.url ? (new URL(v.url)).pathname.match(/\/issues\/views\/(\d+)/)?.[1] : null;
+      return p === trackedViewId;
+    } catch { return false; }
+  });
+  const viewLabel = trackedView?.label || `View ${trackedViewId}`;
+  
+  let samples;
+  try {
+    samples = await getTrendSamples(trackedViewId);
+  } catch (e) {
+    console.warn('[popup] Failed to load trend samples:', e.message);
+    samples = [];
+  }
+  
+  card.style.display = '';
+  card.innerHTML = buildTrendCardHTML(viewLabel, samples);
+}
+
+function buildTrendCardHTML(label, samples) {
+  // Only show last 30 days for compactness
+  const last30 = samples.slice(-30);
+  
+  if (last30.length < 2) {
+    return `
+      <div style="padding:10px 12px;background:var(--surface,#11131c);
+                  border:1px solid var(--border,rgba(255,255,255,0.05));
+                  border-radius:8px;font-size:11px;color:var(--text-muted);">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
+                    text-transform:uppercase;margin-bottom:6px;">${escapeHtml(label)} Trend</div>
+        Open the panel daily to build trend history. ${last30.length === 1 ? '1 data point so far.' : 'No data yet.'}
+      </div>`;
+  }
+  
+  const counts  = last30.map(s => s.count);
+  const days    = last30.map(s => s.day);
+  const minVal  = Math.min(...counts);
+  const maxVal  = Math.max(...counts);
+  const today   = last30[last30.length - 1];
+  const prev    = last30[last30.length - 2];
+  const delta   = today.count - prev.count;
+  const deltaStr = delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '=';
+  const deltaColor = delta > 0 ? '#f97316' : delta < 0 ? '#22c55e' : 'var(--text-muted)';
+  
+  const W = 280, H = 52, PAD_L = 4, PAD_R = 4, PAD_T = 6, PAD_B = 16;
+  const PW = W - PAD_L - PAD_R;
+  const PH = H - PAD_T - PAD_B;
+  const range = maxVal - minVal || 1;
+  
+  const px = (i) => PAD_L + (i / (last30.length - 1)) * PW;
+  const py = (v) => PAD_T + PH - ((v - minVal) / range) * PH;
+  
+  // Build polyline points
+  const pts = last30.map((s, i) => `${px(i).toFixed(1)},${py(s.count).toFixed(1)}`).join(' ');
+  
+  // Build filled area path
+  const firstX = PAD_L.toFixed(1), lastX = (PAD_L + PW).toFixed(1);
+  const baseY  = (PAD_T + PH).toFixed(1);
+  const areaPath = `M${firstX},${baseY} L${pts.split(' ').map(p => p).join(' L')} L${lastX},${baseY} Z`;
+  
+  // X-axis labels: first, middle, last
+  const xLabels = [];
+  const labelIdxs = [0, Math.floor((last30.length - 1) / 2), last30.length - 1];
+  const labelNames = ['', '', 'today'];
+  labelIdxs.forEach((idx, li) => {
+    const d = days[idx];
+    const label_text = li === 2 ? 'today' : `${parseInt(d.slice(8))} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(d.slice(5,7))-1]}`;
+    xLabels.push(`<text x="${px(idx).toFixed(1)}" y="${H - 2}" text-anchor="${li === 0 ? 'start' : li === 2 ? 'end' : 'middle'}" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${label_text}</text>`);
+  });
+  
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+    <defs>
+      <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPath}" fill="url(#tg)"/>
+    <polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${px(last30.length - 1).toFixed(1)}" cy="${py(today.count).toFixed(1)}" r="2.5" fill="#6366f1"/>
+    ${xLabels.join('')}
+  </svg>`;
+  
+  return `
+    <div style="padding:10px 12px;background:var(--surface,#11131c);
+                border:1px solid var(--border,rgba(255,255,255,0.05));
+                border-radius:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
+                     text-transform:uppercase;">${escapeHtml(label)} · last 30 days</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;font-weight:700;color:${deltaColor};">${deltaStr} vs yesterday</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">${today.count}</span>
+        </div>
+      </div>
+      ${svg}
+      <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:9px;color:var(--text-muted);">
+        <span>min ${minVal}</span>
+        <span>max ${maxVal}</span>
       </div>
     </div>`;
 }

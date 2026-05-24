@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.5.0 (2026-05-24) — Sentry trend chart
+
+**Added:**
+- Sentry daily issue-count trend chart. Tracks unresolved issues for one
+  selected view over time and renders a compact sparkline card directly under
+  the SENTRY ISSUES section label — always visible, same card style as
+  burndown and timesheet
+- Track button on each Sentry view row in Settings — click to select which
+  view is tracked; only one at a time; click again to deselect. Tooltip explains
+  what tracking does
+- Hint text below the Sentry views list clarifying the Track button purpose
+- Samples stored in chrome.storage.sync bucketed by month (sentryTrend:{id}:{YYYY-MM})
+  — survives extension reinstall and machine changes as long as the user
+  is signed into Chrome with the same Google account
+- Each refresh overwrites today's count for the tracked view (passive capture)
+- 365-day rolling retention — months older than 12 are pruned automatically
+- Chart shows last 30 days: area sparkline, today's count, delta vs yesterday,
+  min/max annotation, 3 date labels on X axis
+- New module: src/sentry-trend.js with recordTrendSample, getTrendSamples,
+  pruneOldSamples, todayUTC
+- 15 unit tests with mock chrome.storage.sync in tests/sentry-trend.test.js
+
+---
+
 ## v1.4.6 (2026-05-23) — Sentry settings polish, ticket row simplification, support QA tracking
 
 **Fixed:**

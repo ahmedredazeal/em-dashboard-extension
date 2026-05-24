@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.5.0</div>
+      <div class="cl-desc">
+        <strong>Sentry trend chart:</strong> Track one Sentry view's daily unresolved count over time. Click <em>Track</em> on a view row in Settings to select it. A compact sparkline card appears under the Sentry section showing last 30 days, today's count, and delta vs yesterday. Data stored in chrome.storage.sync — survives reinstalls. 365-day rolling retention. 15 new unit tests.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.4.6</div>
       <div class="cl-desc">
         <strong>Polish:</strong> Sentry views always show one empty row by default. Removed migration banner. Dropped duplicate status icon from ticket rows (priority dot + right-side status label kept). Support board pill renamed to <code>blocked-external</code>. Support API filter changed to <code>status != Closed</code> so QA Accepted tickets show in the list and count toward done% (was stuck at 0%).

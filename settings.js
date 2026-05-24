@@ -12,27 +12,28 @@ import { runMigrations } from './src/migrations.js';
 // Each row in the UI has: label input, URL input, ×, and a preview line below
 // showing what we parsed from the URL.
 
-function renderSentryViewRows(views) {
+function renderSentryViewRows(views, trackedViewId) {
   const list = document.getElementById('sentry-views-list');
   if (!list) return;
   list.innerHTML = '';
-  
-  // Always show at least one row (empty if no views)
   const rows = views.length > 0 ? views : [{ label: '', url: '' }];
-  rows.forEach(view => list.appendChild(createSentryViewRow(view)));
+  rows.forEach(view => list.appendChild(createSentryViewRow(view, trackedViewId)));
 }
 
-function createSentryViewRow(view) {
+function createSentryViewRow(view, trackedViewId) {
   const row = document.createElement('div');
   row.className = 'sentry-view-row';
   row.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--surface,#1a1b23);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:6px;';
   
-  // Top: label + URL + remove button
+  const parsed = view.url ? parseSentryUrl(view.url) : null;
+  const parsedViewId = parsed?.viewId || '';
+  const isTracked = !!(trackedViewId && parsedViewId && trackedViewId === parsedViewId);
+  
   row.innerHTML = `
     <div style="display:flex;gap:6px;align-items:center;">
       <input type="text" class="sv-label" placeholder="Label (e.g. HRM Issues)"
         value="${escapeAttr(view.label || '')}"
-        style="width:140px;flex-shrink:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
+        style="width:120px;flex-shrink:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
                border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
                color:var(--text);font-size:12px;"/>
       <input type="url" class="sv-url" placeholder="https://zeal.sentry.io/issues/views/..."
@@ -40,6 +41,16 @@ function createSentryViewRow(view) {
         style="flex:1;min-width:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
                border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
                color:var(--text);font-size:11px;font-family:monospace;"/>
+      <button type="button" class="sv-track"
+        data-view-id="${escapeAttr(parsedViewId)}"
+        title="Show daily issue-count trend chart for this view in the dashboard. Only one view can be tracked at a time."
+        style="background:none;border:1px solid ${isTracked ? 'var(--primary,#6366f1)' : 'var(--border,rgba(255,255,255,0.1))'};
+               border-radius:4px;padding:3px 8px;
+               color:${isTracked ? 'var(--primary,#6366f1)' : 'var(--text-muted)'};
+               font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;
+               font-weight:${isTracked ? '600' : '400'};">
+        ${isTracked ? '● Tracking' : 'Track'}
+      </button>
       <button type="button" class="sv-remove" title="Remove this view"
         style="background:none;border:none;color:var(--text-muted);cursor:pointer;
                font-size:16px;line-height:1;padding:4px 8px;flex-shrink:0;">×</button>
@@ -47,26 +58,43 @@ function createSentryViewRow(view) {
     <div class="sv-preview" style="font-size:10px;color:var(--text-muted);padding-left:4px;min-height:14px;"></div>
   `;
   
-  const urlInput   = row.querySelector('.sv-url');
-  const previewEl  = row.querySelector('.sv-preview');
-  const removeBtn  = row.querySelector('.sv-remove');
+  const urlInput  = row.querySelector('.sv-url');
+  const previewEl = row.querySelector('.sv-preview');
+  const trackBtn  = row.querySelector('.sv-track');
+  const removeBtn = row.querySelector('.sv-remove');
   
-  updateRowPreview(urlInput, previewEl);
-  urlInput.addEventListener('input', () => updateRowPreview(urlInput, previewEl));
+  updateRowPreview(urlInput, previewEl, trackBtn);
+  urlInput.addEventListener('input', () => updateRowPreview(urlInput, previewEl, trackBtn));
+  
+  trackBtn.addEventListener('click', () => {
+    const active = trackBtn.textContent.includes('Tracking');
+    // Deselect all track buttons first
+    document.querySelectorAll('.sv-track').forEach(btn => {
+      btn.textContent = 'Track';
+      btn.style.color = 'var(--text-muted)';
+      btn.style.borderColor = 'var(--border,rgba(255,255,255,0.1))';
+      btn.style.fontWeight = '400';
+    });
+    if (!active) {
+      trackBtn.textContent = '● Tracking';
+      trackBtn.style.color = 'var(--primary,#6366f1)';
+      trackBtn.style.borderColor = 'var(--primary,#6366f1)';
+      trackBtn.style.fontWeight = '600';
+    }
+  });
   
   removeBtn.addEventListener('click', () => {
     row.remove();
-    // Always keep at least one row visible
     const list = document.getElementById('sentry-views-list');
     if (list && list.children.length === 0) {
-      list.appendChild(createSentryViewRow({ label: '', url: '' }));
+      list.appendChild(createSentryViewRow({ label: '', url: '' }, null));
     }
   });
   
   return row;
 }
 
-function updateRowPreview(urlInput, previewEl) {
+function updateRowPreview(urlInput, previewEl, trackBtn) {
   const url = urlInput.value.trim();
   if (!url) {
     previewEl.textContent = '';
@@ -108,7 +136,13 @@ function collectSentryViewsFromRows() {
       label: row.querySelector('.sv-label')?.value.trim() || '',
       url:   row.querySelector('.sv-url')?.value.trim() || '',
     }))
-    .filter(v => v.label || v.url);  // drop fully-blank rows
+    .filter(v => v.label || v.url);
+}
+
+// Returns the viewId of whichever row has the Track button active, or null
+function getTrackedViewId() {
+  const btn = document.querySelector('.sv-track[style*="6366f1"]');
+  return btn?.dataset.viewId || null;
 }
 
 (async function() {
@@ -134,7 +168,7 @@ function collectSentryViewsFromRows() {
   
   // Always render Sentry view rows — runs even on fresh install (no settings.sentry yet)
   // so the user always sees one empty row to fill in
-  renderSentryViewRows(settings.sentry?.views || []);
+  renderSentryViewRows(settings.sentry?.views || [], settings.sentry?.trackedViewId || null);
   
   if (settings.squad) {
     document.getElementById('squad-key').value = settings.squad.key || '';
@@ -274,6 +308,7 @@ function collectSentryViewsFromRows() {
           baseUrl: document.getElementById('sentry-url').value.trim(),
           org: document.getElementById('sentry-org').value.trim(),
           views: collectSentryViewsFromRows(),
+          trackedViewId: getTrackedViewId(),
           token: document.getElementById('sentry-token').value.trim()
         },
         squad: {

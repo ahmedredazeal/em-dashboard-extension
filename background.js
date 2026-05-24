@@ -14,6 +14,7 @@ import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { runMigrations } from './src/migrations.js';
+import { recordTrendSample } from './src/sentry-trend.js';
 
 // Run data migrations on service worker init (idempotent — flagged per migration)
 runMigrations().catch(err => console.warn('[background] Migration failed:', err.message));
@@ -491,6 +492,13 @@ async function fetchSentryData(settings) {
         console.log(`[background] View "${label}" → ${issues.length} issues`);
         viewResults.push({ label, viewId, issues, count: issues.length });
         allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));
+        
+        // Record trend sample if this view is marked for tracking
+        if (settings.sentry?.trackedViewId === viewId) {
+          recordTrendSample(viewId, issues.length).catch(e =>
+            console.warn('[background] Failed to record trend sample:', e.message)
+          );
+        }
       } catch (error) {
         console.error(`[background] Failed view ${viewId}:`, error.message);
         viewResults.push({ label, viewId, issues: [], count: 0, error: error.message });
