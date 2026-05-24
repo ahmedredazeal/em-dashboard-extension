@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.5.3 (2026-05-24) — Insights section + section-level toggles
+
+**Changed:**
+- New top-level INSIGHTS section (open by default) consolidates all charts:
+  Sprint Progress, Burndown, Time Logged, Sentry Trend.
+  Flat layout — no inner collapsibles inside Insights.
+- CURRENT SPRINT section is now closed by default; section label + mini
+  progress bar always visible; ticket list shown on expand.
+- SENTRY ISSUES section is now closed by default; views shown on expand.
+- All section labels are now clickable toggles (▶/▼ chevron).
+- Sprint Analytics sub-section removed; its content moved to Insights.
+- setSectionLoading updated: analytics-loading-pill → insights-loading-pill.
+
+---
+
 ## v1.5.1 (2026-05-24) — Light mode fix + decimal rounding
 
 **Fixed:**

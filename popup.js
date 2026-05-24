@@ -183,9 +183,9 @@ async function loadData() {
 /** Helper: show/hide section loading pills */
 function setSectionLoading(source, loading) {
   const pills = {
-    jira:   ['sprint-loading-pill', 'analytics-loading-pill'],
+    jira:   ['sprint-loading-pill', 'insights-loading-pill'],
     sentry: ['sentry-loading-pill'],
-    all:    ['sprint-loading-pill', 'analytics-loading-pill', 'sentry-loading-pill']
+    all:    ['sprint-loading-pill', 'insights-loading-pill', 'sentry-loading-pill']
   };
   const ids = pills[source] || [];
   ids.forEach(id => {
@@ -456,32 +456,17 @@ function renderCurrentScreen() {
  * Render sprint analytics section (burndown + timesheet charts).
  * Called from renderTodayScreen after the sprint section renders.
  */
-function renderSprintAnalytics() {
-  const wrap    = document.getElementById('sprint-analytics-wrap');
-  const content = document.getElementById('sprint-analytics-content');
-  const header  = document.getElementById('sprint-analytics-header');
-  const body    = document.getElementById('sprint-analytics-body');
-  const chevron = document.getElementById('analytics-chevron');
-  
-  if (!wrap || !content) return;
-  
-  // Wire collapse toggle once
-  if (header && !header.dataset.wired) {
-    header.dataset.wired = '1';
-    header.addEventListener('click', () => {
-      const collapsed = body.style.display === 'none';
-      body.style.display = collapsed ? '' : 'none';
-      chevron.textContent = collapsed ? '▼' : '▶';
-    });
-  }
-  
+// ── Insights section rendering ────────────────────────────────────────
+function renderInsights() {
+  const content = document.getElementById('insights-content');
+  if (!content) return;
+
   const analytics = state.sprintAnalytics;
   if (!analytics) {
-    wrap.style.display = 'none';
+    content.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No sprint analytics data yet.</div>';
     return;
   }
-  
-  wrap.style.display = '';
+
   
   // ── Sprint progress bar (top of analytics) ──────────────────────────
   const currentStories = state.currentSprint?.stories || [];
@@ -551,7 +536,7 @@ function renderSprintAnalytics() {
   const dateSubtitle = dateRange
     ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${dateRange}</div>`
     : '';
-  const contentEl = document.getElementById('sprint-analytics-content');
+  const contentEl = document.getElementById('insights-content');
   if (!contentEl) return;
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
   const sideBySide = panelWidth >= 520;
@@ -609,7 +594,7 @@ function renderSprintAnalytics() {
       await chrome.storage.local.set({ settings: s });
       state.settings = s;
       popover.style.display = 'none';
-      renderSprintAnalytics();
+      renderInsights();
     });
   }
   
@@ -618,14 +603,14 @@ function renderSprintAnalytics() {
   if (!wrap._resizeObserver) {
     wrap._resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
-        const el = document.getElementById('sprint-analytics-content');
+        const el = document.getElementById('insights-content');
         if (!el) return;
         const newWidth = el.offsetWidth || 380;
         const shouldBeSideBySide = newWidth >= 520;
         const currentLayout = wrap.dataset.layout === 'row';
         if (shouldBeSideBySide !== currentLayout) {
           wrap.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
-          renderSprintAnalytics();
+          renderInsights();
         }
       });
     });
@@ -739,8 +724,46 @@ function renderTodayScreen() {
   // Extra boards — collapsible sections
   renderExtraBoards();
   
-  // Sprint analytics charts (burndown + timesheet)
-  renderSprintAnalytics();
+  // ── Wire top-level section toggles (once per session) ─────────────
+  const insightsHeader = document.getElementById('insights-header');
+  if (insightsHeader && !insightsHeader.dataset.wired) {
+    insightsHeader.dataset.wired = '1';
+    insightsHeader.addEventListener('click', () => {
+      const body    = document.getElementById('insights-body');
+      const chevron = document.getElementById('insights-chevron');
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      body.style.display  = open ? 'none' : '';
+      chevron.textContent = open ? '▶' : '▼';
+    });
+  }
+  const sprintSecHeader = document.getElementById('sprint-section-header');
+  if (sprintSecHeader && !sprintSecHeader.dataset.wired) {
+    sprintSecHeader.dataset.wired = '1';
+    sprintSecHeader.addEventListener('click', () => {
+      const body    = document.getElementById('sprint-section-body');
+      const chevron = document.getElementById('sprint-section-chevron');
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      body.style.display  = open ? 'none' : '';
+      chevron.textContent = open ? '▶' : '▼';
+    });
+  }
+  const sentrySecHeader = document.getElementById('sentry-section-header');
+  if (sentrySecHeader && !sentrySecHeader.dataset.wired) {
+    sentrySecHeader.dataset.wired = '1';
+    sentrySecHeader.addEventListener('click', () => {
+      const body    = document.getElementById('sentry-section-body');
+      const chevron = document.getElementById('sentry-section-chevron');
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      body.style.display  = open ? 'none' : '';
+      chevron.textContent = open ? '▶' : '▼';
+    });
+  }
+  
+  // Insights (open by default) — render charts
+  renderInsights();
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');

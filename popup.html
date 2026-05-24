@@ -103,65 +103,71 @@
           <div id="alert-inbox"></div>
         </div>
 
-        <!-- CURRENT SPRINT section -->
+        <!-- INSIGHTS — open by default, flat cards, no inner toggles -->
+        <div class="section" id="insights-section">
+          <div id="insights-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
+            <span>Insights</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="section-loading-pill" id="insights-loading-pill">Refreshing</span>
+              <span id="insights-chevron" style="color:var(--text-muted);font-size:12px;">&#9660;</span>
+            </div>
+          </div>
+          <div id="insights-body" style="margin-top:8px;">
+            <div id="insights-content"></div>
+            <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <!-- CURRENT SPRINT — closed by default -->
         <div class="section" id="current-sprint-section">
-          <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <div id="sprint-section-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
             <span id="current-sprint-title">Current Sprint</span>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="section-loading-pill" id="sprint-loading-pill">Refreshing</span>
               <span id="current-sprint-total" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
+              <span id="sprint-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
             </div>
           </div>
-          <!-- Sprint Analytics: rendered ABOVE the sprint collapsible so the
-               sprint header+body (ticket list) stay visually grouped. -->
-          <div id="sprint-analytics-wrap" style="margin-top:8px; display:none;">
-            <div id="sprint-analytics-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:8px 10px;background:var(--surface-raised,#1f2937);border-radius:8px;">
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--text-muted);text-transform:uppercase;">Sprint Analytics</span>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span class="section-loading-pill" id="analytics-loading-pill">Refreshing</span>
-                <span id="analytics-chevron" style="color:var(--text-muted);font-size:12px;">▶</span>
+          <div id="sprint-section-body" style="display:none;margin-top:8px;">
+            <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised);border-radius:8px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;color:var(--text-muted);" id="sprint-glance-collapsed-summary">Loading…</div>
+                <div id="sprint-glance-ticket-counts" style="margin-top:3px;"></div>
               </div>
+              <span id="sprint-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">&#9654;</span>
             </div>
-            <div id="sprint-analytics-body" style="margin-top:6px; display:none;">
-              <div id="sprint-analytics-content"></div>
-            </div>
-          </div>
-
-          <div id="sprint-glance-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:8px;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:12px;color:var(--text-muted);" id="sprint-glance-collapsed-summary">Loading…</div>
-              <div id="sprint-glance-ticket-counts" style="margin-top:3px;"></div>
-            </div>
-            <span id="sprint-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
-          </div>
-
-          <div id="sprint-glance-body" style="display:none; margin-top:6px;">
-            <div id="sprint-glance">
-              <div class="card-subtitle" id="sprint-glance-subtitle"></div>
+            <div id="sprint-glance-body" style="display:none;margin-top:6px;">
+              <div id="sprint-glance">
+                <div class="card-subtitle" id="sprint-glance-subtitle"></div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Extra boards: one section per configured board -->
+        <!-- Extra boards (Support etc) rendered dynamically — already start collapsed -->
         <div id="extra-boards-container"></div>
 
-        <div class="section">
-          <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-            <span>Sentry issues</span>
+        <!-- SENTRY ISSUES — closed by default -->
+        <div class="section" id="sentry-section">
+          <div id="sentry-section-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
+            <span>Sentry Issues</span>
             <div style="display:flex;align-items:center;gap:6px;">
               <span class="section-loading-pill" id="sentry-loading-pill">Refreshing</span>
               <span id="sentry-total" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
+              <span id="sentry-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
             </div>
           </div>
-          <!-- Trend chart: always visible when a view is tracked, no collapse -->
-          <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
-          <div id="sentry-spikes"></div>
-          <div id="sentry-empty" class="hidden" style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">
-            No recent Sentry issues
+          <div id="sentry-section-body" style="display:none;margin-top:8px;">
+            <div id="sentry-spikes"></div>
+            <div id="sentry-empty" class="hidden" style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">
+              No recent Sentry issues
+            </div>
           </div>
         </div>
+
       </div>
     </div>
+
 
     <!-- SPRINT HEALTH SCREEN -->
     <div class="screen hidden" id="screen-sprint-health">
