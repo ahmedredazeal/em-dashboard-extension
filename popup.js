@@ -536,7 +536,21 @@ function renderSprintAnalytics() {
     ? buildTimesheetSVG(filteredTs, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2')
     : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet.</div>';
   
-  // ── Layout (side-by-side if wide enough) ──────────────────────────
+  // ── Sprint date range for chart headers ──────────────────────────
+  const sprintStart = state.currentSprint?.startDate || '';
+  const sprintEnd   = state.currentSprint?.endDate   || '';
+  const fmtDate = d => {
+    if (!d) return '';
+    const [y, m, day] = d.split('-');
+    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1];
+    return `${+day} ${mon}`;
+  };
+  const dateRange = sprintStart && sprintEnd
+    ? `${fmtDate(sprintStart)} – ${fmtDate(sprintEnd)}`
+    : '';
+  const dateSubtitle = dateRange
+    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${dateRange}</div>`
+    : '';
   const contentEl = document.getElementById('sprint-analytics-content');
   if (!contentEl) return;
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
@@ -554,17 +568,21 @@ function renderSprintAnalytics() {
     <div style="${outerStyle}">
       <div style="${chartWrapStyle}">
         <div style="${cardStyle}">
-          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.3px;">BURNDOWN</div>
-          ${burndownHtml}
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">BURNDOWN</div>
+          ${dateSubtitle}
+          <div style="margin-top:6px;">${burndownHtml}</div>
         </div>
       </div>
       <div style="${chartWrapStyle}">
         <div style="${cardStyle}">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</span>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</div>
+              ${dateSubtitle}
+            </div>
             ${memberFilterHtml}
           </div>
-          ${timesheetHtml}
+          <div style="margin-top:6px;">${timesheetHtml}</div>
         </div>
       </div>
     </div>`;
