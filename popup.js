@@ -485,6 +485,8 @@ function renderInsights() {
   
   // ── Timesheet with inline member filter + quarter dropdown ───────────────
   const ts = analytics.timesheet || [];
+  // Detect legacy format ({name, week1, week2} — pre-v1.5.4) and prompt refresh
+  const isLegacyFormat = ts.length > 0 && ts[0].week1 !== undefined && !ts[0].byProject;
   const monitored = state.settings?.analytics?.monitoredMembers;
   const filteredTs = monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
   const discoveredMembers = state.settings?.analytics?.discoveredMembers || ts.map(m => m.name);
@@ -542,13 +544,16 @@ function renderInsights() {
     : state.quarterWorklogCache?.[currentMode]?.members || null;
   
   let timesheetHtml = '';
-  if (currentMode !== 'sprint' && timesheetMembers === null) {
+  if (isLegacyFormat) {
+    timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+      Data format updated — click ↻ to refresh and load cross-squad time data.</div>`;
+  } else if (currentMode !== 'sprint' && timesheetMembers === null) {
     timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
       Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
   } else if ((timesheetMembers || []).length > 0) {
     timesheetHtml = buildTimesheetSVG(timesheetMembers);
   } else {
-    timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet.</div>';
+    timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet — open the panel daily to populate.</div>';
   }
   
   // Quarter cache timestamp for ↺ link
@@ -603,6 +608,9 @@ function renderInsights() {
   // height:100% + flex:1 makes cards equal height when in row layout
   const cardStyle = 'padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
   
+  // ── Support Board Breakdown ───────────────────────────────────────
+  const supportBoardHtml = buildSupportBoardChart(state.extraBoardsData || []);
+  
   content.innerHTML = `
     ${progressHtml}
     <div style="${outerStyle}">
@@ -631,7 +639,8 @@ function renderInsights() {
       </div>
     </div>
     ${estimateVsActualHtml}
-    ${focusHtml}`;
+    ${focusHtml}
+    ${supportBoardHtml}`;
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');
@@ -1073,14 +1082,90 @@ function formatDate(dateString) {
  * Utility: format due date — returns HTML string with colour coding
  * Red = overdue, Amber = due within 2 days, normal = upcoming
  */
-function formatDueDate(dateStr) {
+function formatDueDate(dateStr, statusCategory) {
   if (!dateStr) return '';
   const due  = new Date(dateStr);
   const days = Math.ceil((due - new Date()) / (1000 * 60 * 60 * 24));
   const label = due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  // Suppress overdue warnings for completed tickets — they're done, no alert needed
+  if (statusCategory === 'done') return `<span style="color:var(--text-muted);">📅 ${label}</span>`;
   if (days < 0)  return `<span style="color:#ef4444;">⚠ due ${label}</span>`;
   if (days <= 2) return `<span style="color:#f59e0b;">📅 ${label}</span>`;
   return `📅 ${label}`;
+}
+
+// ── Support Board Breakdown chart ─────────────────────────────────────────
+// Shows ticket count per status (excluding closed — already filtered at API level).
+// Tickets with 'blocked-external' label are shown with a ⚠ count alongside bar.
+function buildSupportBoardChart(boards) {
+  // Find first support board
+  const sb = boards.find(b => b.boardLabel?.toLowerCase().includes('support'));
+  if (!sb || !sb.stories?.length) return '';
+  
+  const stories = sb.stories;
+  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;';
+  
+  // Count by status name, and track blocked-external per status
+  const byStatus = {};
+  const blockedByStatus = {};
+  for (const s of stories) {
+    const st = s.status || 'Unknown';
+    byStatus[st] = (byStatus[st] || 0) + 1;
+    if (s.labels?.includes('blocked-external')) {
+      blockedByStatus[st] = (blockedByStatus[st] || 0) + 1;
+    }
+  }
+  
+  // Sort: in-progress statuses first, open last
+  const STATUS_ORDER = ['In Progress', 'QA Testing', 'QA Rejected', 'Code Review', 'Open'];
+  const entries = Object.entries(byStatus).sort(([a], [b]) => {
+    const ia = STATUS_ORDER.indexOf(a), ib = STATUS_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+  
+  const maxCount = Math.max(...entries.map(([,c]) => c), 1);
+  const STATUS_COLORS = {
+    'Open': '#94a3b8',
+    'In Progress': '#3b82f6',
+    'QA Testing': '#a855f7',
+    'QA Rejected': '#ef4444',
+    'QA Accepted': '#22c55e',
+    'Code Review': '#f97316',
+  };
+  
+  const totalBlocked = Object.values(blockedByStatus).reduce((s,n) => s+n, 0);
+  const rows = entries.map(([status, count]) => {
+    const color = STATUS_COLORS[status] || '#6366f1';
+    const pct = Math.round(count / maxCount * 100);
+    const blocked = blockedByStatus[status] || 0;
+    const blockedBadge = blocked > 0
+      ? `<span style="font-size:10px;color:#f59e0b;margin-left:6px;">⚠ ${blocked} blocked</span>`
+      : '';
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+      <div style="width:90px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${status}</div>
+      <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
+      </div>
+      <span style="font-size:10px;color:var(--text);width:16px;text-align:right;flex-shrink:0;">${count}</span>
+      ${blockedBadge}
+    </div>`;
+  }).join('');
+  
+  const blockedSummary = totalBlocked > 0
+    ? `<div style="margin-top:8px;padding:5px 8px;background:rgba(245,158,11,0.08);border-radius:4px;border:1px solid rgba(245,158,11,0.2);font-size:11px;color:#f59e0b;">⚠ ${totalBlocked} ticket${totalBlocked>1?'s':''} blocked-external across ${Object.keys(blockedByStatus).length} status${Object.keys(blockedByStatus).length>1?'es':''}</div>`
+    : '';
+  
+  return `<div style="${cardStyle}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">SUPPORT BOARD BREAKDOWN</span>
+      <span style="font-size:10px;color:var(--text-muted);">${stories.length} open</span>
+    </div>
+    ${rows}
+    ${blockedSummary}
+  </div>`;
 }
 
 // ── Estimate vs Actual card ────────────────────────────────────────────────
@@ -1487,7 +1572,7 @@ function priorityDot(p){ return PRIORITY_DOT[(p||'medium').toLowerCase()]||PRIOR
 /** Render one Jira ticket row — clickable, with priority dot */
 function renderTicketRow(story, jiraBaseUrl) {
   const url = jiraBaseUrl ? `${jiraBaseUrl.replace(/\/$/,'')}/browse/${story.key}` : null;
-  const duePart = story.dueDate ? formatDueDate(story.dueDate) : '';
+  const duePart = story.dueDate ? formatDueDate(story.dueDate, story.statusCategory) : '';
   return `
     <div class="ticket-row" ${url ? `data-url="${escapeHtml(url)}"` : ''} style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));${url?'cursor:pointer;':''}">
       ${priorityDot(story.priority)}

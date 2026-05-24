@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.5.7 (2026-05-24) — Due date colors + worklog format + support board chart
+
+**Fixed:**
+- Closed and QA Accepted tickets no longer show red/orange overdue warnings.
+  formatDueDate now accepts statusCategory; done tickets display due date in
+  muted gray (informational only, no alarm styling).
+- Old worklog format detection: if sprint analytics cache has pre-v1.5.4 format
+  (week1/week2 instead of byProject), TIME LOGGED now shows a helpful message
+  'Data format updated — click ↻ to refresh' instead of empty/invisible bars.
+
+**Added:**
+- SUPPORT BOARD BREAKDOWN card in Insights section: horizontal bar chart per
+  status (Open, In Progress, QA Testing, etc.) with count and blocked-external
+  ⚠ badge per status. Summary banner shows total blocked-external tickets.
+
+---
+
 ## v1.5.6 (2026-05-24) — Worklog data + quarter fetch + UX fixes
 
 **Fixed:**
