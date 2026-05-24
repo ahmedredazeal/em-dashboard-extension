@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.5.5</div>
+      <div class="cl-desc">
+        <strong>Hotfix:</strong> ReferenceError: wrap is not defined in renderInsights — ResizeObserver was referencing the removed sprint-analytics-wrap element; fixed to use insights-content. Extra board sections (Support Board) now collapsible via section-label click, closed by default.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.5.4</div>
       <div class="cl-desc">
         <strong>Worklog v2 — all-squad time tracking + analytics:</strong> TIME LOGGED now queries across all projects using worklogAuthor JQL. Bars stacked by project colour. Quarter dropdown (Sprint / Q1 / Q2 ...) with lazy fetch + cache. New Estimate vs Actual card and Team Focus (issue-type split) card in the Insights section. New worklog-aggregator.js module with 28 unit tests.

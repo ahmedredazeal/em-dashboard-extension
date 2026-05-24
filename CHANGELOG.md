@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.5.5 (2026-05-24) — Fix: wrap undefined crash + board sections collapsible
+
+**Fixed:**
+- ReferenceError: wrap is not defined in renderInsights()
+  The ResizeObserver still referenced the old sprint-analytics-wrap element
+  after the Insights restructure. Now uses contentEl (insights-content div).
+- Extra board sections (Support Board etc.) are now collapsible at the
+  section-label level, closed by default. Clicking the section-label
+  toggles the entire section body (mini bar + ticket list). Removed
+  the redundant inner mini-bar collapsible — section is now single-level.
+
+---
+
 ## v1.5.4 (2026-05-24) — Worklog v2: all-squad time tracking + analytics cards
 
 **Added:**

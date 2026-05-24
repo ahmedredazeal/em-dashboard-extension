@@ -392,40 +392,42 @@ function renderExtraBoards() {
 
     return `
       <div class="section">
-        <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+        <div id="${sectionId}-section-label" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
           <span>${escapeHtml(board.boardLabel)}</span>
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="section-loading-pill" id="board-loading-${idx}">Refreshing</span>
             <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + ' OPEN' : board.totalStories + ' TOTAL'}</span>
+            <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
           </div>
         </div>
-        <div id="${sectionId}-header" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px;background:var(--surface-raised,#1f2937);border-radius:8px;margin-top:6px;">
-          <div style="flex:1;min-width:0;">
+        <div id="${sectionId}-section-body" style="display:none;margin-top:8px;">
+          <div style="padding:10px;background:var(--surface-raised);border-radius:8px;margin-bottom:6px;">
             <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
             <div style="margin-top:3px;">${collapsedBoardSummary(displayStories, isSupport)}</div>
           </div>
-          <span id="${sectionId}-chevron" style="color:var(--text-muted);font-size:12px;margin-left:8px;flex-shrink:0;">▶</span>
-        </div>
-        <div id="${sectionId}-body" style="display:none;margin-top:6px;">
-          ${displayStories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No open issues</div>'}
+          <div id="${sectionId}-body">
+            ${displayStories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No open issues</div>'}
+          </div>
         </div>
       </div>`;
   }).join('');
 
   boards.forEach((board, idx) => {
     if (board.error) return;
-    const sectionId = `extra-board-${idx}`;
-    const header  = document.getElementById(`${sectionId}-header`);
-    const body    = document.getElementById(`${sectionId}-body`);
-    const chevron = document.getElementById(`${sectionId}-chevron`);
-    if (header) {
-      header.addEventListener('click', () => {
-        const collapsed = body.style.display === 'none';
-        body.style.display = collapsed ? '' : 'none';
-        chevron.textContent = collapsed ? '▼' : '▶';
+    const sectionId  = `extra-board-${idx}`;
+    const label      = document.getElementById(`${sectionId}-section-label`);
+    const sectionBody = document.getElementById(`${sectionId}-section-body`);
+    const chevron    = document.getElementById(`${sectionId}-section-chevron`);
+    const ticketBody = document.getElementById(`${sectionId}-body`);
+    
+    if (label && sectionBody) {
+      label.addEventListener('click', () => {
+        const open = sectionBody.style.display !== 'none';
+        sectionBody.style.display  = open ? 'none' : '';
+        chevron.textContent        = open ? '▶' : '▼';
       });
     }
-    if (body) wireTicketClicks(body);
+    if (ticketBody) wireTicketClicks(ticketBody);
   });
 }
 
@@ -593,7 +595,7 @@ function renderInsights() {
   if (!contentEl) return;
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
   const sideBySide = panelWidth >= 520;
-  wrap.dataset.layout = sideBySide ? 'row' : 'col'; // persist state for resize check
+  contentEl.dataset.layout = sideBySide ? 'row' : 'col'; // persist state for resize check
   
   const outerStyle = sideBySide ? 'display:flex;gap:8px;align-items:stretch;' : '';
   const chartWrapStyle = sideBySide ? 'flex:1;min-width:0;display:flex;' : 'margin-bottom:8px;';
@@ -699,23 +701,22 @@ function renderInsights() {
     });
   }
   
-  // Re-render on resize — wrap in rAF to avoid synchronous layout in observer
-  // callback (which would trigger "ResizeObserver loop completed" warnings)
-  if (!wrap._resizeObserver) {
-    wrap._resizeObserver = new ResizeObserver(() => {
+  // Re-render on resize — rAF prevents "ResizeObserver loop completed" warnings
+  if (!contentEl._resizeObserver) {
+    contentEl._resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
         const el = document.getElementById('insights-content');
         if (!el) return;
         const newWidth = el.offsetWidth || 380;
         const shouldBeSideBySide = newWidth >= 520;
-        const currentLayout = wrap.dataset.layout === 'row';
+        const currentLayout = el.dataset.layout === 'row';
         if (shouldBeSideBySide !== currentLayout) {
-          wrap.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
+          el.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
           renderInsights();
         }
       });
     });
-    wrap._resizeObserver.observe(wrap);
+    contentEl._resizeObserver.observe(contentEl);
   }
 }
 
