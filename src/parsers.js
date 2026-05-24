@@ -125,6 +125,7 @@ export function normalizeStory(issue, storyPointsField) {
     status: fields.status?.name || '',
     statusCategory: fields.status?.statusCategory?.key || '',
     assignee: fields.assignee?.displayName || null,
+    assigneeAccountId: fields.assignee?.accountId || null,
     priority,
     points: getStoryPoints(issue, fallbacks),
     type: fields.issuetype?.name || 'Story',

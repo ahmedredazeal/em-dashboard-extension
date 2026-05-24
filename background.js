@@ -15,6 +15,7 @@ import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/t
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { runMigrations } from './src/migrations.js';
 import { recordTrendSample } from './src/sentry-trend.js';
+import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } from './src/worklog-aggregator.js';
 
 // Run data migrations on service worker init (idempotent — flagged per migration)
 runMigrations().catch(err => console.warn('[background] Migration failed:', err.message));
@@ -246,26 +247,41 @@ async function fetchJiraData(settings) {
         normalizedStories
       );
       
-      // Timesheet — one JQL call covering all issues (including subtasks) with
-      // worklogs in the sprint period. Uses worklogDate filter since subtasks
-      // are not directly in the sprint.
+      // Timesheet — fetch worklogs across ALL projects for all assignees.
+      // Uses worklogAuthor JQL so we capture time logged on any squad's tickets,
+      // not just HRM. One embedded-worklog search replaces the old N+1 approach.
       let allWorklogs = [];
       try {
-        // Race the worklog fetch against a 15s timeout to avoid killing the service worker
-        const worklogPromise = client.getSprintWorklogs(
-          squadKey, activeSprint.startDate, activeSprint.endDate
-        );
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
-        );
-        allWorklogs = await Promise.race([worklogPromise, timeoutPromise]);
-        console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries`);
+        // Collect unique account IDs from sprint stories
+        const accountIds = [...new Set(
+          (stories || [])
+            .map(s => s.assigneeAccountId)
+            .filter(Boolean)
+        )];
+        
+        if (accountIds.length === 0) {
+          console.warn('[background] No assignee account IDs in sprint stories — skipping team worklog fetch');
+        } else {
+          // Race against 15s timeout
+          const worklogPromise = client.getTeamWorklogs(
+            accountIds, activeSprint.startDate, activeSprint.endDate
+          );
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
+          );
+          const issues = await Promise.race([worklogPromise, timeoutPromise]);
+          allWorklogs = extractWorklogsFromIssues(
+            issues, accountIds, activeSprint.startDate, activeSprint.endDate
+          );
+          console.log(`[background] Sprint worklogs: ${allWorklogs.length} entries across ${new Set(allWorklogs.map(w=>w.projectKey)).size} projects`);
+        }
       } catch (wlErr) {
         console.warn('[background] Worklog fetch skipped (non-fatal):', wlErr.message);
       }
       
-      const timesheetRaw = computeTimesheet(allWorklogs, activeSprint.startDate, workingDays);
-      const timesheet = sortTimesheetMembers(timesheetRaw);
+      const timesheetRaw = aggregateWorklogs(allWorklogs);
+      const timesheet = timesheetRaw.sort((a, b) => b.total - a.total);
+      const issueTypeSplit = aggregateByIssueType(allWorklogs);
       
       // Persist discovered member names so settings page can show checkboxes
       const discoveredNames = timesheet.map(m => m.name);
@@ -300,12 +316,11 @@ async function fetchJiraData(settings) {
       await setCachedSprintData(activeSprint.name, {
         burndown,
         timesheet,
+        issueTypeSplit,
         sprintId: activeSprint.id,
         totalDays,
         startDate: activeSprint.startDate,
         endDate: activeSprint.endDate,
-        week1Label: 'Week 1',
-        week2Label: 'Week 2'
       });
       
       console.log(`[background] Analytics cached for "${activeSprint.name}": burndown hasActual=${burndown.hasActualData}, members=${timesheet.length}`);
@@ -554,6 +569,30 @@ async function notifyHighSeverity(newAlerts, settings) {
  * Handle messages from popup
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Lazy quarter worklog fetch
+  if (message.type === 'fetch-quarter-worklogs') {
+    const { year, q, accountIds, startDate, endDate, cacheKey } = message;
+    (async () => {
+      try {
+        const stored = await chrome.storage.local.get(['settings']);
+        const settings = stored.settings || {};
+        const client = new jiraAPI.JiraClient(settings.jira);
+        const issues = await client.getTeamWorklogs(accountIds, startDate, endDate);
+        const rawWorklogs = extractWorklogsFromIssues(issues, accountIds, startDate, endDate);
+        const members = aggregateWorklogs(rawWorklogs);
+        const issueTypeSplit = aggregateByIssueType(rawWorklogs);
+        const payload = { fetchedAt: new Date().toISOString(), members, issueTypeSplit, startDate, endDate };
+        await chrome.storage.local.set({ [cacheKey]: payload });
+        chrome.runtime.sendMessage({ type: 'quarter-worklogs-ready', cacheKey }).catch(() => {});
+        console.log(`[background] Quarter ${q} ${year}: ${members.length} members cached`);
+      } catch (e) {
+        console.error('[background] Quarter worklog fetch failed:', e.message);
+        chrome.runtime.sendMessage({ type: 'quarter-worklogs-error', cacheKey, error: e.message }).catch(() => {});
+      }
+    })();
+    return true;
+  }
+  
   if (message.type === 'refresh-dashboard') {
     // Acknowledge immediately — popup will receive 'partial-update' messages
     // as each data source (jira, sentry) completes independently.

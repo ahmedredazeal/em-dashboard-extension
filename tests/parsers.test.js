@@ -173,7 +173,7 @@ test('full Jira issue shape', () => {
     fields: {
       summary: 'Build the thing',
       status: { name: 'In Progress', statusCategory: { key: 'indeterminate' } },
-      assignee: { displayName: 'Ali' },
+      assignee: { displayName: 'Ali', accountId: 'acc-ali' },
       priority: { name: 'High' },
       customfield_10016: 5,
       issuetype: { name: 'Story' },
@@ -186,6 +186,7 @@ test('full Jira issue shape', () => {
     status: 'In Progress',
     statusCategory: 'indeterminate',
     assignee: 'Ali',
+    assigneeAccountId: 'acc-ali',
     priority: 'High',
     points: 5,
     type: 'Story',

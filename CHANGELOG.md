@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.5.4 (2026-05-24) — Worklog v2: all-squad time tracking + analytics cards
+
+**Added:**
+- TIME LOGGED chart now shows hours across ALL squads (not just HRM).
+  Uses worklogAuthor JQL to query by team member account IDs — same approach
+  as Jira's own 'Logged hours by user' chart.
+- Bars are now stacked by project colour (auto-assigned from 8-colour palette,
+  deterministic by project key). Week 1/Week 2 split removed in favour of
+  per-project coloured segments.
+- Quarter dropdown in TIME LOGGED card: Sprint / Q1 / Q2 / ... (only shows
+  quarters that have started in the current year). Quarter data is fetched
+  lazily on first selection and cached in chrome.storage.local with a
+  Refresh link shown below the chart.
+- ESTIMATE VS ACTUAL card: per-person logged vs estimated hours with
+  over/under ratio indicator (orange if >1.3x, green if <0.7x).
+- TEAM FOCUS card: horizontal bar breakdown of hours by issue type
+  (Bug / Story / Task / etc.) for the selected time period.
+- New src/worklog-aggregator.js: aggregateWorklogs, aggregateByIssueType,
+  extractWorklogsFromIssues, assignProjectColors, currentQuarters, quarterRange.
+  28 unit tests.
+- state.timesheetMode and state.quarterWorklogCache added for period switching.
+
+**Changed:**
+- src/parsers.js: normalizeStory now includes assigneeAccountId field.
+- src/jira-api.js: new getTeamWorklogs(accountIds, start, end) method.
+- background.js: sprint timesheet uses getTeamWorklogs + aggregateWorklogs;
+  stores issueTypeSplit in analytics cache; handles fetch-quarter-worklogs
+  message for lazy quarter fetching.
+
+---
+
 ## v1.5.3 (2026-05-24) — Insights section + section-level toggles
 
 **Changed:**

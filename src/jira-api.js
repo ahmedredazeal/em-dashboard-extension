@@ -185,6 +185,40 @@ export class JiraClient {
    * then searches with full field list so priority is always returned.
    */
   /**
+   * Fetch worklogs for a list of team members across ALL projects.
+   * Uses a single POST search with embedded worklogs — no per-issue fetches.
+   *
+   * @param {string[]} accountIds  Jira account IDs of team members
+   * @param {string}   startDate   "YYYY-MM-DD"
+   * @param {string}   endDate     "YYYY-MM-DD"
+   * @returns {Promise<Object[]>}  Raw Jira issue objects (with worklog embedded)
+   */
+  async getTeamWorklogs(accountIds, startDate, endDate) {
+    if (!accountIds || accountIds.length === 0) {
+      console.warn('[jira] getTeamWorklogs: no accountIds provided');
+      return [];
+    }
+    
+    const authorList = accountIds.map(id => `"${id}"`).join(',');
+    const jql = `worklogAuthor in (${authorList}) AND worklogDate >= "${startDate}" AND worklogDate <= "${endDate}"`;
+    
+    console.log(`[jira] getTeamWorklogs ${startDate}→${endDate} for ${accountIds.length} members`);
+    
+    const result = await this._search({
+      jql,
+      fields: [
+        'worklog', 'project', 'issuetype', 'priority',
+        'timeoriginalestimate', 'summary'
+      ],
+      maxResults: 200,
+    });
+    
+    const issues = result.issues || [];
+    console.log(`[jira] getTeamWorklogs: ${issues.length} issues with worklogs`);
+    return issues;
+  }
+
+  /**
    * Get Kanban board issues via the board's own filter
    * @param {number|string} boardId
    * @param {string} storyPointsField

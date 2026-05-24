@@ -7,6 +7,7 @@
 import * as privacyMode from './src/privacy-mode.js';
 import * as metrics from './src/metrics.js';
 import { getTrendSamples } from './src/sentry-trend.js';
+import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.js';
 
 // Current state
 let state = {
@@ -20,7 +21,9 @@ let state = {
   supportTickets: [],
   extraBoardsData: [],
   sprintAnalytics: null,
-  isLoading: false
+  isLoading: false,
+  timesheetMode: 'sprint',   // 'sprint' | 'Q1' | 'Q2' | 'Q3' | 'Q4'
+  quarterWorklogCache: {},   // { Q1: {members, issueTypeSplit, fetchedAt, startDate, endDate} }
 };
 
 /**
@@ -478,13 +481,27 @@ function renderInsights() {
     ? buildBurndownSVG(bd)
     : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No point data yet.</div>';
   
-  // ── Timesheet with inline member filter ───────────────────────────
+  // ── Timesheet with inline member filter + quarter dropdown ───────────────
   const ts = analytics.timesheet || [];
   const monitored = state.settings?.analytics?.monitoredMembers;
   const filteredTs = monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
   const discoveredMembers = state.settings?.analytics?.discoveredMembers || ts.map(m => m.name);
   
-  // Member filter popover
+  // Quarter dropdown (Sprint + available quarters in current year)
+  const now = new Date();
+  const quarters = currentQuarters(now.getFullYear(), now.getMonth() + 1);
+  const currentMode = state.timesheetMode || 'sprint'; // 'sprint' | 'Q1' | 'Q2' etc
+  
+  const quarterOptions = [
+    `<option value="sprint" ${currentMode === 'sprint' ? 'selected' : ''}>Sprint</option>`,
+    ...quarters.map(q =>
+      `<option value="${q.label}" ${currentMode === q.label ? 'selected' : ''}>${q.label} (${q.start.slice(5,7)}–${q.end.slice(5,7)})</option>`
+    )
+  ].join('');
+  
+  const modeDropdown = `<select id="timesheet-mode-select" style="font-size:10px;padding:2px 4px;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">${quarterOptions}</select>`;
+  
+  // Member filter popover button
   const memberFilterHtml = discoveredMembers.length > 0 ? `
     <div style="position:relative;display:inline-block;">
       <button id="member-filter-btn" title="Filter team members"
@@ -493,7 +510,7 @@ function renderInsights() {
       </button>
       <div id="member-filter-popover"
         style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:99;
-               background:var(--surface,#1a1b23);border:1px solid var(--border);border-radius:8px;
+               background:var(--surface);border:1px solid var(--border);border-radius:8px;
                padding:10px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;
                     display:flex;justify-content:space-between;align-items:center;">
@@ -517,9 +534,45 @@ function renderInsights() {
       </div>
     </div>` : '';
   
-  let timesheetHtml = filteredTs.length > 0
-    ? buildTimesheetSVG(filteredTs, analytics.week1Label || 'Week 1', analytics.week2Label || 'Week 2')
-    : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet.</div>';
+  // Determine which member list to render for the timesheet
+  const timesheetMembers = (currentMode === 'sprint')
+    ? filteredTs
+    : state.quarterWorklogCache?.[currentMode]?.members || null;
+  
+  let timesheetHtml = '';
+  if (currentMode !== 'sprint' && timesheetMembers === null) {
+    timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+      Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
+  } else if ((timesheetMembers || []).length > 0) {
+    timesheetHtml = buildTimesheetSVG(timesheetMembers);
+  } else {
+    timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet.</div>';
+  }
+  
+  // Quarter cache timestamp for ↺ link
+  const qCache = currentMode !== 'sprint' ? state.quarterWorklogCache?.[currentMode] : null;
+  const qRefreshNote = qCache
+    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+         Last fetched ${formatTimestamp(qCache.fetchedAt)} · 
+         <span id="quarter-refresh-link" style="color:var(--primary);cursor:pointer;">↺ Refresh</span>
+       </div>`
+    : '';
+  
+  // ── Estimate vs Actual card ───────────────────────────────────────────
+  const teamForEstimate = timesheetMembers || filteredTs;
+  let estimateVsActualHtml = '';
+  if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
+    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate);
+  }
+  
+  // ── Focus / Issue-type split card ─────────────────────────────────────
+  const issueTypeSplit = currentMode === 'sprint'
+    ? (analytics.issueTypeSplit || [])
+    : (state.quarterWorklogCache?.[currentMode]?.issueTypeSplit || []);
+  let focusHtml = '';
+  if (issueTypeSplit.length > 0) {
+    focusHtml = buildFocusSplitCard(issueTypeSplit);
+  }
   
   // ── Sprint date range for chart headers ──────────────────────────
   const sprintStart = state.currentSprint?.startDate || '';
@@ -565,12 +618,60 @@ function renderInsights() {
               <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</div>
               ${dateSubtitle}
             </div>
-            ${memberFilterHtml}
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${modeDropdown}
+              ${memberFilterHtml}
+            </div>
           </div>
           <div style="margin-top:6px;">${timesheetHtml}</div>
+          ${qRefreshNote}
         </div>
       </div>
-    </div>`;
+    </div>
+    ${estimateVsActualHtml}
+    ${focusHtml}`;
+  
+  // Wire quarter dropdown
+  const modeSelect = document.getElementById('timesheet-mode-select');
+  if (modeSelect) {
+    modeSelect.addEventListener('change', (e) => {
+      const newMode = e.target.value;
+      state.timesheetMode = newMode;
+      
+      if (newMode !== 'sprint' && !state.quarterWorklogCache?.[newMode]) {
+        // Lazy fetch from background
+        const qDef = currentQuarters(now.getFullYear(), now.getMonth() + 1).find(q => q.label === newMode);
+        if (qDef) {
+          const accountIds = [...new Set((analytics.timesheet || []).map(m => m.accountId).filter(Boolean))];
+          const cacheKey = `worklogCache:${qDef.year}:${newMode}`;
+          chrome.runtime.sendMessage({
+            type: 'fetch-quarter-worklogs',
+            year: qDef.year, q: qDef.q, accountIds,
+            startDate: qDef.start, endDate: qDef.end, cacheKey
+          });
+        }
+      }
+      renderInsights();
+    });
+  }
+  
+  // Wire ↺ quarter refresh
+  document.getElementById('quarter-refresh-link')?.addEventListener('click', () => {
+    const qMode = state.timesheetMode;
+    if (qMode === 'sprint') return;
+    const qDef = currentQuarters(now.getFullYear(), now.getMonth() + 1).find(q => q.label === qMode);
+    if (!qDef) return;
+    const accountIds = [...new Set((analytics.timesheet || []).map(m => m.accountId).filter(Boolean))];
+    const cacheKey = `worklogCache:${qDef.year}:${qMode}`;
+    if (!state.quarterWorklogCache) state.quarterWorklogCache = {};
+    delete state.quarterWorklogCache[qMode]; // clear so loader shows
+    chrome.runtime.sendMessage({
+      type: 'fetch-quarter-worklogs',
+      year: qDef.year, q: qDef.q, accountIds,
+      startDate: qDef.start, endDate: qDef.end, cacheKey
+    });
+    renderInsights();
+  });
   
   // Wire member filter popover
   const filterBtn = document.getElementById('member-filter-btn');
@@ -988,6 +1089,68 @@ function formatDueDate(dateStr) {
   return `📅 ${label}`;
 }
 
+// ── Estimate vs Actual card ────────────────────────────────────────────────
+function buildEstimateVsActualCard(members) {
+  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;';
+  const maxVal = Math.max(...members.map(m => Math.max(m.total, m.estimated || 0)), 0.1);
+  const W = 280, NAME_W = 100, PW = W - NAME_W - 8;
+  const bw = h => Math.max(1, (h / maxVal) * PW);
+  
+  let rows = '';
+  members.filter(m => m.total > 0).forEach((m, i) => {
+    const y1 = 8 + i * 22;
+    const name = (m.name || '').length > 14 ? m.name.slice(0,13) + '…' : (m.name || '');
+    const wActual   = bw(m.total);
+    const wEstimate = m.estimated > 0 ? bw(m.estimated) : 0;
+    const ratio = m.estimateRatio;
+    const ratioColor = !ratio ? 'var(--text-muted)' : ratio > 1.3 ? '#f97316' : ratio < 0.7 ? '#22c55e' : 'var(--text-muted)';
+    const ratioTxt = ratio ? `×${ratio.toFixed(1)}` : '';
+    rows += `
+      <text x="${NAME_W-5}" y="${y1+5}" text-anchor="end" dominant-baseline="central" fill="var(--text)" font-size="9.5" font-family="system-ui">${name}</text>
+      <rect x="${NAME_W}" y="${y1}" width="${wActual.toFixed(1)}" height="6" fill="#6366f1" rx="2" opacity="0.85"/>
+      ${wEstimate > 0 ? `<rect x="${NAME_W}" y="${y1+7}" width="${wEstimate.toFixed(1)}" height="3" fill="var(--text-muted)" rx="1" opacity="0.4"/>` : ''}
+      <text x="${NAME_W+wActual+3}" y="${y1+3}" dominant-baseline="central" fill="${ratioColor}" font-size="9" font-family="system-ui">${ratioTxt}</text>`;
+  });
+  
+  const H = 8 + members.length * 22 + 20;
+  const legend = `<text x="${NAME_W}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">■ Logged</text><text x="${NAME_W+50}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">— Estimated</text><text x="${NAME_W+130}" y="${H-6}" fill="#f97316" font-size="9" font-family="system-ui">×1.3+ over</text><text x="${NAME_W+190}" y="${H-6}" fill="#22c55e" font-size="9" font-family="system-ui">×0.7− under</text>`;
+  
+  return `<div style="${cardStyle}">
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:6px;">ESTIMATE VS ACTUAL</div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">${rows}${legend}</svg>
+  </div>`;
+}
+
+// ── Focus split card (issue type breakdown) ────────────────────────────────
+function buildFocusSplitCard(issueTypeSplit) {
+  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;';
+  const totalHrs = issueTypeSplit.reduce((s, x) => s + x.hours, 0);
+  if (totalHrs === 0) return '';
+  
+  const TYPE_COLORS = { Bug: '#ef4444', Story: '#6366f1', Task: '#22c55e', 'Sub-task': '#a855f7', Other: '#94a3b8' };
+  
+  const bars = issueTypeSplit.map(x => {
+    const pct = Math.round(x.hours / totalHrs * 100);
+    const color = TYPE_COLORS[x.type] || TYPE_COLORS.Other;
+    return { ...x, pct, color };
+  });
+  
+  const barHtml = bars.map(b =>
+    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+       <div style="width:80px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;">${b.type}</div>
+       <div style="flex:1;height:7px;background:var(--border);border-radius:3px;overflow:hidden;">
+         <div style="width:${b.pct}%;height:100%;background:${b.color};border-radius:3px;"></div>
+       </div>
+       <div style="width:40px;font-size:10px;color:var(--text-muted);">${b.pct}% · ${b.hours}h</div>
+     </div>`
+  ).join('');
+  
+  return `<div style="${cardStyle}">
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:8px;">TEAM FOCUS</div>
+    ${barHtml}
+  </div>`;
+}
+
 // ── Sprint Progress Bar ────────────────────────────────────────────────────
 // Counts by STORY POINTS (matches the burndown chart + sprint header pt totals).
 // Falls back to ticket count if no points exist at all.
@@ -1203,57 +1366,76 @@ function buildBurndownSVG(bd) {
     ${hasActualData?poly(actual,_C.actual):''}${legend}</svg>`;
 }
 
-function buildTimesheetSVG(members, w1Lbl='Week 1', w2Lbl='Week 2') {
-  if (!members.length) return '';
+function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
+  if (!members || members.length === 0) return '';
   
-  const W = 300;
-  const NAME_W = 100;  // wider for full names
-  const PW = W - NAME_W - 8;
-  const BAR_H = 7;     // slimmer bars
-  const ROW_H = 20;    // tighter rows
+  // Collect all project keys across all members
+  const allProjects = [...new Set(members.flatMap(m => Object.keys(m.byProject || {})))].sort();
+  const colorMap = assignProjectColors(allProjects);
+  
+  const W       = 300;
+  const NAME_W  = 100;
+  const PW      = W - NAME_W - 8;
+  const BAR_H   = 9;
+  const ROW_H   = 20;
   const PAD_TOP = 8;
-  const PAD_BOT = 28;
+  const PAD_BOT = 28;  // room for legend
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
   
-  const maxHours = Math.max(...members.map(m => Math.max(m.week1, m.week2, 0.1)));
-  const bw = h => Math.max(1, (h / maxHours) * PW);
+  const maxTotal = Math.max(...members.map(m => m.total || 0), 0.1);
+  const bw = h => Math.max(1, (h / maxTotal) * PW);
   const baseX = NAME_W;
   
   let rows = '';
   members.forEach((m, i) => {
     const y1 = PAD_TOP + i * ROW_H;
-    const y2 = y1 + BAR_H + 2;
-    const w1 = bw(m.week1), w2 = bw(m.week2);
-    // Full display name, truncated only if very long
-    const displayName = m.name.length > 14 ? m.name.substring(0, 13) + '…' : m.name;
+    const displayName = (m.name || '').length > 14 ? m.name.slice(0, 13) + '…' : (m.name || '');
+    
+    // Stacked segments left to right
+    let segX = baseX;
+    const segments = Object.entries(m.byProject || {})
+      .sort((a, b) => b[1] - a[1]); // biggest project first
+    
+    const segSvg = segments.map(([pk, hrs]) => {
+      const w = bw(hrs);
+      const color = colorMap[pk] || '#94a3b8';
+      const seg = `<rect x="${segX.toFixed(1)}" y="${y1}" width="${w.toFixed(1)}" height="${BAR_H}" fill="${color}" rx="2" title="${pk}: ${hrs}h"/>`;
+      segX += w;
+      return seg;
+    }).join('');
+    
+    // Small gap between segments
     rows += `
-      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${_C.text}" font-size="9.5" font-family="system-ui">${displayName}</text>
-      <rect x="${baseX}" y="${y1}" width="${w1.toFixed(1)}" height="${BAR_H}" fill="${_C.week1}" rx="2"/>
-      ${m.week1 > 0 ? `<text x="${baseX + w1 + 3}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${m.week1}h</text>` : ''}
-      <rect x="${baseX}" y="${y2}" width="${w2.toFixed(1)}" height="${BAR_H}" fill="${_C.week2}" rx="2"/>
-      ${m.week2 > 0 ? `<text x="${baseX + w2 + 3}" y="${y2 + BAR_H/2 + 1}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${m.week2}h</text>` : ''}`;
+      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="var(--text)" font-size="9.5" font-family="system-ui">${displayName}</text>
+      ${segSvg}
+      <text x="${segX + 3}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="var(--text)" font-size="9" font-family="system-ui">${m.total}h</text>`;
   });
   
+  // X-axis grid
   let grid = '';
   const steps = 4;
   for (let i = 1; i <= steps; i++) {
     const x = (baseX + (i / steps) * PW).toFixed(1);
-    grid += `<line x1="${x}" y1="${PAD_TOP}" x2="${x}" y2="${H - PAD_BOT}" stroke="${_C.grid}" stroke-width="1"/>`;
-    const label = Math.round((i / steps) * maxHours);
-    grid += `<text x="${x}" y="${H - PAD_BOT + 10}" text-anchor="middle" fill="${_C.text}" font-size="9" font-family="system-ui">${label}h</text>`;
+    grid += `<line x1="${x}" y1="${PAD_TOP}" x2="${x}" y2="${H - PAD_BOT}" stroke="var(--border)" stroke-width="1"/>`;
+    const label = Math.round((i / steps) * maxTotal);
+    grid += `<text x="${x}" y="${H - PAD_BOT + 10}" text-anchor="middle" fill="var(--text-muted)" font-size="9" font-family="system-ui">${label}h</text>`;
   }
+  const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="var(--border)" stroke-width="1"/>`;
   
-  const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="${_C.grid}" stroke-width="1"/>`;
-  
-  const ly = H - 8;
-  const legend = `
-    <rect x="${baseX}" y="${ly - 5}" width="9" height="7" fill="${_C.week1}" rx="1"/>
-    <text x="${baseX + 13}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${w1Lbl}</text>
-    <rect x="${baseX + 60}" y="${ly - 5}" width="9" height="7" fill="${_C.week2}" rx="1"/>
-    <text x="${baseX + 73}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" font-family="system-ui">${w2Lbl}</text>`;
+  // Legend (up to 4 projects shown inline, rest omitted)
+  const ly = H - 10;
+  let legendX = baseX;
+  const legendItems = allProjects.slice(0, 4);
+  const legendSvg = legendItems.map(pk => {
+    const color = colorMap[pk];
+    const label = pk.length > 8 ? pk.slice(0, 7) + '…' : pk;
+    const item = `<rect x="${legendX}" y="${ly - 5}" width="8" height="7" fill="${color}" rx="1"/><text x="${legendX + 11}" y="${ly}" dominant-baseline="central" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${label}</text>`;
+    legendX += 48;
+    return item;
+  }).join('');
   
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
-    ${grid}${ax}${rows}${legend}</svg>`;
+    ${grid}${ax}${rows}${legendSvg}</svg>`;
 }
 
 /**
@@ -1447,6 +1629,21 @@ function escapeHtml(text) {
  * Listen for settings updates from settings page
  */
 chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'quarter-worklogs-ready') {
+    const key = message.cacheKey;
+    chrome.storage.local.get([key]).then(r => {
+      if (r[key]) {
+        if (!state.quarterWorklogCache) state.quarterWorklogCache = {};
+        state.quarterWorklogCache[state.timesheetMode] = r[key];
+        renderInsights();
+      }
+    });
+    return;
+  }
+  if (message.type === 'quarter-worklogs-error') {
+    showErrorBanner(`Quarter data fetch failed: ${message.error}`);
+    return;
+  }
   if (message.type === 'partial-update') {
     console.log(`[popup] Partial update received: ${message.source}`);
     loadData().then(() => {
