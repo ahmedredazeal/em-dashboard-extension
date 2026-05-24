@@ -17,6 +17,18 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.5.3</div>
+      <div class="cl-desc">
+        <strong>Insights section:</strong> New top-level INSIGHTS section (open by default) consolidates Sprint Progress, Burndown, Time Logged, and Sentry Trend. CURRENT SPRINT and SENTRY ISSUES sections now closed by default. All section labels are clickable toggles.
+      </div>
+    </div>
+
+    <div class="cl-row">
+      <div class="cl-ver major">v1.5.2</div>
+      <div class="cl-desc">Added sprint date range subtitle to BURNDOWN and TIME LOGGED chart headers.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.5.1</div>
       <div class="cl-desc">
         <strong>Light mode fix + decimal rounding:</strong> All card and chart backgrounds now adapt to light mode. Root cause: --surface and --surface-raised were never defined in styles.css so dark hex fallbacks always applied. Added to all three theme blocks. Also fixed: risk velocity showed 4.846... instead of 4.8 — the sprint-ended branch in metrics.js returned unrounded values; fixed + added .toFixed(1) guard in popup.js.
