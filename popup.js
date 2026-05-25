@@ -505,12 +505,17 @@ function renderInsights() {
   
   const modeDropdown = `<select id="timesheet-mode-select" style="font-size:10px;padding:2px 4px;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">${quarterOptions}</select>`;
   
-  // Member filter popover button
+  // ── Member filter — ONE popover, two trigger buttons ─────────────────
+  // Rendering memberFilterHtml in two cards creates duplicate IDs (same string).
+  // Fix: full popover in TIME LOGGED, a trigger-only button in ESTIMATE.
+  const filteredCount = filteredTs.length;
+  const totalCount    = discoveredMembers.length;
+
   const memberFilterHtml = discoveredMembers.length > 0 ? `
     <div style="position:relative;display:inline-block;">
       <button id="member-filter-btn" title="Filter team members"
         style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;padding:2px 6px;color:var(--text-muted);font-size:11px;cursor:pointer;line-height:1.4;">
-        👥 ${filteredTs.length}/${discoveredMembers.length}
+        👥 ${filteredCount}/${totalCount}
       </button>
       <div id="member-filter-popover"
         style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:99;
@@ -537,6 +542,13 @@ function renderInsights() {
                  border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer;">Apply</button>
       </div>
     </div>` : '';
+
+  // Second trigger (Estimate card) — opens the SAME popover, different ID
+  const estimateFilterBtn = discoveredMembers.length > 0 ? `
+    <button id="member-filter-btn-2" title="Filter team members (shared with Time Logged)"
+      style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;padding:2px 6px;color:var(--text-muted);font-size:11px;cursor:pointer;line-height:1.4;">
+      👥 ${filteredCount}/${totalCount}
+    </button>` : '';
   
   // Determine which member list to render for the timesheet
   const timesheetMembers = (currentMode === 'sprint')
@@ -569,7 +581,7 @@ function renderInsights() {
   const teamForEstimate = timesheetMembers || filteredTs;
   let estimateVsActualHtml = '';
   if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
-    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, memberFilterHtml);
+    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, estimateFilterBtn);
   }
   
   // ── Sprint date range for chart headers ──────────────────────────
@@ -685,28 +697,53 @@ function renderInsights() {
     renderInsights();
   });
   
-  // Wire member filter popover
-  const filterBtn = document.getElementById('member-filter-btn');
-  const popover   = document.getElementById('member-filter-popover');
-  if (filterBtn && popover) {
-    filterBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      popover.style.display = popover.style.display === 'none' ? '' : 'none';
-    });
-    document.addEventListener('click', () => { if (popover) popover.style.display = 'none'; }, { once: true });
+  // ── Wire member filter popover ────────────────────────────────────────
+  const filterBtn  = document.getElementById('member-filter-btn');
+  const filterBtn2 = document.getElementById('member-filter-btn-2');
+  const popover    = document.getElementById('member-filter-popover');
+  
+  if (popover) {
+    // Close popover when clicking OUTSIDE (not on Apply, not on the buttons)
+    const closeOnOutsideClick = (e) => {
+      if (!popover.contains(e.target) && e.target !== filterBtn && e.target !== filterBtn2) {
+        popover.style.display = 'none';
+        document.removeEventListener('click', closeOnOutsideClick);
+      }
+    };
     
-    document.getElementById('member-filter-select-all')?.addEventListener('click', () => {
+    const openPopover = (e) => {
+      e.stopPropagation();
+      const isOpen = popover.style.display !== 'none';
+      if (isOpen) {
+        popover.style.display = 'none';
+        document.removeEventListener('click', closeOnOutsideClick);
+      } else {
+        popover.style.display = '';
+        // Add outside-click listener on next tick so this click doesn't immediately close
+        setTimeout(() => document.addEventListener('click', closeOnOutsideClick), 0);
+      }
+    };
+    
+    if (filterBtn)  filterBtn.addEventListener('click',  openPopover);
+    if (filterBtn2) filterBtn2.addEventListener('click', openPopover);
+    
+    document.getElementById('member-filter-select-all')?.addEventListener('click', (e) => {
+      e.stopPropagation();
       document.querySelectorAll('.member-filter-cb').forEach(cb => cb.checked = true);
     });
     
-    document.getElementById('member-filter-apply')?.addEventListener('click', async () => {
-      const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked')).map(cb => cb.dataset.name);
+    document.getElementById('member-filter-apply')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked'))
+        .map(cb => cb.dataset.name);
       const r = await chrome.storage.local.get(['settings']);
       const s = r.settings || {};
-      s.analytics = { ...s.analytics, monitoredMembers: selected };
+      // null = show all (empty array would trigger "show all" fallback and look like a reset)
+      s.analytics = { ...s.analytics, monitoredMembers: selected.length > 0 ? selected : null };
       await chrome.storage.local.set({ settings: s });
       state.settings = s;
       popover.style.display = 'none';
+      document.removeEventListener('click', closeOnOutsideClick);
       renderInsights();
     });
   }

@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.6.1 (2026-05-25) — Fix: member filter duplicate IDs + Apply reset
+
+**Fixed (4 bugs):**
+1. Estimate vs Actual filter button did nothing: memberFilterHtml (full popover with
+   id='member-filter-popover') was rendered in BOTH Time Logged and Estimate cards,
+   creating duplicate IDs. document.getElementById found only the first (Time Logged).
+   Fix: Time Logged gets the full popover; Estimate gets a trigger-only button
+   (id='member-filter-btn-2') that opens the same popover.
+
+2. member-filter-btn-2 was declared but never wired. Now wired to openPopover()
+   alongside member-filter-btn.
+
+3. document.addEventListener('click', close, {once:true}) fired on the very next
+   click — including the Apply button itself — closing the popover BEFORE Apply could
+   read the checkboxes, so the selection appeared to reset. Fix: replaced with a
+   named closeOnOutsideClick handler that checks the click target and is removed
+   explicitly on close/Apply.
+
+4. Empty selection saved as [] which triggered 'show all' fallback (monitored.length===0
+   → all checkboxes checked), making it look like a reset. Fix: if selected is empty
+   save null instead (null = show all is intentional, [] would be ambiguous).
+
+---
+
 ## v1.6.0 (2026-05-25) — Sentry setup prompt + chart layout v2
 
 **Fixed:**
