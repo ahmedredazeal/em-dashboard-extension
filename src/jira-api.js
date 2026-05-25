@@ -201,21 +201,53 @@ export class JiraClient {
     
     const authorList = accountIds.map(id => `"${id}"`).join(',');
     const jql = `worklogAuthor in (${authorList}) AND worklogDate >= "${startDate}" AND worklogDate <= "${endDate}"`;
+    const fields = ['worklog', 'project', 'issuetype', 'priority', 'timeoriginalestimate', 'summary'];
     
     console.log(`[jira] getTeamWorklogs ${startDate}→${endDate} for ${accountIds.length} members`);
     
-    const result = await this._search({
-      jql,
-      fields: [
-        'worklog', 'project', 'issuetype', 'priority',
-        'timeoriginalestimate', 'summary'
-      ],
-      maxResults: 200,
+    // Paginate: Jira returns max 100 per page, cap at 1000 issues
+    const allIssues = [];
+    let startAt = 0;
+    let total = Infinity;
+    while (allIssues.length < total && allIssues.length < 1000) {
+      const result = await this._search({ jql, fields, maxResults: 100, startAt });
+      const issues = result.issues || [];
+      total = result.total || 0;
+      allIssues.push(...issues);
+      if (issues.length === 0) break;
+      startAt += issues.length;
+    }
+    console.log(`[jira] getTeamWorklogs: ${allIssues.length}/${total} issues fetched`);
+    
+    // Jira embeds only the first/last 20 worklogs per issue (most-recent-first).
+    // For historical periods (Q1, Q2), those 20 may all be AFTER the range.
+    // Fetch complete worklogs for any issue where the embedded list was truncated.
+    const startMs = new Date(startDate).getTime();
+    const endMs   = new Date(endDate).getTime() + 86400000; // +1 day (inclusive)
+    const truncated = allIssues.filter(i => {
+      const wl = i.fields?.worklog;
+      return wl && wl.total > (wl.worklogs?.length || 0);
     });
     
-    const issues = result.issues || [];
-    console.log(`[jira] getTeamWorklogs: ${issues.length} issues with worklogs`);
-    return issues;
+    if (truncated.length > 0) {
+      console.log(`[jira] Fetching full worklogs for ${truncated.length} truncated issues`);
+      // Sequential in batches of 10 to avoid rate-limiting
+      for (let i = 0; i < truncated.length; i += 10) {
+        await Promise.all(truncated.slice(i, i + 10).map(async issue => {
+          try {
+            const full = await this._get(
+              `/rest/api/3/issue/${issue.id}/worklog?startedAfter=${startMs}&startedBefore=${endMs}&maxResults=5000`
+            );
+            issue.fields.worklog.worklogs = full.worklogs || [];
+          } catch (e) {
+            console.warn(`[jira] Failed to get full worklogs for ${issue.id}:`, e.message);
+          }
+        }));
+      }
+    }
+    
+    console.log(`[jira] getTeamWorklogs complete: ${allIssues.length} issues`);
+    return allIssues;
   }
 
   /**

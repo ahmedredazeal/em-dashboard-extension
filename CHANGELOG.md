@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.6.2 (2026-05-25) — Quarter data + layout consistency
+
+**Fixed (critical — quarter data):**
+- Q1/Q2 data was drastically under-counting because:
+  a) Jira embeds only the 20 most-recent worklogs per issue (date-descending).
+     For Q1 queries, those 20 are often all post-Q1 entries; Q1 logs were missed.
+     Fix: for any issue where worklog.total > worklogs.length, fetch complete
+     worklogs via /rest/api/3/issue/{id}/worklog?startedAfter=&startedBefore=
+  b) maxResults was capped at 200 issues. Fix: paginate until all issues retrieved
+     (max 1000 issues per query, batched in 100s).
+
+**Changed (layout — row 2 consistency):**
+- Mode dropdown (Sprint/Q1/Q2) and member filter button (👥) moved OUT of the
+  Time Logged card header into a SHARED control bar above both row-2 cards.
+  Both TIME LOGGED and ESTIMATE VS ACTUAL now respect the same mode + filter.
+- Date range subtitle in shared bar updates when mode changes.
+- Both row-2 cards have identical header layout: title + date subtitle.
+- ESTIMATE VS ACTUAL: removed separate member filter button (shared bar covers it).
+  Now shows the mode date range as subtitle instead.
+- Support board breakdown: content centered vertically in card (justify-content:center).
+
+---
+
 ## v1.6.1 (2026-05-25) — Fix: member filter duplicate IDs + Apply reset
 
 **Fixed (4 bugs):**

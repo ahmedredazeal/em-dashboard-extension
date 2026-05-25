@@ -543,12 +543,7 @@ function renderInsights() {
       </div>
     </div>` : '';
 
-  // Second trigger (Estimate card) — opens the SAME popover, different ID
-  const estimateFilterBtn = discoveredMembers.length > 0 ? `
-    <button id="member-filter-btn-2" title="Filter team members (shared with Time Logged)"
-      style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;padding:2px 6px;color:var(--text-muted);font-size:11px;cursor:pointer;line-height:1.4;">
-      👥 ${filteredCount}/${totalCount}
-    </button>` : '';
+  // (Estimate vs Actual uses the same filter btn in the shared control bar above)
   
   // Determine which member list to render for the timesheet
   const timesheetMembers = (currentMode === 'sprint')
@@ -581,29 +576,50 @@ function renderInsights() {
   const teamForEstimate = timesheetMembers || filteredTs;
   let estimateVsActualHtml = '';
   if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
-    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, estimateFilterBtn);
+    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, modeRange);
   }
   
-  // ── Sprint date range for chart headers ──────────────────────────
-  // Dates: prefer currentSprint, fall back to analytics cache. Slice to YYYY-MM-DD.
+  // ── Dates ─────────────────────────────────────────────────────────────
   const rawStart = state.currentSprint?.startDate || state.sprintAnalytics?.startDate || '';
   const rawEnd   = state.currentSprint?.endDate   || state.sprintAnalytics?.endDate   || '';
   const sprintStart = rawStart.slice(0, 10);
   const sprintEnd   = rawEnd.slice(0, 10);
-  // Slice to YYYY-MM-DD — Jira returns ISO datetime "2026-05-11T00:00:00.000Z"
+  
   const fmtDate = d => {
     if (!d) return '';
-    const ymd = d.slice(0, 10); // always safe: "2026-05-11" from any format
-    const [y, m, day] = ymd.split('-');
+    const ymd = d.slice(0, 10);
+    const [,m, day] = ymd.split('-');
     const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1];
     return `${+day} ${mon}`;
   };
-  const dateRange = sprintStart && sprintEnd
-    ? `${fmtDate(sprintStart)} – ${fmtDate(sprintEnd)}`
-    : '';
-  const dateSubtitle = dateRange
-    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${dateRange}</div>`
-    : '';
+  
+  // Date range changes with mode: sprint uses sprint dates, quarters use quarter dates
+  let modeStart = sprintStart, modeEnd = sprintEnd;
+  if (currentMode !== 'sprint') {
+    const qDef = quarters.find(q => q.label === currentMode);
+    if (qDef) { modeStart = qDef.start; modeEnd = qDef.end; }
+    else if (state.quarterWorklogCache?.[currentMode]) {
+      const qc = state.quarterWorklogCache[currentMode];
+      modeStart = (qc.startDate || '').slice(0, 10);
+      modeEnd   = (qc.endDate   || '').slice(0, 10);
+    }
+  }
+  const modeRange  = modeStart && modeEnd ? `${fmtDate(modeStart)} – ${fmtDate(modeEnd)}` : '';
+  const sprintOnlyRange = sprintStart && sprintEnd ? `${fmtDate(sprintStart)} – ${fmtDate(sprintEnd)}` : '';
+  // Helper: subtitle div for a given range string
+  const dateSubtitle = (range) => range
+    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${range}</div>` : '';
+  
+  // Shared control bar — sits above row 2, controls BOTH Time Logged and Estimate vs Actual
+  const sharedControlBar = `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                margin:8px 0 4px;padding:0 2px;position:relative;">
+      <span style="font-size:10px;color:var(--text-muted);">${modeRange}</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        ${modeDropdown}
+        ${memberFilterHtml}
+      </div>
+    </div>`;
   const contentEl = document.getElementById('insights-content');
   if (!contentEl) return;
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;
@@ -619,7 +635,7 @@ function renderInsights() {
   // ── Support Board Breakdown ───────────────────────────────────────
   const supportBoardHtml = buildSupportBoardChart(state.extraBoardsData || []);
   
-  // ── Side-by-side row 2: Estimate vs Actual | Support Board Breakdown ─
+  // ── Side-by-side row 2: Time Logged | Estimate vs Actual ─────────────
   const outerStyle2  = sideBySide ? 'display:flex;gap:8px;align-items:stretch;' : '';
   const chartWrap2   = sideBySide ? 'flex:1;min-width:0;display:flex;' : 'margin-bottom:8px;';
   
@@ -629,25 +645,18 @@ function renderInsights() {
       <div style="${chartWrapStyle}">
         <div style="${cardStyle}">
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">BURNDOWN</div>
-          ${dateSubtitle}
+          ${dateSubtitle(sprintOnlyRange)}
           <div style="margin-top:6px;">${burndownHtml}</div>
         </div>
       </div>
       <div style="${chartWrapStyle}">${supportBoardHtml}</div>
     </div>
+    ${sharedControlBar}
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">
         <div style="${cardStyle}">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;">
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</div>
-              ${dateSubtitle}
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              ${modeDropdown}
-              ${memberFilterHtml}
-            </div>
-          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">TIME LOGGED</div>
+          ${dateSubtitle(modeRange)}
           <div style="margin-top:6px;">${timesheetHtml}</div>
           ${qRefreshNote}
         </div>
@@ -699,13 +708,12 @@ function renderInsights() {
   
   // ── Wire member filter popover ────────────────────────────────────────
   const filterBtn  = document.getElementById('member-filter-btn');
-  const filterBtn2 = document.getElementById('member-filter-btn-2');
   const popover    = document.getElementById('member-filter-popover');
   
   if (popover) {
     // Close popover when clicking OUTSIDE (not on Apply, not on the buttons)
     const closeOnOutsideClick = (e) => {
-      if (!popover.contains(e.target) && e.target !== filterBtn && e.target !== filterBtn2) {
+      if (!popover.contains(e.target) && e.target !== filterBtn) {
         popover.style.display = 'none';
         document.removeEventListener('click', closeOnOutsideClick);
       }
@@ -719,13 +727,11 @@ function renderInsights() {
         document.removeEventListener('click', closeOnOutsideClick);
       } else {
         popover.style.display = '';
-        // Add outside-click listener on next tick so this click doesn't immediately close
         setTimeout(() => document.addEventListener('click', closeOnOutsideClick), 0);
       }
     };
     
-    if (filterBtn)  filterBtn.addEventListener('click',  openPopover);
-    if (filterBtn2) filterBtn2.addEventListener('click', openPopover);
+    if (filterBtn) filterBtn.addEventListener('click', openPopover);
     
     document.getElementById('member-filter-select-all')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1196,7 +1202,7 @@ function buildSupportBoardChart(boards) {
     ? `<div style="margin-top:8px;padding:5px 8px;background:rgba(245,158,11,0.08);border-radius:4px;border:1px solid rgba(245,158,11,0.2);font-size:11px;color:#f59e0b;">⚠ ${totalBlocked} ticket${totalBlocked>1?'s':''} blocked-external across ${Object.keys(blockedByStatus).length} status${Object.keys(blockedByStatus).length>1?'es':''}</div>`
     : '';
   
-  return `<div style="${cardStyle}">
+  return `<div style="${cardStyle}justify-content:center;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">SUPPORT BOARD BREAKDOWN</span>
       <span style="font-size:10px;color:var(--text-muted);">${stories.length} open</span>
@@ -1207,7 +1213,7 @@ function buildSupportBoardChart(boards) {
 }
 
 // ── Estimate vs Actual card ────────────────────────────────────────────────
-function buildEstimateVsActualCard(members, memberFilterHtml) {
+function buildEstimateVsActualCard(members, dateRange) {
   const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
   const maxVal = Math.max(...members.map(m => Math.max(m.total, m.estimated || 0)), 0.1);
   const W = 280, NAME_W = 100, PW = W - NAME_W - 8;
@@ -1233,10 +1239,10 @@ function buildEstimateVsActualCard(members, memberFilterHtml) {
   const legend = `<text x="${NAME_W}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">■ Logged</text><text x="${NAME_W+50}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">— Estimated</text><text x="${NAME_W+130}" y="${H-6}" fill="#f97316" font-size="9" font-family="system-ui">×1.3+ over</text><text x="${NAME_W+190}" y="${H-6}" fill="#22c55e" font-size="9" font-family="system-ui">×0.7− under</text>`;
   
   return `<div style="${cardStyle}">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
       <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">ESTIMATE VS ACTUAL</span>
-      ${memberFilterHtml || ''}
     </div>
+    ${dateRange ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">${dateRange}</div>` : ''}
     <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">${rows}${legend}</svg>
   </div>`;
 }
