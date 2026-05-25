@@ -614,10 +614,19 @@ function renderInsights() {
       </div>
     </div>`;
 
-  // ── Estimate vs Actual card (shares same member filter as TIME LOGGED) ──
-  const teamForEstimate = timesheetMembers || filteredTs;
+  // ── Estimate vs Actual — synced with Time Logged mode ────────────────
+  // When quarter is selected but not yet fetched, show loading (not stale sprint data)
+  const quarterPending = currentMode !== 'sprint' && timesheetMembers === null;
+  const teamForEstimate = quarterPending ? [] : (timesheetMembers || filteredTs);
   let estimateVsActualHtml = '';
-  if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
+  if (quarterPending) {
+    estimateVsActualHtml = `
+      <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
+        <div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
+      </div>`;
+  } else if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
     estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, modeRange);
   }
   
@@ -1203,13 +1212,15 @@ function buildSupportBoardChart(boards) {
     ? `<div style="margin-top:8px;padding:5px 8px;background:rgba(245,158,11,0.08);border-radius:4px;border:1px solid rgba(245,158,11,0.2);font-size:11px;color:#f59e0b;">⚠ ${totalBlocked} ticket${totalBlocked>1?'s':''} blocked-external across ${Object.keys(blockedByStatus).length} status${Object.keys(blockedByStatus).length>1?'es':''}</div>`
     : '';
   
-  return `<div style="${cardStyle}justify-content:center;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+  return `<div style="${cardStyle}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
       <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">SUPPORT BOARD BREAKDOWN</span>
       <span style="font-size:10px;color:var(--text-muted);">${stories.length} open</span>
     </div>
-    ${rows}
-    ${blockedSummary}
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+      ${rows}
+      ${blockedSummary}
+    </div>
   </div>`;
 }
 

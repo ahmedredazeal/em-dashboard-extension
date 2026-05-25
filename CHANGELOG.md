@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.6.4 (2026-05-25) — Quarter 400 fix + estimate sync + support board header
+
+**Fixed:**
+- Quarter fetch 400 error: new paginated getTeamWorklogs passed startAt in the
+  POST body, but /rest/api/3/search/jql uses cursor-based pagination (nextPageToken),
+  not offset-based (startAt). startAt is an unrecognized field on that endpoint.
+  Fix: removed startAt; now reads result.nextPageToken and passes it on subsequent
+  calls until no nextPageToken is returned.
+- Estimate vs Actual showed stale sprint data while Time Logged showed Q1 loading:
+  teamForEstimate fell back to filteredTs (sprint) when timesheetMembers was null.
+  Fix: detect quarterPending (mode != sprint AND no cached data) and show a matching
+  Loading Q1 data placeholder in the estimate card too.
+- Support board breakdown: centering moved the header up with the bars.
+  Fix: card is flex-column, header has flex-shrink:0 (stays at top), inner div
+  has flex:1 + justify-content:center (bars centered in remaining space).
+
+---
+
 ## v1.6.3 (2026-05-25) — CRITICAL: fix modeRange TDZ crash
 
 **Fixed:**

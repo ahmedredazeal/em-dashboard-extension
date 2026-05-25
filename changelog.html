@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.6.4</div>
+      <div class="cl-desc">
+        <strong>Quarter 400 fix + sync + support board header:</strong> nextPageToken replaces startAt in quarterly fetch. Estimate vs Actual shows loading state when Q1 pending (not stale sprint data). Support board header stays top while bars center in remaining space.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.6.3</div>
       <div class="cl-desc">
         <strong>CRITICAL fix:</strong> ReferenceError modeRange before initialization — date block declared after first use. Moved date block above teamForEstimate to respect const TDZ rules.
