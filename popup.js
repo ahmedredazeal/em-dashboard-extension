@@ -565,20 +565,11 @@ function renderInsights() {
        </div>`
     : '';
   
-  // ── Estimate vs Actual card ───────────────────────────────────────────
+  // ── Estimate vs Actual card (shares same member filter as TIME LOGGED) ──
   const teamForEstimate = timesheetMembers || filteredTs;
   let estimateVsActualHtml = '';
   if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
-    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate);
-  }
-  
-  // ── Focus / Issue-type split card ─────────────────────────────────────
-  const issueTypeSplit = currentMode === 'sprint'
-    ? (analytics.issueTypeSplit || [])
-    : (state.quarterWorklogCache?.[currentMode]?.issueTypeSplit || []);
-  let focusHtml = '';
-  if (issueTypeSplit.length > 0) {
-    focusHtml = buildFocusSplitCard(issueTypeSplit);
+    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, memberFilterHtml);
   }
   
   // ── Sprint date range for chart headers ──────────────────────────
@@ -616,6 +607,10 @@ function renderInsights() {
   // ── Support Board Breakdown ───────────────────────────────────────
   const supportBoardHtml = buildSupportBoardChart(state.extraBoardsData || []);
   
+  // ── Side-by-side row 2: Estimate vs Actual | Support Board Breakdown ─
+  const outerStyle2  = sideBySide ? 'display:flex;gap:8px;align-items:stretch;' : '';
+  const chartWrap2   = sideBySide ? 'flex:1;min-width:0;display:flex;' : 'margin-bottom:8px;';
+  
   content.innerHTML = `
     ${progressHtml}
     <div style="${outerStyle}">
@@ -643,9 +638,10 @@ function renderInsights() {
         </div>
       </div>
     </div>
-    ${estimateVsActualHtml}
-    ${focusHtml}
-    ${supportBoardHtml}`;
+    <div style="${outerStyle2}">
+      <div style="${chartWrap2}">${estimateVsActualHtml}</div>
+      <div style="${chartWrap2}">${supportBoardHtml}</div>
+    </div>`;
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');
@@ -1108,7 +1104,7 @@ function buildSupportBoardChart(boards) {
   if (!sb || !sb.stories?.length) return '';
   
   const stories = sb.stories;
-  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;';
+  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
   
   // Count by status name, and track blocked-external per status
   const byStatus = {};
@@ -1174,8 +1170,8 @@ function buildSupportBoardChart(boards) {
 }
 
 // ── Estimate vs Actual card ────────────────────────────────────────────────
-function buildEstimateVsActualCard(members) {
-  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;';
+function buildEstimateVsActualCard(members, memberFilterHtml) {
+  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
   const maxVal = Math.max(...members.map(m => Math.max(m.total, m.estimated || 0)), 0.1);
   const W = 280, NAME_W = 100, PW = W - NAME_W - 8;
   const bw = h => Math.max(1, (h / maxVal) * PW);
@@ -1200,7 +1196,10 @@ function buildEstimateVsActualCard(members) {
   const legend = `<text x="${NAME_W}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">■ Logged</text><text x="${NAME_W+50}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">— Estimated</text><text x="${NAME_W+130}" y="${H-6}" fill="#f97316" font-size="9" font-family="system-ui">×1.3+ over</text><text x="${NAME_W+190}" y="${H-6}" fill="#22c55e" font-size="9" font-family="system-ui">×0.7− under</text>`;
   
   return `<div style="${cardStyle}">
-    <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:6px;">ESTIMATE VS ACTUAL</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">ESTIMATE VS ACTUAL</span>
+      ${memberFilterHtml || ''}
+    </div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">${rows}${legend}</svg>
   </div>`;
 }
@@ -1320,14 +1319,33 @@ function buildTrendCardHTML(label, samples) {
   // Only show last 30 days for compactness
   const last30 = samples.slice(-30);
   
-  if (last30.length < 2) {
+  if (last30.length < 1) {
     return `
-      <div style="padding:10px 12px;background:var(--surface,#11131c);
+      <div style="padding:10px 12px;background:var(--surface);
                   border:1px solid var(--border,rgba(255,255,255,0.05));
                   border-radius:8px;font-size:11px;color:var(--text-muted);">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
                     text-transform:uppercase;margin-bottom:6px;">${escapeHtml(label)} Trend</div>
-        Open the panel daily to build trend history. ${last30.length === 1 ? '1 data point so far.' : 'No data yet.'}
+        Open the panel daily to build trend history.
+      </div>`;
+  }
+  
+  // Single data point on day 1
+  if (last30.length === 1) {
+    const pt = last30[0];
+    return `
+      <div style="padding:10px 12px;background:var(--surface);
+                  border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
+                       text-transform:uppercase;">${escapeHtml(label)} · last 30 days</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">${pt.count} today</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 0;">
+          <div style="width:8px;height:8px;background:#6366f1;border-radius:50%;flex-shrink:0;"></div>
+          <span style="font-size:11px;color:var(--text-muted);">First reading · ${pt.day} · ${pt.count} unresolved</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);">Open the panel daily to build the trend line.</div>
       </div>`;
   }
   

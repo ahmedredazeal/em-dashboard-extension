@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.5.9 (2026-05-25) — Chart layout polish + Sentry day-1 fix
+
+**Changed:**
+- Removed TEAM FOCUS (issue-type split) chart — too noisy without context.
+- ESTIMATE VS ACTUAL and SUPPORT BOARD BREAKDOWN now side-by-side at >=520px
+  (same breakpoint as Burndown / Time Logged above them).
+- ESTIMATE VS ACTUAL: shows the same member filter button (👥 N/M) as
+  TIME LOGGED — both charts update when the member selection changes.
+- ESTIMATE VS ACTUAL: card style updated to flex column to support equal heights.
+
+**Fixed:**
+- Sentry trend chart now shows from day 1.
+  On the first reading: displays a dot + count + first-reading label with a
+  'Open the panel daily to build the trend line' prompt.
+  Previously required 2 data points before any chart appeared.
+
+---
+
 ## v1.5.8 (2026-05-24) — CRITICAL: date format fix for worklog + chart headers
 
 **Fixed (critical):**
