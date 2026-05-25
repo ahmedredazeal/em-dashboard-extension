@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.6.0 (2026-05-25) — Sentry setup prompt + chart layout v2
+
+**Fixed:**
+- Sentry trend card was silently hidden when no view was tracked.
+  Now shows a setup instruction: Settings → Sentry views → Track → Save.
+  This also explains the chart not appearing for users who haven't tracked a view.
+
+**Changed:**
+- Chart layout row order changed:
+  Row 1: Burndown | Support Board Breakdown
+  Row 2: Time Logged | Estimate vs Actual
+  (was: Row1 Burndown|Time Logged, Row2 Estimate|Support)
+
+---
+
 ## v1.5.9 (2026-05-25) — Chart layout polish + Sentry day-1 fix
 
 **Changed:**

@@ -621,7 +621,10 @@ function renderInsights() {
           <div style="margin-top:6px;">${burndownHtml}</div>
         </div>
       </div>
-      <div style="${chartWrapStyle}">
+      <div style="${chartWrapStyle}">${supportBoardHtml}</div>
+    </div>
+    <div style="${outerStyle2}">
+      <div style="${chartWrap2}">
         <div style="${cardStyle}">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2px;">
             <div>
@@ -637,10 +640,7 @@ function renderInsights() {
           ${qRefreshNote}
         </div>
       </div>
-    </div>
-    <div style="${outerStyle2}">
       <div style="${chartWrap2}">${estimateVsActualHtml}</div>
-      <div style="${chartWrap2}">${supportBoardHtml}</div>
     </div>`;
   
   // Wire quarter dropdown
@@ -1289,7 +1289,16 @@ async function renderSentryTrend() {
   
   const trackedViewId = state.settings?.sentry?.trackedViewId;
   if (!trackedViewId) {
-    card.style.display = 'none';
+    // Show a setup prompt instead of hiding silently
+    card.style.display = '';
+    card.innerHTML = `
+      <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px;">SENTRY TREND</div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          Track a Sentry view to see its daily issue count trend here.<br/>
+          <span style="color:var(--primary,#6366f1);">Settings → Sentry views → click Track on one view → Save.</span>
+        </div>
+      </div>`;
     return;
   }
   
