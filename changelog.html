@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.6.3</div>
+      <div class="cl-desc">
+        <strong>CRITICAL fix:</strong> ReferenceError modeRange before initialization — date block declared after first use. Moved date block above teamForEstimate to respect const TDZ rules.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.6.2</div>
       <div class="cl-desc">
         <strong>Quarter data fix + row-2 layout consistency:</strong> Q1/Q2 worklog data now accurate (paginate all issues + fetch truncated worklogs). Shared control bar above row 2 drives both Time Logged and Estimate vs Actual. Date range updates with mode change. Support board centered.

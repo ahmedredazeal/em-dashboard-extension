@@ -572,13 +572,6 @@ function renderInsights() {
        </div>`
     : '';
   
-  // ── Estimate vs Actual card (shares same member filter as TIME LOGGED) ──
-  const teamForEstimate = timesheetMembers || filteredTs;
-  let estimateVsActualHtml = '';
-  if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
-    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, modeRange);
-  }
-  
   // ── Dates ─────────────────────────────────────────────────────────────
   const rawStart = state.currentSprint?.startDate || state.sprintAnalytics?.startDate || '';
   const rawEnd   = state.currentSprint?.endDate   || state.sprintAnalytics?.endDate   || '';
@@ -620,6 +613,14 @@ function renderInsights() {
         ${memberFilterHtml}
       </div>
     </div>`;
+
+  // ── Estimate vs Actual card (shares same member filter as TIME LOGGED) ──
+  const teamForEstimate = timesheetMembers || filteredTs;
+  let estimateVsActualHtml = '';
+  if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
+    estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, modeRange);
+  }
+  
   const contentEl = document.getElementById('insights-content');
   if (!contentEl) return;
   const panelWidth = contentEl.offsetWidth || window.innerWidth || 380;

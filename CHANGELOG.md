@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.6.3 (2026-05-25) — CRITICAL: fix modeRange TDZ crash
+
+**Fixed:**
+- ReferenceError: Cannot access 'modeRange' before initialization.
+  The date-computation block (declaring modeRange via const) was placed AFTER
+  the buildEstimateVsActualCard(teamForEstimate, modeRange) call. JavaScript
+  const/let have a Temporal Dead Zone — accessing them before their declaration
+  line throws a ReferenceError even within the same scope.
+  Fix: moved the date block and modeRange declaration above the teamForEstimate
+  section that references it.
+
+---
+
 ## v1.6.2 (2026-05-25) — Quarter data + layout consistency
 
 **Fixed (critical — quarter data):**
