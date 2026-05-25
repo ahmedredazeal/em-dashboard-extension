@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.6.5 (2026-05-25) — Message channel + bar layout + quarter member filter
+
+**Fixed:**
+- Chrome error 'message channel closed before response received': the
+  fetch-quarter-worklogs handler returned true (implying sendResponse use) but
+  never called sendResponse. Fix: return undefined instead. We use
+  chrome.runtime.sendMessage for the reply, not the synchronous response channel.
+- Support board bars shrink when blocked label appears: blocked badge was inline
+  in the flex row with no reserved space, so bar (flex:1) shrank to give it room.
+  Fix: right side is now a fixed 88px div (always present, empty when no blocked).
+  Bar always occupies the same proportional space regardless of blocked status.
+- Member filter had no effect on Q1/Q2 data: timesheetMembers for quarters was
+  taken directly from the cache (full list), without applying the monitored filter.
+  Fix: monitored filter applied after reading rawTimesheetMembers for all modes.
+
+---
+
 ## v1.6.4 (2026-05-25) — Quarter 400 fix + estimate sync + support board header
 
 **Fixed:**

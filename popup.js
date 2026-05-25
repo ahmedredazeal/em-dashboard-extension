@@ -545,10 +545,17 @@ function renderInsights() {
 
   // (Estimate vs Actual uses the same filter btn in the shared control bar above)
   
-  // Determine which member list to render for the timesheet
-  const timesheetMembers = (currentMode === 'sprint')
-    ? filteredTs
+  // Determine member list for the current mode, then apply monitored filter
+  const rawTimesheetMembers = (currentMode === 'sprint')
+    ? ts
     : state.quarterWorklogCache?.[currentMode]?.members || null;
+  
+  // Apply the same monitored filter regardless of mode (sprint or quarter)
+  const timesheetMembers = rawTimesheetMembers === null
+    ? null   // still loading
+    : (monitored?.length > 0
+        ? rawTimesheetMembers.filter(m => monitored.includes(m.name))
+        : rawTimesheetMembers);
   
   let timesheetHtml = '';
   if (isLegacyFormat) {
@@ -1195,16 +1202,17 @@ function buildSupportBoardChart(boards) {
     const color = STATUS_COLORS[status] || '#6366f1';
     const pct = Math.round(count / maxCount * 100);
     const blocked = blockedByStatus[status] || 0;
-    const blockedBadge = blocked > 0
-      ? `<span style="font-size:10px;color:#f59e0b;margin-left:6px;">⚠ ${blocked} blocked</span>`
+    // Fixed-width right area (always reserved) — keeps bar width consistent across all rows
+    const blockedCell = blocked > 0
+      ? `<span style="font-size:10px;color:#f59e0b;white-space:nowrap;">⚠ ${blocked} blocked</span>`
       : '';
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
       <div style="width:90px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${status}</div>
-      <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden;">
+      <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden;min-width:0;">
         <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
       </div>
-      <span style="font-size:10px;color:var(--text);width:16px;text-align:right;flex-shrink:0;">${count}</span>
-      ${blockedBadge}
+      <span style="font-size:10px;color:var(--text);width:18px;text-align:right;flex-shrink:0;">${count}</span>
+      <div style="width:88px;flex-shrink:0;text-align:left;">${blockedCell}</div>
     </div>`;
   }).join('');
   

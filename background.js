@@ -588,6 +588,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Lazy quarter worklog fetch
   if (message.type === 'fetch-quarter-worklogs') {
     const { year, q, accountIds, startDate, endDate, cacheKey } = message;
+    // Fire-and-forget: we communicate back via chrome.runtime.sendMessage,
+    // NOT via sendResponse — so do NOT return true (that would imply sendResponse usage)
     (async () => {
       try {
         const stored = await chrome.storage.local.get(['settings']);
@@ -610,7 +612,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.runtime.sendMessage({ type: 'quarter-worklogs-error', cacheKey, error: e.message }).catch(() => {});
       }
     })();
-    return true;
+    // Return undefined (not true) — we use sendMessage for the reply, not sendResponse
+    return;
   }
   
   if (message.type === 'refresh-dashboard') {
