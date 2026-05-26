@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.6.6 (2026-05-25) — New logo (navy cap with Zeal mark)
+
+**Changed:**
+- Brand identity refresh: replaced the four toolbar/install icons (16/32/48/128)
+  with a custom navy-blue baseball cap silhouette featuring a stylized Zeal bird
+  mark on the side panel and the iconic white curl-stripe between crown and brim.
+- Source asset: 1254×1254 JPEG, converted to RGBA PNG with white background
+  keyed out (transparent), high-quality Lanczos downscale to each target size.
+- No code changes — visual identity only. All 179 tests continue to pass.
+
+---
+
 ## v1.6.5 (2026-05-25) — Message channel + bar layout + quarter member filter
 
 **Fixed:**
