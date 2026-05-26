@@ -66,8 +66,9 @@ function createSentryViewRow(view, trackedViewId) {
   updateRowPreview(urlInput, previewEl, trackBtn);
   urlInput.addEventListener('input', () => updateRowPreview(urlInput, previewEl, trackBtn));
   
-  trackBtn.addEventListener('click', () => {
+  trackBtn.addEventListener('click', async () => {
     const active = trackBtn.textContent.includes('Tracking');
+
     // Deselect all track buttons first
     document.querySelectorAll('.sv-track').forEach(btn => {
       btn.textContent = 'Track';
@@ -80,6 +81,30 @@ function createSentryViewRow(view, trackedViewId) {
       trackBtn.style.color = 'var(--primary,#6366f1)';
       trackBtn.style.borderColor = 'var(--primary,#6366f1)';
       trackBtn.style.fontWeight = '600';
+    }
+
+    // AUTO-SAVE trackedViewId immediately — don't require the Save button.
+    // Bug: previously the save only happened on the main Save button click,
+    // so navigating away without pressing Save silently discarded the Track choice.
+    const newTrackedId = active ? null : (trackBtn.dataset.viewId || null);
+    try {
+      const r = await chrome.storage.local.get(['settings']);
+      const s = r.settings || {};
+      s.sentry = s.sentry || {};
+      s.sentry.trackedViewId = newTrackedId;
+      await chrome.storage.local.set({ settings: s });
+
+      // Brief visual confirmation so user knows the click was persisted
+      if (!active && newTrackedId) {
+        trackBtn.textContent = '✓ Saved';
+        setTimeout(() => {
+          if (trackBtn.textContent === '\u2713 Saved') {
+            trackBtn.textContent = '\u25cf Tracking';
+          }
+        }, 1400);
+      }
+    } catch (e) {
+      console.warn('[settings] Failed to auto-save trackedViewId:', e.message);
     }
   });
   
@@ -99,6 +124,8 @@ function updateRowPreview(urlInput, previewEl, trackBtn) {
   if (!url) {
     previewEl.textContent = '';
     urlInput.style.borderColor = 'var(--border,rgba(255,255,255,0.1))';
+    // Clear stale viewId so Track can't save a ghost id
+    if (trackBtn) trackBtn.dataset.viewId = '';
     return;
   }
   
@@ -106,9 +133,15 @@ function updateRowPreview(urlInput, previewEl, trackBtn) {
   if (!parsed) {
     previewEl.innerHTML = `<span style="color:#ef4444;">Couldn't parse this URL — make sure it's a Sentry view URL</span>`;
     urlInput.style.borderColor = '#ef4444';
+    if (trackBtn) trackBtn.dataset.viewId = '';
     return;
   }
   
+  // Keep data-view-id in sync with whatever URL is currently in the field.
+  // Bug: previously data-view-id was set only at row-creation time, so editing
+  // the URL left a stale (or empty) viewId and getTrackedViewId() returned null.
+  if (trackBtn) trackBtn.dataset.viewId = parsed.viewId;
+
   urlInput.style.borderColor = 'rgba(34,197,94,0.5)';
   const parts = [
     `View ${parsed.viewId}`,

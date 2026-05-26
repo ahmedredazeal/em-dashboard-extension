@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.6.9</div>
+      <div class="cl-desc">
+        <strong>Fix: Sentry trend Track button + data-view-id sync.</strong>
+        Track now auto-saves <code>trackedViewId</code> to storage immediately on click — no longer requires the main Save button. Shows a "✓ Saved" flash to confirm. Also fixes <code>data-view-id</code> going stale when the URL field changes, which caused <code>getTrackedViewId()</code> to return null even when Save was pressed correctly. Together these mean the trend chart will now actually record samples and build history.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.6.8</div>
       <div class="cl-desc">
         <strong>Theme-aware in-app logo:</strong> Added <code>cap-white.png</code> (white cap with navy Zeal mark, matches the toolbar icons). App bar, welcome screen, and settings header now render both versions; CSS shows the navy cap on light theme and the white cap on dark theme so the logo is always visible.

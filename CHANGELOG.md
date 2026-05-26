@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.6.9 (2026-05-26) — Fix Sentry trend: Track button now auto-saves + data-view-id stays in sync
+
+**Fixed:**
+- Sentry trend chart never received data because the Track button click only
+  updated the DOM visually. The `trackedViewId` was only written to storage
+  when the main Save button was pressed. Users who clicked Track and navigated
+  away (or simply expected it to persist like a toggle) found it silently reset
+  on next settings open. Because `trackedViewId` was always null in storage,
+  `recordTrendSample` in background.js was never called, so the trend chart
+  had no history to show.
+  Fix: the Track click handler is now `async` and immediately writes
+  `settings.sentry.trackedViewId` to `chrome.storage.local` after updating
+  the DOM. Save button is no longer required for this one field.
+- Brief "✓ Saved" flash on the Track button confirms the auto-save completed.
+- `updateRowPreview()` now also updates `trackBtn.dataset.viewId` when the URL
+  field changes. Previously, `data-view-id` was frozen at row-creation time, so
+  editing a URL left a stale viewId and `getTrackedViewId()` returned null even
+  when Save was pressed correctly.
+
+**How data builds from here:**
+  The next time the dashboard panel is opened (after clicking Track), the
+  background fetch will call `recordTrendSample` for the tracked view. The
+  chart will show a single-point "day 1" reading. Each subsequent day adds
+  another sample and the trend line starts to form.
+
+---
+
 ## v1.6.8 (2026-05-26) — Theme-aware in-app logo
 
 **Changed:**
