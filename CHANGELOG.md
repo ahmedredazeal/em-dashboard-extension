@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.6.7 (2026-05-26) — Logo refinement: bigger toolbar icon + app-wide branding
+
+**Changed:**
+- Toolbar icons reprocessed: source image was tightly cropped to the cap's
+  bounding box (was wasting ~40% of canvas to whitespace), then colors inverted
+  to a WHITE cap with NAVY Zeal mark via flood-fill from corners. Result: the
+  cap fills ~95% of each icon canvas and reads clearly against Chrome's dark
+  toolbar at 16/32/48/128 px.
+- New asset `icons/cap-color.png` (256x256, navy cap on transparent) — used
+  inside the app where backgrounds can be light. Toolbar icons stay white.
+- Replaced the placeholder 4-square SVG logos in three app surfaces:
+  - `popup.html` app-bar header (was 18px inline SVG)
+  - `popup.html` welcome / auth screen (was 48px inline SVG)
+  - `settings.html` page header (was 32px inline SVG)
+  All now use `<img src="icons/cap-color.png">` at appropriate sizes.
+
+**Why:** v1.6.6 shipped the logo but only into the manifest icons. In-app
+surfaces still showed the placeholder squares, and the toolbar icon was
+smaller than it could be because the source had ~40% padding around the cap.
+
+---
+
 ## v1.6.6 (2026-05-25) — New logo (navy cap with Zeal mark)
 
 **Changed:**
