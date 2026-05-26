@@ -688,3 +688,42 @@ body.privacy-on [data-privacy-mask]::after {
 .mt-16 { margin-top: 16px; }
 .mb-8 { margin-bottom: 8px; }
 .mb-16 { margin-bottom: 16px; }
+
+/* ============================================================
+   Theme-aware logo (cap) — swap between navy (light) and white (dark)
+   ============================================================ */
+.theme-logo {
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.theme-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Default (light theme): show navy cap, hide white cap */
+.theme-logo .logo-dark {
+  display: none;
+}
+/* Explicit dark theme: hide navy cap, show white cap */
+:root[data-theme="dark"] .theme-logo .logo-light {
+  display: none;
+}
+:root[data-theme="dark"] .theme-logo .logo-dark {
+  display: block;
+}
+/* Browser theme that follows OS — swap when OS is dark */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="browser"] .theme-logo .logo-light {
+    display: none;
+  }
+  :root[data-theme="browser"] .theme-logo .logo-dark {
+    display: block;
+  }
+}
+/* Size variants */
+.theme-logo-22 { width: 22px; height: 22px; }
+.theme-logo-40 { width: 40px; height: 40px; }
+.theme-logo-72 { width: 72px; height: 72px; }

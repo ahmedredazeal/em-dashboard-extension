@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.6.8 (2026-05-26) — Theme-aware in-app logo
+
+**Changed:**
+- v1.6.7 used the navy cap in the app bar, welcome screen, and settings header.
+  That works fine on the light theme but loses contrast on the dark theme. The
+  user wanted the white cap shown in-app too.
+- New asset `icons/cap-white.png` (256x256 white cap with navy Zeal mark,
+  matching the toolbar icons) added.
+- Both `cap-color.png` (navy) and `cap-white.png` (white) are now rendered in
+  the DOM at every logo placement, wrapped in a `.theme-logo` span. CSS hides
+  whichever is wrong for the current theme:
+  - `data-theme="light"` → navy cap visible
+  - `data-theme="dark"` → white cap visible
+  - `data-theme="browser"` → follows `prefers-color-scheme`
+- New CSS block at end of `styles.css` (40 lines): `.theme-logo`, size
+  variants `.theme-logo-22/40/72`, and theme selectors.
+- Two extra image requests (4-30 KB each) but they're cached after first load.
+
+---
+
 ## v1.6.7 (2026-05-26) — Logo refinement: bigger toolbar icon + app-wide branding
 
 **Changed:**
