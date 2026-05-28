@@ -117,15 +117,37 @@ export class SentryClient {
    * @param {string} environment - environment filter
    * @returns {Promise<Array>} issues
    */
-  async getIssuesFromView(viewId, projectIds = [], environment = 'production') {
-    const params = new URLSearchParams({
-      limit: '100',
-      view: viewId,
-      environment,
-      query: 'is:unresolved',
-      sort: 'date',
-      statsPeriod: '7d'
-    });
+  /**
+   * Get issues from a saved view, honouring the view's own query/sort/period.
+   *
+   * Bug fixed (v1.7.0): the previous version hardcoded statsPeriod:'7d' which
+   * filters to issues with activity in the last 7 days only — missing older
+   * unresolved issues and producing a count lower than what Sentry's UI shows.
+   * statsPeriod (and query/sort) are now forwarded from the URL the user pasted,
+   * so the API call matches exactly what the view shows in the browser.
+   *
+   * @param {string}   viewId       - Sentry saved view ID
+   * @param {string[]} projectIds   - project IDs from the view URL
+   * @param {string}   environment  - environment filter (e.g. 'production')
+   * @param {object}   viewParams   - optional overrides from the view URL
+   * @param {string}   [viewParams.query]       - saved search query
+   * @param {string}   [viewParams.sort]        - sort order
+   * @param {string}   [viewParams.statsPeriod] - time window (e.g. '14d').
+   *                                              Omit for "All Time".
+   */
+  async getIssuesFromView(viewId, projectIds = [], environment = 'production', viewParams = {}) {
+    const params = new URLSearchParams({ limit: '100', view: viewId });
+
+    // Only include params that have actual values — avoids accidentally
+    // sending empty strings which some API versions treat differently.
+    if (environment)              params.set('environment',  environment);
+    if (viewParams.query)         params.set('query',        viewParams.query);
+    else                          params.set('query',        'is:unresolved'); // safe fallback
+    if (viewParams.sort)          params.set('sort',         viewParams.sort);
+    if (viewParams.statsPeriod)   params.set('statsPeriod',  viewParams.statsPeriod);
+    // statsPeriod intentionally OMITTED when null/empty → Sentry returns
+    // all matching issues regardless of last-seen date ("All Time").
+
     projectIds.forEach(id => params.append('project', String(id)));
     return this.request(`organizations/${this.orgSlug}/issues/?${params.toString()}`);
   }

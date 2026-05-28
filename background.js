@@ -511,15 +511,23 @@ async function fetchSentryData(settings) {
         continue;
       }
       
-      const label      = view.label || `View ${parsed.viewId}`;
-      const viewId     = parsed.viewId;
-      const projectIds = parsed.projectIds;
+      const label       = view.label || `View ${parsed.viewId}`;
+      const viewId      = parsed.viewId;
+      const projectIds  = parsed.projectIds;
       const environment = parsed.environment || 'production'; // default if URL omits
-      
-      console.log(`[background] Fetching Sentry view "${label}" (${viewId}) projects:[${projectIds.join(',')}] env:${environment}`);
+      // Forward the view's own query/sort/statsPeriod so the API call matches
+      // exactly what Sentry shows — previously these were hardcoded in sentry-api.js
+      // (statsPeriod:'7d') causing the count to be lower than the real total.
+      const viewParams  = {
+        query:       parsed.query,
+        sort:        parsed.sort,
+        statsPeriod: parsed.statsPeriod,
+      };
+
+      console.log(`[background] Fetching Sentry view "${label}" (${viewId}) projects:[${projectIds.join(',')}] env:${environment} period:${parsed.statsPeriod || 'all'}`);
       
       try {
-        const issues = await client.getIssuesFromView(viewId, projectIds, environment);
+        const issues = await client.getIssuesFromView(viewId, projectIds, environment, viewParams);
         console.log(`[background] View "${label}" → ${issues.length} issues`);
         viewResults.push({ label, viewId, issues, count: issues.length });
         allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));

@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.7.0</div>
+      <div class="cl-desc">
+        <strong>Fix: Sentry issue count now matches real total.</strong>
+        <code>getIssuesFromView</code> hardcoded <code>statsPeriod:'7d'</code>, silently excluding older unresolved issues (no recent events) from the count. Dashboard showed 24, Sentry UI showed 39 — the gap was issues older than 7 days. Fix: <code>statsPeriod</code>, <code>query</code>, and <code>sort</code> are now forwarded from the view URL. When the URL omits <code>statsPeriod</code>, it is omitted from the API call so Sentry returns all matching issues ("All Time").
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.6.9</div>
       <div class="cl-desc">
         <strong>Fix: Sentry trend Track button + data-view-id sync.</strong>

@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.7.0 (2026-05-28) — Fix Sentry issue count (was lower than real total)
+
+**Fixed:**
+- `getIssuesFromView` in `sentry-api.js` hardcoded `statsPeriod: '7d'`, which
+  tells the Sentry API to return only issues that had activity in the last 7 days.
+  Older unresolved issues (with no recent events) were silently excluded, making
+  the dashboard count lower than the real total shown in Sentry's own UI.
+  (Example: dashboard showed 24, Sentry showed 39 — the 15 gap is issues older
+  than 7 days that are still open.)
+- `query`, `sort`, and `statsPeriod` were also hardcoded (`is:unresolved`,
+  `date`, `7d`) even though `parseSentryUrl` already extracted the correct values
+  from the view URL. Those extracted values were silently dropped.
+- Fix: `getIssuesFromView` now accepts an optional `viewParams` object
+  (`{ query, sort, statsPeriod }`). `background.js` passes the values from
+  `parseSentryUrl` through. When `statsPeriod` is absent from the URL, it is
+  intentionally omitted from the API request — Sentry then returns all matching
+  issues regardless of last-seen date, matching the "All Time" default view.
+
+**Impact:** Sentry counts in the header, section, and trend chart now match
+what the Sentry UI shows for each view.
+
+---
+
 ## v1.6.9 (2026-05-26) — Fix Sentry trend: Track button now auto-saves + data-view-id stays in sync
 
 **Fixed:**
