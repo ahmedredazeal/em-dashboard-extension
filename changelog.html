@@ -17,6 +17,16 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.7.1</div>
+      <div class="cl-desc">
+        <strong>Sentry trend chart visual fixes.</strong>
+        (1) Y-axis flat line: added 15% padding around the data range so flat/near-flat series render centred in the chart instead of pinned to the floor.
+        (2) Label overlap: raised x-axis labels off the SVG edge, increased bottom padding, and added a 40px minimum gap guard before showing the middle label.
+        (3) Stable footer: when count is constant, shows "stable at N" instead of the confusing "min N max N".
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.7.0</div>
       <div class="cl-desc">
         <strong>Fix: Sentry issue count now matches real total.</strong>

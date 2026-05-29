@@ -1430,33 +1430,59 @@ function buildTrendCardHTML(label, samples) {
   const delta   = today.count - prev.count;
   const deltaStr = delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '=';
   const deltaColor = delta > 0 ? '#f97316' : delta < 0 ? '#22c55e' : 'var(--text-muted)';
-  
-  const W = 280, H = 52, PAD_L = 4, PAD_R = 4, PAD_T = 6, PAD_B = 16;
+
+  // ── Chart dimensions ────────────────────────────────────────────────────
+  // PAD_B increased to 20 (was 16) so x-axis text has breathing room and
+  // doesn't visually collide with the HTML min/max row below the SVG.
+  const W = 280, H = 60, PAD_L = 4, PAD_R = 4, PAD_T = 8, PAD_B = 20;
   const PW = W - PAD_L - PAD_R;
   const PH = H - PAD_T - PAD_B;
-  const range = maxVal - minVal || 1;
-  
+
+  // ── Y-axis with padding ─────────────────────────────────────────────────
+  // Bug fixed: when all counts are equal (range = 0), the old formula
+  // put every point at y = PAD_T + PH (the very bottom of the chart area),
+  // producing a flat line hugging the floor with all the space above empty.
+  // Fix: add ~15 % padding above and below the data range so flat or
+  // near-flat series render centred in the chart, not pinned to the edge.
+  const dataRange = maxVal - minVal;
+  const yPad  = Math.max(Math.ceil(maxVal * 0.15), 3); // ≥15 % of max, min 3
+  const yMin  = Math.max(0, minVal - yPad);
+  const yMax  = maxVal + yPad;
+  const yRange = yMax - yMin || 1;
+
   const px = (i) => PAD_L + (i / (last30.length - 1)) * PW;
-  const py = (v) => PAD_T + PH - ((v - minVal) / range) * PH;
-  
-  // Build polyline points
+  const py = (v)  => PAD_T + PH - ((v - yMin) / yRange) * PH;
+
+  // ── Polyline + area ─────────────────────────────────────────────────────
   const pts = last30.map((s, i) => `${px(i).toFixed(1)},${py(s.count).toFixed(1)}`).join(' ');
-  
-  // Build filled area path
   const firstX = PAD_L.toFixed(1), lastX = (PAD_L + PW).toFixed(1);
   const baseY  = (PAD_T + PH).toFixed(1);
   const areaPath = `M${firstX},${baseY} L${pts.split(' ').map(p => p).join(' L')} L${lastX},${baseY} Z`;
-  
-  // X-axis labels: first, middle, last
+
+  // ── X-axis labels (first / middle / last) ───────────────────────────────
+  // Bug fixed: the middle label was always rendered even when close to the
+  // left or right label (small datasets), causing overlap. Now it's skipped
+  // unless it has at least 40 px of clearance on both sides.
   const xLabels = [];
   const labelIdxs = [0, Math.floor((last30.length - 1) / 2), last30.length - 1];
-  const labelNames = ['', '', 'today'];
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   labelIdxs.forEach((idx, li) => {
+    const xPos = px(idx);
+    // Skip middle label if it crowds either edge
+    if (li === 1) {
+      const gap = Math.min(xPos - px(labelIdxs[0]), px(labelIdxs[2]) - xPos);
+      if (gap < 40) return;
+    }
     const d = days[idx];
-    const label_text = li === 2 ? 'today' : `${parseInt(d.slice(8))} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(d.slice(5,7))-1]}`;
-    xLabels.push(`<text x="${px(idx).toFixed(1)}" y="${H - 2}" text-anchor="${li === 0 ? 'start' : li === 2 ? 'end' : 'middle'}" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${label_text}</text>`);
+    const txt = li === 2 ? 'today'
+      : `${parseInt(d.slice(8))} ${MONTH_NAMES[parseInt(d.slice(5,7)) - 1]}`;
+    const anchor = li === 0 ? 'start' : li === 2 ? 'end' : 'middle';
+    xLabels.push(
+      `<text x="${xPos.toFixed(1)}" y="${H - 4}" text-anchor="${anchor}" ` +
+      `fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${txt}</text>`
+    );
   });
-  
+
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;">
     <defs>
       <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
@@ -1469,7 +1495,14 @@ function buildTrendCardHTML(label, samples) {
     <circle cx="${px(last30.length - 1).toFixed(1)}" cy="${py(today.count).toFixed(1)}" r="2.5" fill="#6366f1"/>
     ${xLabels.join('')}
   </svg>`;
-  
+
+  // ── Footer row ──────────────────────────────────────────────────────────
+  // Bug fixed: when dataRange = 0 both labels read "min 23 max 23" which
+  // looks broken. Show "stable at N" instead.
+  const footer = dataRange === 0
+    ? `<span>stable at ${minVal}</span>`
+    : `<span>min ${minVal}</span><span>max ${maxVal}</span>`;
+
   return `
     <div style="padding:10px 12px;background:var(--surface,#11131c);
                 border:1px solid var(--border,rgba(255,255,255,0.05));
@@ -1484,8 +1517,7 @@ function buildTrendCardHTML(label, samples) {
       </div>
       ${svg}
       <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:9px;color:var(--text-muted);">
-        <span>min ${minVal}</span>
-        <span>max ${maxVal}</span>
+        ${footer}
       </div>
     </div>`;
 }

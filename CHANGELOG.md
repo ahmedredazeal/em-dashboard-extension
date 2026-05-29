@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.7.1 (2026-05-29) — Sentry trend chart visual fixes
+
+**Fixed (all in `buildTrendCardHTML` in popup.js):**
+
+1. **Flat line at chart floor** — y-axis collapsed when all counts were equal
+   (or nearly equal). Every point landed at `py = bottom` leaving the upper 80%
+   of the chart empty. Fix: add ≥15% padding above and below the data range
+   so flat/near-flat series render centred, not pinned to the edge.
+
+2. **Overlapping x-axis labels** — the SVG x-axis labels sat at `y = H − 2`
+   (touching the SVG edge) while an HTML `min/max` row sits only 2px below.
+   Visually they collided. Fix: raised labels to `y = H − 4` and increased
+   `PAD_B` from 16 → 20 to give proper breathing room.
+   Also: the middle label is now skipped when it has less than 40 px clearance
+   on either side (prevents crowding on small datasets).
+
+3. **"min 23 max 23" footer** — when the count is constant the footer was
+   repeating the same number twice, looking broken. Fix: when `dataRange === 0`
+   show "stable at N" instead.
+
+---
+
 ## v1.7.0 (2026-05-28) — Fix Sentry issue count (was lower than real total)
 
 **Fixed:**
