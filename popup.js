@@ -1385,7 +1385,57 @@ async function renderSentryTrend() {
   
   card.style.display = '';
   card.innerHTML = buildTrendCardHTML(viewLabel, samples);
+
+  // Wire the export button (created inside the HTML above)
+  const exportBtn = card.querySelector('.sentry-export-btn');
+  if (exportBtn && samples.length > 0) {
+    exportBtn.addEventListener('click', () =>
+      exportSentryTrend(viewLabel, trackedViewId, samples)
+    );
+  }
 }
+
+// ── Sentry Trend Export ───────────────────────────────────────────────────
+
+/**
+ * Export the Sentry trend for the currently tracked view.
+ * Two outputs simultaneously:
+ *   1. JSON file download (same format used for import)
+ *   2. New tab with a print-ready page → user saves as PDF
+ */
+async function exportSentryTrend(viewLabel, viewId, samples) {
+  const now       = new Date();
+  const dateStr   = now.toISOString().slice(0, 10);
+  const safeName  = viewLabel.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const filename  = `EM-Dashboard-Sentry-${safeName}-${dateStr}.json`;
+
+  // ① Build the export payload (same format the import expects)
+  const payload = {
+    version:    '1',
+    exportedAt: now.toISOString(),
+    viewId,
+    viewLabel,
+    samples:    [...samples].sort((a, b) => (a.day < b.day ? -1 : 1)),
+  };
+
+  // ② Download the JSON file
+  const blob    = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const jsonUrl = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = jsonUrl;
+  a.download    = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(jsonUrl), 2000);
+
+  // ③ Stash data for the print page then open it in a new tab
+  try {
+    await chrome.storage.local.set({ printData: { viewLabel, viewId, samples: payload.samples, exportedAt: now.toISOString() } });
+    chrome.tabs.create({ url: chrome.runtime.getURL('print.html') });
+  } catch (e) {
+    console.warn('[popup] exportSentryTrend: could not open print page:', e.message);
+  }
+}
+
 
 function buildTrendCardHTML(label, samples) {
   // Only show last 30 days for compactness
@@ -1453,35 +1503,80 @@ function buildTrendCardHTML(label, samples) {
   const px = (i) => PAD_L + (i / (last30.length - 1)) * PW;
   const py = (v)  => PAD_T + PH - ((v - yMin) / yRange) * PH;
 
-  // ── Polyline + area ─────────────────────────────────────────────────────
-  const pts = last30.map((s, i) => `${px(i).toFixed(1)},${py(s.count).toFixed(1)}`).join(' ');
-  const firstX = PAD_L.toFixed(1), lastX = (PAD_L + PW).toFixed(1);
-  const baseY  = (PAD_T + PH).toFixed(1);
-  const areaPath = `M${firstX},${baseY} L${pts.split(' ').map(p => p).join(' L')} L${lastX},${baseY} Z`;
+  // ── Date-normalised x-axis ────────────────────────────────────────────────
+  // Points are positioned by actual calendar date so gaps in recordings appear
+  // as proportionally wider empty space (a 14-day gap = 14× a 1-day step).
+  const firstMs = new Date(days[0]).getTime();
+  const lastMs  = new Date(days[days.length - 1]).getTime();
+  const totalMs = lastMs - firstMs || 1;
+  const pxD = (day) => PAD_L + ((new Date(day).getTime() - firstMs) / totalMs) * PW;
 
-  // ── X-axis labels (first / middle / last) ───────────────────────────────
-  // Bug fixed: the middle label was always rendered even when close to the
-  // left or right label (small datasets), causing overlap. Now it's skipped
-  // unless it has at least 40 px of clearance on both sides.
+  // ── Gap detection → segment list ─────────────────────────────────────────
+  // Each gap (> 1 day between consecutive samples) becomes a grey "no data"
+  // rectangle. We break the polyline at gaps so no fake diagonal line is drawn
+  // implying a trend through unknown territory.
+  const _MS_PER_DAY = 86400000;
+  const segments = [];
+  let streak = [last30[0]];
+  for (let _i = 1; _i < last30.length; _i++) {
+    const diffDays = Math.round((new Date(last30[_i].day) - new Date(last30[_i-1].day)) / _MS_PER_DAY);
+    if (diffDays > 1) {
+      segments.push({ type: 'data', points: [...streak] });
+      segments.push({ type: 'gap', start: last30[_i-1].day, end: last30[_i].day, days: diffDays - 1 });
+      streak = [last30[_i]];
+    } else {
+      streak.push(last30[_i]);
+    }
+  }
+  segments.push({ type: 'data', points: streak });
+
+  // ── X-axis labels ─────────────────────────────────────────────────────────
+  const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const xLabels = [];
   const labelIdxs = [0, Math.floor((last30.length - 1) / 2), last30.length - 1];
-  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   labelIdxs.forEach((idx, li) => {
-    const xPos = px(idx);
-    // Skip middle label if it crowds either edge
+    const xPos = pxD(days[idx]);
     if (li === 1) {
-      const gap = Math.min(xPos - px(labelIdxs[0]), px(labelIdxs[2]) - xPos);
+      const gap = Math.min(xPos - pxD(days[labelIdxs[0]]), pxD(days[labelIdxs[2]]) - xPos);
       if (gap < 40) return;
     }
-    const d = days[idx];
-    const txt = li === 2 ? 'today'
-      : `${parseInt(d.slice(8))} ${MONTH_NAMES[parseInt(d.slice(5,7)) - 1]}`;
+    const d   = days[idx];
+    const txt = li === 2 ? 'today' : `${parseInt(d.slice(8))} ${_MONTHS[parseInt(d.slice(5,7))-1]}`;
     const anchor = li === 0 ? 'start' : li === 2 ? 'end' : 'middle';
-    xLabels.push(
-      `<text x="${xPos.toFixed(1)}" y="${H - 4}" text-anchor="${anchor}" ` +
-      `fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${txt}</text>`
-    );
+    xLabels.push(`<text x="${xPos.toFixed(1)}" y="${H-4}" text-anchor="${anchor}" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${txt}</text>`);
   });
+
+  // ── Build SVG parts ────────────────────────────────────────────────────────
+  let _svgParts = '';
+
+  // Gap rectangles (drawn first, behind the lines)
+  for (const seg of segments) {
+    if (seg.type !== 'gap') continue;
+    const gx1 = pxD(seg.start), gx2 = pxD(seg.end);
+    const gw  = Math.max(gx2 - gx1, 2);
+    const mx  = ((gx1 + gx2) / 2).toFixed(1);
+    const my  = (PAD_T + PH / 2).toFixed(1);
+    _svgParts += `<rect x="${gx1.toFixed(1)}" y="${PAD_T}" width="${gw.toFixed(1)}" height="${PH}" fill="rgba(148,163,184,0.10)" rx="2"/>`;
+    if (gw > 32) {
+      _svgParts += `<text x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7.5" font-family="system-ui" opacity="0.75">no data · ${seg.days}d</text>`;
+    }
+  }
+
+  // Data segments: area fill then polyline (no line drawn across gaps)
+  for (const seg of segments) {
+    if (seg.type !== 'data' || seg.points.length === 0) continue;
+    const segPts = seg.points.map(s => `${pxD(s.day).toFixed(1)},${py(s.count).toFixed(1)}`).join(' ');
+    if (seg.points.length > 1) {
+      const fx = pxD(seg.points[0].day).toFixed(1);
+      const lx = pxD(seg.points[seg.points.length-1].day).toFixed(1);
+      const by = (PAD_T + PH).toFixed(1);
+      _svgParts += `<path d="M${fx},${by} L${segPts.split(' ').join(' L')} L${lx},${by} Z" fill="url(#tg)"/>`;
+    }
+    _svgParts += `<polyline points="${segPts}" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+
+  // End dot on latest sample
+  _svgParts += `<circle cx="${pxD(today.day).toFixed(1)}" cy="${py(today.count).toFixed(1)}" r="2.5" fill="#6366f1"/>`;
 
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;">
     <defs>
@@ -1490,9 +1585,7 @@ function buildTrendCardHTML(label, samples) {
         <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
       </linearGradient>
     </defs>
-    <path d="${areaPath}" fill="url(#tg)"/>
-    <polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${px(last30.length - 1).toFixed(1)}" cy="${py(today.count).toFixed(1)}" r="2.5" fill="#6366f1"/>
+    ${_svgParts}
     ${xLabels.join('')}
   </svg>`;
 
@@ -1511,6 +1604,10 @@ function buildTrendCardHTML(label, samples) {
         <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
                      text-transform:uppercase;">${escapeHtml(label)} · last 30 days</span>
         <div style="display:flex;align-items:center;gap:8px;">
+          <button class="sentry-export-btn" title="Export data &amp; chart"
+            style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
+                   padding:2px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;
+                   flex-shrink:0;line-height:1.4;" aria-label="Export">⬇</button>
           <span style="font-size:11px;font-weight:700;color:${deltaColor};">${deltaStr} vs yesterday</span>
           <span style="font-size:13px;font-weight:700;color:var(--text);">${today.count}</span>
         </div>

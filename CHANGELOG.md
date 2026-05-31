@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.7.2 (2026-05-29) — Sentry trend: Export, Import, and gap visualization
+
+**New features:**
+
+### Export (⬇ button inside the Sentry trend card)
+Clicking ⬇ triggers two simultaneous outputs:
+1. **JSON file download** (`EM-Dashboard-Sentry-{label}-{date}.json`) — the canonical
+   backup/restore format. Use this as the import file if you ever need to restore data.
+2. **Print-ready PDF tab** — opens a new Chrome tab with a clean, light-themed page
+   containing a large chart, summary stats, and a full data table with day-over-day changes.
+   Press Ctrl+P (or Cmd+P on Mac) → Save as PDF. Instructions are shown on the page.
+
+### Import (Settings → Sentry Trend History)
+- File input that accepts `.json` files exported by the ⬇ button.
+- **Live readings always win**: if an imported date already has a reading recorded
+  directly from Sentry by the extension, the live value is kept unchanged.
+  Only missing dates are filled in by the import.
+- The import section in Settings explains this policy clearly.
+
+### Gap visualization in the chart
+- **Date-normalised x-axis**: points are now positioned by their actual calendar date,
+  not array index. A 14-day gap is visually 14× wider than a 1-day step.
+- **Grey gap rectangles**: periods with no recorded data are shaded grey with a
+  "no data · N days" label. **No fake connecting line is drawn** across gaps —
+  the chart makes no assumptions about what the count did during a gap.
+- **Polyline breaks at gaps**: each continuous streak of data is a separate line segment.
+
+**Other:**
+- Added `tabs` permission to manifest (required for `chrome.tabs.create` on export).
+- New `print.html` extension page (used internally by the export).
+- New `importTrendSamples()` in `src/sentry-trend.js`.
+
+---
+
 ## v1.7.1 (2026-05-29) — Sentry trend chart visual fixes
 
 **Fixed (all in `buildTrendCardHTML` in popup.js):**

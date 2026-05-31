@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EM Dashboard — Sentry Trend Export</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: #fff;
+      color: #0f172a;
+      padding: 36px 48px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Print instructions banner (screen only) ── */
+    .print-hint {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 28px;
+      font-size: 13px;
+      color: #1e40af;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .print-hint strong { font-weight: 600; }
+    @media print { .print-hint { display: none !important; } }
+
+    /* ── Header ── */
+    .export-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .export-title { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .export-meta { font-size: 12px; color: #64748b; }
+    .export-badge {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #475569;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    /* ── Summary cards ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .summary-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .summary-value { font-size: 22px; font-weight: 700; color: #1e293b; }
+    .summary-label { font-size: 10px; font-weight: 600; color: #94a3b8; letter-spacing: 0.4px; text-transform: uppercase; margin-top: 2px; }
+    .summary-card.up .summary-value   { color: #ea580c; }
+    .summary-card.down .summary-value { color: #16a34a; }
+
+    /* ── Chart section ── */
+    .chart-section {
+      margin-bottom: 28px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .chart-section h2 { font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 12px; }
+    #chart-container svg { display: block; width: 100%; }
+
+    /* ── Data table ── */
+    .table-section { margin-bottom: 20px; }
+    .table-section h2 { font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      background: #f1f5f9;
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 7px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .td-date { font-weight: 500; color: #1e293b; }
+    .td-count { font-weight: 700; text-align: right; }
+    .td-delta { text-align: right; font-weight: 600; }
+    .td-delta.up   { color: #ea580c; }
+    .td-delta.down { color: #16a34a; }
+    .td-delta.flat { color: #94a3b8; }
+    .td-gap { background: #fafafa; }
+    .td-gap td { color: #94a3b8; font-style: italic; font-size: 12px; }
+
+    /* ── Footer ── */
+    .export-footer {
+      margin-top: 24px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @media print {
+      body { padding: 20px 28px; }
+      .chart-section, .summary-card { background: #f8fafc !important; }
+      @page { margin: 1.5cm; size: A4 landscape; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="print-hint">
+    💡 <span><strong>To save as PDF:</strong> Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac) → set destination to <strong>"Save as PDF"</strong> → click Save. For best results use <em>Landscape</em> orientation.</span>
+  </div>
+
+  <div class="export-header">
+    <div>
+      <div class="export-title" id="exp-title">Sentry Issue Trend</div>
+      <div class="export-meta" id="exp-meta"></div>
+    </div>
+    <div class="export-badge" id="exp-badge"></div>
+  </div>
+
+  <div class="summary-grid" id="summary-grid"></div>
+
+  <div class="chart-section">
+    <h2>Issue Count — Last 30 Days</h2>
+    <div id="chart-container"></div>
+  </div>
+
+  <div class="table-section">
+    <h2>Daily Readings</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Day</th>
+          <th style="text-align:right">Issues</th>
+          <th style="text-align:right">vs Prev Day</th>
+        </tr>
+      </thead>
+      <tbody id="data-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="export-footer">
+    <span id="footer-view"></span>
+    <span>EM Dashboard · Powered by Zeal</span>
+  </div>
+
+<script>
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function fmtDate(dayStr) {
+  const d = new Date(dayStr + 'T00:00:00');
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+function fmtShort(dayStr) {
+  const d = new Date(dayStr + 'T00:00:00');
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+}
+function dayName(dayStr) {
+  return DAY_NAMES[new Date(dayStr + 'T00:00:00').getDay()];
+}
+function daysBetween(d1, d2) {
+  return Math.round((new Date(d2) - new Date(d1)) / 86400000);
+}
+
+function buildChart(samples, W, H) {
+  if (!samples || samples.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No data.</p>';
+
+  const counts = samples.map(s => s.count);
+  const days   = samples.map(s => s.day);
+  const minVal = Math.min(...counts);
+  const maxVal = Math.max(...counts);
+
+  const PAD_L = 44, PAD_R = 16, PAD_T = 12, PAD_B = 28;
+  const PW = W - PAD_L - PAD_R;
+  const PH = H - PAD_T - PAD_B;
+
+  // Y-axis with padding
+  const yPad  = Math.max(Math.ceil(maxVal * 0.15), 3);
+  const yMin  = Math.max(0, minVal - yPad);
+  const yMax  = maxVal + yPad;
+  const yRange = yMax - yMin || 1;
+
+  // Date-normalised x-axis
+  const firstMs = new Date(days[0]).getTime();
+  const lastMs  = new Date(days[days.length - 1]).getTime();
+  const totalMs = lastMs - firstMs || 1;
+  const pxD = (day) => PAD_L + ((new Date(day).getTime() - firstMs) / totalMs) * PW;
+  const pyV = (v)   => PAD_T + PH - ((v - yMin) / yRange) * PH;
+
+  // Grid lines + y-axis labels
+  const yStep = Math.ceil((yMax - yMin) / 4);
+  let grid = '', ylbl = '';
+  for (let v = Math.ceil(yMin / yStep) * yStep; v <= yMax; v += yStep) {
+    const y = pyV(v).toFixed(1);
+    grid += `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+    ylbl += `<text x="${PAD_L - 6}" y="${y}" text-anchor="end" dominant-baseline="central" fill="#94a3b8" font-size="10" font-family="system-ui">${v}</text>`;
+  }
+
+  // X-axis: one label per week (or every N days if span < 7)
+  let xlbl = '';
+  const spanDays = daysBetween(days[0], days[days.length - 1]);
+  const labelEvery = spanDays <= 7 ? 1 : spanDays <= 30 ? 7 : 14;
+  const labelledDays = new Set();
+  for (const s of samples) {
+    const d = new Date(s.day);
+    const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+    if (dayOfYear % labelEvery === 0 || s === samples[0] || s === samples[samples.length-1]) {
+      const x = pxD(s.day).toFixed(1);
+      if (!labelledDays.has(s.day)) {
+        const txt = s === samples[samples.length-1] ? 'today' : fmtShort(s.day);
+        const anchor = s === samples[0] ? 'start' : s === samples[samples.length-1] ? 'end' : 'middle';
+        xlbl += `<text x="${x}" y="${H - 6}" text-anchor="${anchor}" fill="#94a3b8" font-size="10" font-family="system-ui">${txt}</text>`;
+        labelledDays.add(s.day);
+      }
+    }
+  }
+
+  // Gap detection → segments
+  const segments = [];
+  let streak = [samples[0]];
+  for (let i = 1; i < samples.length; i++) {
+    const diff = daysBetween(samples[i-1].day, samples[i].day);
+    if (diff > 1) {
+      segments.push({ type: 'data', points: [...streak] });
+      segments.push({ type: 'gap', start: samples[i-1].day, end: samples[i].day, days: diff - 1 });
+      streak = [samples[i]];
+    } else {
+      streak.push(samples[i]);
+    }
+  }
+  segments.push({ type: 'data', points: streak });
+
+  let parts = '';
+
+  // Gap rectangles
+  for (const seg of segments) {
+    if (seg.type !== 'gap') continue;
+    const x1 = pxD(seg.start), x2 = pxD(seg.end);
+    const gw = x2 - x1;
+    const mx = ((x1 + x2) / 2).toFixed(1);
+    const my = (PAD_T + PH / 2).toFixed(1);
+    parts += `<rect x="${x1.toFixed(1)}" y="${PAD_T}" width="${gw.toFixed(1)}" height="${PH}" fill="#f1f5f9" rx="2"/>`;
+    if (gw > 36) {
+      parts += `<text x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central" fill="#94a3b8" font-size="9" font-family="system-ui">no data · ${seg.days}d</text>`;
+    }
+  }
+
+  // Polyline segments + area fills
+  for (const seg of segments) {
+    if (seg.type !== 'data' || seg.points.length === 0) continue;
+    const pts = seg.points.map(s => `${pxD(s.day).toFixed(1)},${pyV(s.count).toFixed(1)}`).join(' ');
+    if (seg.points.length > 1) {
+      const fx = pxD(seg.points[0].day).toFixed(1);
+      const lx = pxD(seg.points[seg.points.length-1].day).toFixed(1);
+      const by = (PAD_T + PH).toFixed(1);
+      parts += `<path d="M${fx},${by} L${pts.split(' ').join(' L')} L${lx},${by} Z" fill="#6366f1" fill-opacity="0.08"/>`;
+    }
+    parts += `<polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+
+  // Dots on each sample
+  for (const s of samples) {
+    parts += `<circle cx="${pxD(s.day).toFixed(1)}" cy="${pyV(s.count).toFixed(1)}" r="2.5" fill="#6366f1"/>`;
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+    <line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T+PH}" stroke="#e2e8f0" stroke-width="1"/>
+    <line x1="${PAD_L}" y1="${PAD_T+PH}" x2="${W-PAD_R}" y2="${PAD_T+PH}" stroke="#e2e8f0" stroke-width="1"/>
+    ${grid}${parts}${ylbl}${xlbl}
+  </svg>`;
+}
+
+async function render() {
+  let data;
+  try {
+    const result = await chrome.storage.local.get('printData');
+    data = result.printData;
+  } catch (e) {
+    document.body.innerHTML = '<p style="padding:40px;color:#ef4444;">Could not load print data. Please try exporting again.</p>';
+    return;
+  }
+
+  if (!data || !data.samples) {
+    document.body.innerHTML = '<p style="padding:40px;color:#94a3b8;">No export data found. Please press the ⬇ button on the Sentry trend chart.</p>';
+    return;
+  }
+
+  const { viewLabel, viewId, samples, exportedAt } = data;
+  const last30 = samples.slice(-30);
+
+  // Header
+  document.getElementById('exp-title').textContent = `${viewLabel} · Issue Trend`;
+  document.getElementById('exp-meta').textContent = `View ID: ${viewId} · ${last30.length} reading${last30.length === 1 ? '' : 's'}`;
+  document.getElementById('exp-badge').textContent = `Exported ${new Date(exportedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}`;
+  document.title = `EM Dashboard — ${viewLabel} Trend Export`;
+  document.getElementById('footer-view').textContent = `View: ${viewLabel} (${viewId})`;
+
+  // Summary
+  const counts = last30.map(s => s.count);
+  const minVal = Math.min(...counts), maxVal = Math.max(...counts), avgVal = Math.round(counts.reduce((s,c) => s+c,0)/counts.length);
+  const latest = last30[last30.length-1], prev = last30[last30.length-2];
+  const delta = prev ? latest.count - prev.count : 0;
+  const deltaStr = delta > 0 ? `↑ ${delta}` : delta < 0 ? `↓ ${Math.abs(delta)}` : '= 0';
+  const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
+
+  const cards = [
+    { value: latest.count, label: 'Current', cls: '' },
+    { value: deltaStr, label: 'vs Yesterday', cls: deltaClass },
+    { value: minVal, label: 'Min', cls: 'down' },
+    { value: maxVal, label: 'Max', cls: 'up' },
+    { value: avgVal, label: 'Avg', cls: '' },
+  ];
+  document.getElementById('summary-grid').innerHTML = cards.map(c =>
+    `<div class="summary-card ${c.cls}"><div class="summary-value">${c.value}</div><div class="summary-label">${c.label}</div></div>`
+  ).join('');
+
+  // Chart
+  document.getElementById('chart-container').innerHTML = buildChart(last30, 740, 180);
+
+  // Table
+  const tbody = document.getElementById('data-tbody');
+  let rows = '';
+  for (let i = 0; i < last30.length; i++) {
+    const s = last30[i];
+    const p = i > 0 ? last30[i-1] : null;
+
+    // Gap row before this entry?
+    if (p) {
+      const diff = daysBetween(p.day, s.day);
+      if (diff > 1) {
+        rows += `<tr class="td-gap"><td colspan="4">⬡ No data recorded · ${diff-1} day${diff-1===1?'':'s'} gap (${fmtShort(p.day)} → ${fmtShort(s.day)})</td></tr>`;
+      }
+    }
+
+    const d = s.count - (p?.count ?? s.count);
+    const dStr = p ? (d > 0 ? `↑ ${d}` : d < 0 ? `↓ ${Math.abs(d)}` : '= 0') : '—';
+    const dCls = p ? (d > 0 ? 'up' : d < 0 ? 'down' : 'flat') : 'flat';
+    rows += `<tr>
+      <td class="td-date">${fmtDate(s.day)}</td>
+      <td style="color:#64748b;font-size:12px;">${dayName(s.day)}</td>
+      <td class="td-count">${s.count}</td>
+      <td class="td-delta ${dCls}">${dStr}</td>
+    </tr>`;
+  }
+  tbody.innerHTML = rows;
+
+  // Auto-print after a short delay for layout to settle
+  setTimeout(() => window.print(), 600);
+}
+
+render();
+</script>
+</body>
+</html>

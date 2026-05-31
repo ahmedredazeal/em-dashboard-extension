@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "EM Dashboard",
-  "version": "1.7.1",
-  "description": "Engineering Manager cockpit — sprint health, reliability alerts, and the monthly brief, in a Chrome side panel.",
+  "version": "1.7.2",
+  "description": "Engineering Manager cockpit \u2014 sprint health, reliability alerts, and the monthly brief, in a Chrome side panel.",
   "author": "Zeal",
   "icons": {
     "16": "icons/icon16.png",
@@ -24,7 +24,8 @@
     "storage",
     "alarms",
     "notifications",
-    "sidePanel"
+    "sidePanel",
+    "tabs"
   ],
   "host_permissions": [
     "https://*.atlassian.net/*",

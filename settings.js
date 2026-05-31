@@ -408,6 +408,56 @@ function getTrackedViewId() {
     }
   });
   
+
+  // ── Sentry Trend History import ──────────────────────────────────────────
+  const importBtn    = document.getElementById('sentry-import-btn');
+  const importFile   = document.getElementById('sentry-import-file');
+  const importStatus = document.getElementById('sentry-import-status');
+
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', () => importFile.click());
+
+    importFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      importStatus.style.color = 'var(--text-muted)';
+      importStatus.textContent = 'Reading file…';
+
+      try {
+        const text = await file.text();
+        let payload;
+        try { payload = JSON.parse(text); } catch { throw new Error('File is not valid JSON.'); }
+
+        // Validate shape (same format as the export produces)
+        if (typeof payload.viewId !== 'string' || !Array.isArray(payload.samples)) {
+          throw new Error('Invalid format — use a file exported by EM Dashboard (⬇ button on the trend chart).');
+        }
+        if (payload.samples.length === 0) {
+          importStatus.textContent = 'File contains 0 samples — nothing to import.';
+          return;
+        }
+
+        importStatus.textContent = `Importing ${payload.samples.length} sample(s)…`;
+
+        // Dynamic import so settings.js doesn't load the module at startup
+        const { importTrendSamples } = await import('./src/sentry-trend.js');
+        const { imported, skipped, errors } = await importTrendSamples(payload.viewId, payload.samples);
+
+        const parts = [`✓ ${imported} sample${imported === 1 ? '' : 's'} imported`];
+        if (skipped > 0) parts.push(`${skipped} skipped (live readings kept)`);
+        if (errors  > 0) parts.push(`${errors} invalid rows ignored`);
+        importStatus.textContent = parts.join(' · ');
+        importStatus.style.color = 'var(--status-on-track,#22c55e)';
+      } catch (err) {
+        importStatus.textContent = `✗ ${err.message}`;
+        importStatus.style.color = 'var(--status-off-track,#ef4444)';
+      } finally {
+        importFile.value = ''; // allow re-importing same file
+      }
+    });
+  }
+
   // Theme selection (apply immediately for preview)
   document.querySelectorAll('input[name="theme"]').forEach(radio => {
     radio.addEventListener('change', () => {

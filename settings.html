@@ -200,6 +200,32 @@
       <a href="docs.html" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">Open documentation →</a>
     </div>
 
+    <!-- Sentry Trend History -->
+    <div class="card" id="sentry-history-card">
+      <h2>Sentry Trend History</h2>
+
+      <div class="field-group">
+        <label class="field-label" for="sentry-import-file">Import historical data</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <input type="file" id="sentry-import-file" accept=".json" style="display:none;" aria-hidden="true"/>
+          <button type="button" class="btn-secondary" id="sentry-import-btn"
+            style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
+            📂 Choose backup file (.json)
+          </button>
+          <span id="sentry-import-status" style="font-size:12px;color:var(--text-muted);"></span>
+        </div>
+        <p class="hint">
+          Use a file previously downloaded via the <strong>⬇</strong> button on the Sentry trend chart.
+          The export and import files share the same format — you can use any export as a restore point.
+        </p>
+        <p class="hint" style="margin-top:6px;">
+          <strong>ℹ Live readings always win.</strong> If an imported date already has a reading recorded
+          directly from Sentry by the extension, the live value is kept and the imported value is ignored.
+          Your extension's Sentry readings are the source of truth; imports only fill in days with no data.
+        </p>
+      </div>
+    </div>
+
     <!-- Zeal Footer -->
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);
       display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-lighter);">

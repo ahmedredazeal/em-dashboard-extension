@@ -186,3 +186,64 @@ export async function pruneOldSamples(viewId, currentYM) {
     console.log(`[sentry-trend] Pruned ${toDelete.length} old bucket(s) for view ${viewId}`);
   }
 }
+
+// ── Import / Export helpers ────────────────────────────────────────────────
+
+/**
+ * Import historical samples into sync storage.
+ * Live readings win: if a day already has an extension-recorded entry,
+ * the imported value is silently skipped.
+ *
+ * @param {string} viewId
+ * @param {string} viewLabel  — stored for reference but not used for keying
+ * @param {Array<{day:string, count:number}>} incomingSamples
+ * @returns {Promise<{imported:number, skipped:number, errors:number}>}
+ */
+export async function importTrendSamples(viewId, incomingSamples) {
+  if (!viewId || !incomingSamples?.length) return { imported: 0, skipped: 0, errors: 0 };
+
+  let imported = 0, skipped = 0, errors = 0;
+
+  // Group incoming samples by month bucket
+  const byMonth = {};
+  for (const s of incomingSamples) {
+    if (!s?.day || s.count == null || typeof s.count !== 'number') { errors++; continue; }
+    const ym = s.day.slice(0, 7);
+    if (!byMonth[ym]) byMonth[ym] = [];
+    byMonth[ym].push({ day: s.day, count: s.count });
+  }
+
+  for (const [ym, monthSamples] of Object.entries(byMonth)) {
+    const key = monthKey(viewId, ym);
+    let bucket;
+    try {
+      const result = await chrome.storage.sync.get(key);
+      bucket = result[key] || { viewId, yearMonth: ym, samples: [] };
+    } catch (e) {
+      bucket = { viewId, yearMonth: ym, samples: [] };
+    }
+
+    // Build a set of days already recorded by the extension (these win)
+    const existingDays = new Set(bucket.samples.map(s => s.day));
+
+    for (const s of monthSamples) {
+      if (existingDays.has(s.day)) {
+        skipped++;          // live reading takes priority
+      } else {
+        bucket.samples.push({ day: s.day, count: s.count });
+        imported++;
+      }
+    }
+
+    bucket.samples.sort((a, b) => (a.day < b.day ? -1 : 1));
+
+    try {
+      await chrome.storage.sync.set({ [key]: bucket });
+    } catch (e) {
+      console.warn('[sentry-trend] Import write failed for', ym, ':', e.message);
+      errors++;
+    }
+  }
+
+  return { imported, skipped, errors };
+}
