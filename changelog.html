@@ -17,6 +17,13 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.7.3</div>
+      <div class="cl-desc">
+        <strong>Fix: Sentry import now actually works.</strong> The import handler used a dynamic <code>await import()</code> inside the file-change event, which silently failed in the extension options page. Replaced with a static import at the top of <code>settings.js</code>. Status messages are now null-guarded so failures surface in the console even if the UI element is missing.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.7.2</div>
       <div class="cl-desc">
         <strong>Sentry trend: Export + Import + gap visualization.</strong>

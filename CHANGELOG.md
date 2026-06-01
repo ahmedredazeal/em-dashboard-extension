@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.7.3 (2026-05-31) — Fix Sentry import (dynamic import → static import)
+
+**Fixed:**
+- The import handler in Settings used `await import('./src/sentry-trend.js')`
+  (dynamic import inside an event listener). This silently failed in the extension
+  options page context, meaning the import appeared to do nothing even though the
+  file was read correctly.
+  Fix: `importTrendSamples` is now a static import at the top of `settings.js`
+  alongside the other module imports.
+- Added a null-guard helper `setStatus()` around all `importStatus` references
+  so the handler never crashes silently if the element is somehow missing.
+
+---
+
 ## v1.7.2 (2026-05-29) — Sentry trend: Export, Import, and gap visualization
 
 **New features:**

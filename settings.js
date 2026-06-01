@@ -6,6 +6,7 @@
 
 import { parseSentryUrl } from './src/parsers.js';
 import { runMigrations } from './src/migrations.js';
+import { importTrendSamples } from './src/sentry-trend.js';
 
 // ── Sentry view row rendering ──────────────────────────────────────────────
 // Storage shape: settings.sentry.views = [{ label: string, url: string }, ...]
@@ -421,8 +422,12 @@ function getTrackedViewId() {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      importStatus.style.color = 'var(--text-muted)';
-      importStatus.textContent = 'Reading file…';
+      const setStatus = (msg, color = 'var(--text-muted)') => {
+        if (importStatus) { importStatus.textContent = msg; importStatus.style.color = color; }
+        else console.log('[import]', msg);
+      };
+
+      setStatus('Reading file…');
 
       try {
         const text = await file.text();
@@ -438,20 +443,16 @@ function getTrackedViewId() {
           return;
         }
 
-        importStatus.textContent = `Importing ${payload.samples.length} sample(s)…`;
+        setStatus(`Importing ${payload.samples.length} sample(s)…`);
 
-        // Dynamic import so settings.js doesn't load the module at startup
-        const { importTrendSamples } = await import('./src/sentry-trend.js');
         const { imported, skipped, errors } = await importTrendSamples(payload.viewId, payload.samples);
 
         const parts = [`✓ ${imported} sample${imported === 1 ? '' : 's'} imported`];
         if (skipped > 0) parts.push(`${skipped} skipped (live readings kept)`);
         if (errors  > 0) parts.push(`${errors} invalid rows ignored`);
-        importStatus.textContent = parts.join(' · ');
-        importStatus.style.color = 'var(--status-on-track,#22c55e)';
+        setStatus(parts.join(' · '), 'var(--status-on-track,#22c55e)');
       } catch (err) {
-        importStatus.textContent = `✗ ${err.message}`;
-        importStatus.style.color = 'var(--status-off-track,#ef4444)';
+        setStatus(`✗ ${err.message}`, 'var(--status-off-track,#ef4444)');
       } finally {
         importFile.value = ''; // allow re-importing same file
       }

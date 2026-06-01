@@ -120,11 +120,13 @@ await testAsync('multiple calls on different days accumulate', async () => {
   const today = todayUTC();
   const ym = today.slice(0, 7);
   const key = `sentryTrend:12345:${ym}`;
-  // Pre-seed with a different day in same month
+  // Pre-seed with a day that is guaranteed NOT to be today
+  // (if today is the 1st, use the 2nd; otherwise use the 1st)
+  const otherDay = parseInt(today.slice(8)) === 1 ? ym + '-02' : ym + '-01';
   store[key] = {
     viewId: '12345',
     yearMonth: ym,
-    samples: [{ day: ym + '-01', count: 55 }]
+    samples: [{ day: otherDay, count: 55 }]
   };
   await recordTrendSample('12345', 33);
   assert(store[key].samples.length === 2, `expected 2, got ${store[key].samples.length}`);
