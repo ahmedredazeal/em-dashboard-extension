@@ -759,12 +759,20 @@ function renderInsights() {
       e.stopPropagation();
       const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked'))
         .map(cb => cb.dataset.name);
-      const r = await chrome.storage.local.get(['settings']);
-      const s = r.settings || {};
-      // null = show all (empty array would trigger "show all" fallback and look like a reset)
-      s.analytics = { ...s.analytics, monitoredMembers: selected.length > 0 ? selected : null };
-      await chrome.storage.local.set({ settings: s });
-      state.settings = s;
+
+      // Mutate state.settings directly rather than round-tripping through storage.
+      // Reading from storage first can return a stale snapshot if a partial-update
+      // just updated state.settings in memory without flushing. Overwriting
+      // state.settings = storedValue then loses those in-memory changes, so the
+      // filter appears to have no effect on the next renderInsights() call.
+      state.settings = state.settings || {};
+      state.settings.analytics = {
+        ...(state.settings.analytics || {}),
+        // null = show all; non-empty array = apply filter
+        monitoredMembers: selected.length > 0 ? selected : null
+      };
+      await chrome.storage.local.set({ settings: state.settings });
+
       popover.style.display = 'none';
       document.removeEventListener('click', closeOnOutsideClick);
       renderInsights();
@@ -1769,7 +1777,14 @@ function showSprintChangedBanner(oldSprintName) {
   const screenContainer = document.getElementById('screen-container');
   if (screenContainer) screenContainer.prepend(banner);
   
-  document.getElementById('keep-sprint-analytics')?.addEventListener('click', () => banner.remove());
+  document.getElementById('keep-sprint-analytics')?.addEventListener('click', async () => {
+    banner.remove();
+    // Re-read storage and re-render so the new sprint name and data are shown
+    // immediately. Without this, the stale Sprint 64 name stays until the
+    // next partial-update message arrives from the background.
+    await loadData();
+    renderCurrentScreen();
+  });
   document.getElementById('delete-sprint-analytics')?.addEventListener('click', async () => {
     const { deleteCachedSprintData } = await import('./src/sprint-cache.js').catch(() => ({}));
     if (deleteCachedSprintData) await deleteCachedSprintData(oldSprintName);

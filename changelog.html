@@ -17,6 +17,15 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.7.6</div>
+      <div class="cl-desc">
+        <strong>Fix: Sprint name + member filter.</strong>
+        (1) 'Keep history' button now forces an immediate re-render after banner removal, so the new sprint name shows right away rather than waiting for the next partial-update.
+        (2) Member filter Apply handler mutates <code>state.settings</code> directly instead of re-reading from storage, preventing stale-state overwrites that made the filter appear to have no effect.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.7.5</div>
       <div class="cl-desc">
         <strong>Fix: CSP violation from print.html inline script.</strong>

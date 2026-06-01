@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.7.6 (2026-06-01) — Fix sprint name + member filter
+
+**Fixed:**
+
+1. **Sprint name stays as old sprint after 'Keep history'**
+   When a sprint change is detected, the 'sprint-changed' message fires during
+   the Jira fetch (before 'partial-update' arrives with the new sprint data). The
+   'Keep' button previously only removed the banner and did nothing else — the new
+   sprint name only appeared once the separate 'partial-update' arrived, which
+   could be seconds later or miss entirely if the user clicked Keep first.
+   Fix: the Keep handler now calls `loadData()` then `renderCurrentScreen()`
+   after removing the banner, forcing an immediate re-render with whatever is
+   currently in storage (which includes the new sprint from `saveAndNotify`).
+
+2. **Member filter (👥) opens but doesn't apply to charts**
+   The Apply handler was reading settings from `chrome.storage.local` before
+   updating them. If a `partial-update` had updated `state.settings` in memory
+   but the storage hadn't yet caught up, the read returned a stale object. Setting
+   `state.settings = storedValue` then overwrote the newer in-memory changes, so
+   on the subsequent `renderInsights()` call, the filter appeared to have no effect.
+   Fix: mutate `state.settings` directly (no storage read), then save the updated
+   object to storage. `renderInsights()` now always sees the current filter selection.
+
+---
+
 ## v1.7.5 (2026-06-01) — Fix CSP violation from print.html inline script
 
 **Fixed:**
