@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.7.4 (2026-06-01) — Fix export page showing no data
+
+**Fixed:**
+- Export page (print.html) was reading the chart data from `chrome.storage.local`
+  (key `printData`), which caused timing issues and showed a blank page when the
+  storage write hadn't propagated or when the page was manually refreshed.
+  Fix: data is now passed directly as a JSON-encoded URL query parameter when the
+  print tab is opened. No storage involved — data is self-contained in the URL and
+  available the instant the page loads.
+- Fixed a crash in print.html when `samples` was empty or had only 1 entry:
+  accessing `prev.count` on an undefined `prev` threw TypeError and left the
+  summary cards, chart, and table all blank. Added a null-guard on `prev`.
+
+---
+
 ## v1.7.3 (2026-05-31) — Fix Sentry import (dynamic import → static import)
 
 **Fixed:**

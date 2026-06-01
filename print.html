@@ -296,17 +296,19 @@ function buildChart(samples, W, H) {
 }
 
 async function render() {
+  // Data is passed directly in the URL query param — no storage dependency.
   let data;
   try {
-    const result = await chrome.storage.local.get('printData');
-    data = result.printData;
+    const raw = new URLSearchParams(window.location.search).get('data');
+    if (!raw) throw new Error('No data param in URL');
+    data = JSON.parse(decodeURIComponent(raw));
   } catch (e) {
-    document.body.innerHTML = '<p style="padding:40px;color:#ef4444;">Could not load print data. Please try exporting again.</p>';
+    document.body.innerHTML = `<p style="padding:40px;color:#ef4444;">Could not load export data: ${e.message}.<br>Please press the ⬇ button on the Sentry trend chart to export again.</p>`;
     return;
   }
 
-  if (!data || !data.samples) {
-    document.body.innerHTML = '<p style="padding:40px;color:#94a3b8;">No export data found. Please press the ⬇ button on the Sentry trend chart.</p>';
+  if (!data || !Array.isArray(data.samples) || data.samples.length === 0) {
+    document.body.innerHTML = '<p style="padding:40px;color:#94a3b8;">No samples found in this export. Please press the ⬇ button on the Sentry trend chart when it has at least one reading.</p>';
     return;
   }
 
@@ -323,7 +325,8 @@ async function render() {
   // Summary
   const counts = last30.map(s => s.count);
   const minVal = Math.min(...counts), maxVal = Math.max(...counts), avgVal = Math.round(counts.reduce((s,c) => s+c,0)/counts.length);
-  const latest = last30[last30.length-1], prev = last30[last30.length-2];
+  const latest = last30[last30.length-1];
+  const prev   = last30.length > 1 ? last30[last30.length-2] : null;
   const delta = prev ? latest.count - prev.count : 0;
   const deltaStr = delta > 0 ? `↑ ${delta}` : delta < 0 ? `↓ ${Math.abs(delta)}` : '= 0';
   const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';

@@ -1427,10 +1427,18 @@ async function exportSentryTrend(viewLabel, viewId, samples) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(jsonUrl), 2000);
 
-  // ③ Stash data for the print page then open it in a new tab
+  // ③ Open the print page, passing data directly in the URL query param.
+  // Using a query param avoids any chrome.storage timing/propagation issues —
+  // the data is self-contained in the URL and available the moment the page loads.
   try {
-    await chrome.storage.local.set({ printData: { viewLabel, viewId, samples: payload.samples, exportedAt: now.toISOString() } });
-    chrome.tabs.create({ url: chrome.runtime.getURL('print.html') });
+    const encoded = encodeURIComponent(JSON.stringify({
+      version:    '1',
+      exportedAt: now.toISOString(),
+      viewId,
+      viewLabel,
+      samples:    payload.samples,
+    }));
+    chrome.tabs.create({ url: chrome.runtime.getURL('print.html') + '?data=' + encoded });
   } catch (e) {
     console.warn('[popup] exportSentryTrend: could not open print page:', e.message);
   }
