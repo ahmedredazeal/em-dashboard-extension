@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.7.5</div>
+      <div class="cl-desc">
+        <strong>Fix: CSP violation from print.html inline script.</strong>
+        The inline <code>&lt;script&gt;</code> block in <code>print.html</code> violated the extension's <code>script-src 'self'</code> CSP, logging two errors per session in the extension manager. Script extracted to <code>print.js</code> and loaded externally.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.7.4</div>
       <div class="cl-desc">
         <strong>Fix: Export page now shows data correctly.</strong>

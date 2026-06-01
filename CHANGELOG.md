@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.7.5 (2026-06-01) — Fix CSP violation from print.html inline script
+
+**Fixed:**
+- `print.html` had a large inline `<script>` block which violated the extension's
+  Content Security Policy (`script-src 'self'`). Chrome was logging two CSP errors
+  in the extension manager page for every session. The script has been extracted
+  to `print.js` and referenced with `<script src="print.js">`.
+
+**Note:** The "Failed to fetch" errors visible in the extension manager
+(Failed to fetch active sprint, Failed view ...) are transient network errors
+from the background service worker waking up when a request times out. They are
+caught and handled gracefully — not crashes, and not related to our code changes.
+
+---
+
 ## v1.7.4 (2026-06-01) — Fix export page showing no data
 
 **Fixed:**
