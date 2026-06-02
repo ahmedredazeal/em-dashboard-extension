@@ -681,6 +681,8 @@ function renderInsights() {
       </div>
       <div style="${chartWrap2}">${estimateVsActualHtml}</div>
     </div>`;
+
+  wireBurndownHover();
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');
@@ -1405,6 +1407,37 @@ function wireTrendHover(card) {
   });
 }
 
+/** Wire Jira-style hover tooltips on the burndown's remaining-work points. */
+function wireBurndownHover() {
+  const wrap = document.querySelector('.bd-wrap');
+  if (!wrap) return;
+  const tip = wrap.querySelector('.bd-tooltip');
+  if (!tip) return;
+  wrap.querySelectorAll('.bd-point').forEach(pt => {
+    pt.addEventListener('mouseenter', () => {
+      const date = pt.getAttribute('data-date') || '';
+      const change = pt.getAttribute('data-change') || '';
+      tip.innerHTML = `<div style="font-weight:600;">${date}</div><div style="color:var(--text-muted);">${change}</div>`;
+      tip.style.display = 'block';
+      const wrapRect = wrap.getBoundingClientRect();
+      const ptRect = pt.getBoundingClientRect();
+      const x = ptRect.left + ptRect.width / 2 - wrapRect.left;
+      const y = ptRect.top - wrapRect.top;
+      tip.style.left = `${x}px`;
+      // Flip below the point when it sits near the top so the tooltip never
+      // overflows above the card.
+      if (y < 46) {
+        tip.style.top = `${y + ptRect.height + 4}px`;
+        tip.style.transform = 'translate(-50%, 0)';
+      } else {
+        tip.style.top = `${y - 4}px`;
+        tip.style.transform = 'translate(-50%, -100%)';
+      }
+    });
+    pt.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
 /** Parse the numeric Sentry view id out of a saved view URL. */
 function _viewIdFromUrl(url) {
   try {
@@ -1764,7 +1797,7 @@ function buildBurndownSVG(bd) {
   // Actual line — drawn ONLY up to today (Jira-style: remaining work stops at
   // "now"; future days show just the guideline/estimate). Without this the
   // actual line runs flat across the whole sprint and looks like a straight line.
-  let actualSvg = '';
+  let actualSvg = '', actualHit = '';
   if (hasActualData) {
     const ti = (typeof todayIndex === 'number') ? Math.max(0, Math.min(todayIndex, totalDays)) : totalDays;
     const actualToToday = actual.slice(0, ti + 1);
@@ -1772,12 +1805,33 @@ function buildBurndownSVG(bd) {
     // Dot at today's remaining — visible even when only day 0 exists
     const lastV = actualToToday[actualToToday.length - 1];
     actualSvg += `<circle cx="${px(ti).toFixed(1)}" cy="${py(lastV).toFixed(1)}" r="2.5" fill="${_C.actual}"/>`;
+    // Invisible hover targets on each day's remaining-work point. Each carries
+    // the date and that day's change in remaining work (Jira-style tooltip:
+    // "N points removed" / "N points added" / "No change").
+    const _fmtPts = n => { const a = Math.abs(n); return Number.isInteger(a) ? `${a}` : a.toFixed(1); };
+    for (let d = 0; d <= ti; d++) {
+      const v = actual[d];
+      const dateLbl = (labels && labels[d]) ? labels[d].replace(/\s(\d{4})$/, ', $1') : `Day ${d}`;
+      let change;
+      if (d === 0) {
+        change = `${_fmtPts(v)} ${_fmtPts(v) === '1' ? 'point' : 'points'} to go`;
+      } else {
+        const delta = actual[d - 1] - v; // positive = work removed/completed
+        if (Math.abs(delta) < 1e-9) change = 'No change';
+        else {
+          const noun = _fmtPts(delta) === '1' ? 'point' : 'points';
+          change = delta > 0 ? `${_fmtPts(delta)} ${noun} removed` : `${_fmtPts(delta)} ${noun} added`;
+        }
+      }
+      actualHit += `<circle class="bd-point" cx="${px(d).toFixed(1)}" cy="${py(v).toFixed(1)}" r="6" data-date="${dateLbl}" data-change="${change}"/>`;
+    }
   }
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
     ${grid}<line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${H-PAD.bottom}" stroke="${_C.grid}" stroke-width="1"/>
     <line x1="${PAD.left}" y1="${H-PAD.bottom}" x2="${W-PAD.right}" y2="${H-PAD.bottom}" stroke="${_C.grid}" stroke-width="1"/>
     ${ylbl}${xlbl}${poly(ideal,_C.ideal,'5 3')}${poly(estimate,_C.estimate)}
-    ${actualSvg}${legend}</svg>`;
+    ${actualSvg}${actualHit}${legend}</svg>`;
+  return `<div class="bd-wrap" style="position:relative;">${svg}<div class="bd-tooltip" style="display:none;position:absolute;z-index:50;pointer-events:none;background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:6px;padding:5px 9px;font-size:11px;line-height:1.35;color:var(--text);white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.45);"></div></div>`;
 }
 
 function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {

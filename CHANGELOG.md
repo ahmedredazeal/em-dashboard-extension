@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.8.5 (2026-06-02) — Burndown: Jira-style hover tooltips
+
+**Enhancement:**
+- Hovering a point on the burndown "Actual" (remaining work) line now shows a
+  Jira-style tooltip with the date and that day's change in remaining work —
+  e.g. "Jun 2, 2026 / 4 points removed" (or "N points added" when scope grew,
+  "No change" on flat days). Day 0 shows the starting points to go.
+- Each point has a larger invisible hit-area for easy hovering, with a subtle
+  highlight; the tooltip flips below the point near the top of the chart so it
+  never clips.
+
+---
+
 ## v1.8.4 (2026-06-02) — Fix: member filter showing only time-loggers
 
 **Bug fix:**

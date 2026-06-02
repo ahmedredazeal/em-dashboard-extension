@@ -732,3 +732,7 @@ body.privacy-on [data-privacy-mask]::after {
    Use fill via class (presentation attribute would block the :hover rule). */
 .trend-point { fill: transparent; cursor: pointer; }
 .trend-point:hover { fill: rgba(148, 163, 184, 0.22); }
+
+/* Burndown chart — invisible hover targets on remaining-work points. */
+.bd-point { fill: transparent; cursor: pointer; }
+.bd-point:hover { fill: rgba(52, 211, 153, 0.30); }
