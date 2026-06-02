@@ -73,8 +73,14 @@ export function transitionToDoneTimestamp(issue, extraDoneNames = []) {
  * @returns {number} day index (0-based)
  */
 export function dayIndex(timestamp, sprintStartDate) {
-  const diff = new Date(timestamp) - new Date(sprintStartDate);
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
+  // Bucket by CALENDAR DATE (midnight-to-midnight in local time), NOT by raw
+  // 24-hour windows. Sprints typically start mid-afternoon, so a raw
+  // ms/86400000 floor pushes the next morning's closures into the previous
+  // day's bucket (e.g. a sprint starting 13:41 puts a 09:00-next-day close on
+  // "day 0"). Comparing local calendar dates fixes that off-by-up-to-one.
+  const a = new Date(timestamp);       a.setHours(0, 0, 0, 0);
+  const b = new Date(sprintStartDate); b.setHours(0, 0, 0, 0);
+  return Math.round((a - b) / (1000 * 60 * 60 * 24));
 }
 
 /**

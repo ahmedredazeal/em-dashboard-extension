@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.8.7 (2026-06-02) — Fix: burndown day-bucketing for mid-afternoon sprint starts
+
+**Bug fix (root cause of "today shows no change"):**
+- Days were bucketed by raw 24-hour windows measured from the exact sprint-start
+  instant, not by calendar date. Sprints usually start mid-afternoon (e.g. 13:41),
+  so a ticket closed the next morning fell *within* the first 24h window and was
+  attributed to **day 0** instead of day 1. Combined with the same skew on "today",
+  this collapsed each day's completed points onto the sprint start and made the
+  current day read "no change".
+- `dayIndex` now compares **calendar dates** (local midnight to midnight), and the
+  burndown's total days, elapsed days, and today marker all use the same basis.
+  Points completed today now land on today's point, matching Jira and the sprint
+  progress bar.
+
+This supersedes the v1.8.6 ceil/floor adjustment, which addressed the wrong layer.
+
+---
+
 ## v1.8.6 (2026-06-02) — Fix: burndown not reflecting today's completed points
 
 **Bug fix:**

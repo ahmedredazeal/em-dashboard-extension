@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v1.8.7</div>
+      <div class="cl-desc">
+        <strong>Fix: burndown day-bucketing for mid-afternoon sprint starts.</strong>
+        Days were counted in raw 24-hour windows from the exact start time, so a ticket closed the morning after a 1:41pm sprint start was filed under day 0 and "today" read as no change. Days are now bucketed by calendar date, so points completed today land on today's point and match Jira and the progress bar.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v1.8.6</div>
       <div class="cl-desc">
         <strong>Fix: burndown not reflecting today's completed points.</strong>

@@ -216,9 +216,13 @@ async function fetchJiraData(settings) {
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
     const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
     const now = new Date();
-    
-    const totalDays = Math.max(1, Math.ceil((endDate - startDate) / (24 * 60 * 60 * 1000)));
-    const daysElapsed = Math.max(0, Math.ceil((now - startDate) / (24 * 60 * 60 * 1000)));
+
+    // Calendar-date based (matches changelog-parser.dayIndex), so the burndown's
+    // "today" and each ticket's close day are measured the same way. Raw 24h
+    // windows broke this when sprints start mid-afternoon.
+    const totalDays = Math.max(1, dayIndex(activeSprint.endDate || now.toISOString(), activeSprint.startDate || now.toISOString()));
+    const todayCalIdx = Math.max(0, Math.min(dayIndex(now.toISOString(), activeSprint.startDate || now.toISOString()), totalDays));
+    const daysElapsed = Math.min(todayCalIdx + 1, totalDays); // 1-based for the "Day X of Y" header
     
     currentSprint = {
       id: activeSprint.id,
@@ -241,13 +245,10 @@ async function fetchJiraData(settings) {
     try {
       const workingDays = settings.ui?.workingDays || [0, 1, 2, 3, 4]; // Sun-Thu default
       
-      // Burndown — todayIndex must use the SAME flooring as closedDay
-      // (changelog-parser.dayIndex) so today's closures land on today's point.
-      // daysElapsed above uses ceil (correct for the 1-based "Day X/Y" header)
-      // but is off-by-one as a 0-based day index.
-      const burndownTodayIndex = Math.max(0, dayIndex(now.toISOString(), activeSprint.startDate));
+      // Burndown — todayIndex is the calendar-date index of "now" (same basis
+      // as each ticket's closedDay), so today's closures land on today's point.
       const burndown = computeBurndownSeries(
-        { startDate: activeSprint.startDate, totalDays, totalPoints, daysElapsed, todayIndex: burndownTodayIndex },
+        { startDate: activeSprint.startDate, totalDays, totalPoints, daysElapsed, todayIndex: todayCalIdx },
         normalizedStories
       );
       

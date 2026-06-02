@@ -82,11 +82,24 @@ test('custom done name matched with hint', () => assertEqual(
 ));
 
 // ── dayIndex ───────────────────────────────────────────────────────────────
+// Timestamps anchored at midday so the calendar-date comparison is stable in
+// any developer timezone (a Z-midnight anchor shifts date in western zones).
 console.log('\ndayIndex');
-test('same day = 0',    () => assertEqual(dayIndex('2026-05-05T00:00:00Z', '2026-05-05T00:00:00Z'), 0));
-test('next day = 1',    () => assertEqual(dayIndex('2026-05-06T00:00:00Z', '2026-05-05T00:00:00Z'), 1));
-test('7 days later',    () => assertEqual(dayIndex('2026-05-12T00:00:00Z', '2026-05-05T00:00:00Z'), 7));
-test('intra-day = 0',   () => assertEqual(dayIndex('2026-05-05T23:59:00Z', '2026-05-05T00:00:00Z'), 0));
+test('same day = 0',    () => assertEqual(dayIndex('2026-05-05T12:00:00Z', '2026-05-05T12:00:00Z'), 0));
+test('next day = 1',    () => assertEqual(dayIndex('2026-05-06T12:00:00Z', '2026-05-05T12:00:00Z'), 1));
+test('7 days later',    () => assertEqual(dayIndex('2026-05-12T12:00:00Z', '2026-05-05T12:00:00Z'), 7));
+test('intra-day = 0',   () => assertEqual(dayIndex('2026-05-05T15:00:00', '2026-05-05T12:00:00'), 0));
+
+// Calendar-date bucketing: a sprint that starts mid-afternoon must still put
+// next-morning closures on day 1 (not day 0). Reproduces the Sprint-65 bug.
+// (Local, no-Z timestamps so the calendar comparison is timezone-independent;
+// the old raw-window floor returned 0 here because the gap is < 24h.)
+test('mid-afternoon start, next morning = day 1', () => assertEqual(
+  dayIndex('2026-06-02T06:18:00', '2026-06-01T13:41:45'), 1
+));
+test('mid-afternoon start, same calendar day = day 0', () => assertEqual(
+  dayIndex('2026-06-01T16:24:00', '2026-06-01T13:41:45'), 0
+));
 
 // ── attachCloseTimestamps ──────────────────────────────────────────────────
 console.log('\nattachCloseTimestamps');
@@ -95,7 +108,7 @@ const stories = [
   { key: 'HRM-1', points: 5 },
   { key: 'HRM-2', points: 3 }
 ];
-const augmented = attachCloseTimestamps(rawIssues, stories, '2026-05-05T00:00:00Z');
+const augmented = attachCloseTimestamps(rawIssues, stories, '2026-05-05T12:00:00Z');
 test('closed story has closedAt', () => assertEqual(augmented[0].closedAt, '2026-05-12T14:00:00Z'));
 test('closed story has closedDay = 7', () => assertEqual(augmented[0].closedDay, 7));
 test('open story closedAt = null',    () => assertEqual(augmented[1].closedAt, null));
