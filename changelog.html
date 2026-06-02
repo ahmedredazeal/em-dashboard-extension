@@ -17,6 +17,17 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v1.8.0</div>
+      <div class="cl-desc">
+        <strong>Multi-view Sentry tracking.</strong>
+        Track multiple Sentry views at once — each draws as its own colored line on one shared chart with a clickable legend (tap to hide/show a line).
+        Settings gains multi-select Track toggles with color swatches. Export is now a dropdown: per-view (JSON + PDF) or "All views" (batch of separate JSON files + one combined multi-line PDF).
+        Import auto-routes by the file's viewId; importing a non-tracked view saves the data and shows a reminder to track it.
+        Data model migrated from single <code>trackedViewId</code> to <code>trackedViewIds</code> array (existing tracking preserved).
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.7.6</div>
       <div class="cl-desc">
         <strong>Fix: Sprint name + member filter.</strong>

@@ -532,8 +532,13 @@ async function fetchSentryData(settings) {
         viewResults.push({ label, viewId, issues, count: issues.length });
         allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));
         
-        // Record trend sample if this view is marked for tracking
-        if (settings.sentry?.trackedViewId === viewId) {
+        // Record trend sample if this view is marked for tracking.
+        // Multi-view: trackedViewIds is an array; fall back to the legacy
+        // single trackedViewId if the array isn't present (pre-migration).
+        const trackedIds = Array.isArray(settings.sentry?.trackedViewIds)
+          ? settings.sentry.trackedViewIds
+          : (settings.sentry?.trackedViewId ? [settings.sentry.trackedViewId] : []);
+        if (trackedIds.includes(viewId)) {
           recordTrendSample(viewId, issues.length).catch(e =>
             console.warn('[background] Failed to record trend sample:', e.message)
           );

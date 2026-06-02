@@ -81,6 +81,15 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+if node tests/trend-colors.test.js > /tmp/test-output.txt 2>&1; then
+  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
+  echo "   ✓ trend-colors: $SUMMARY"
+else
+  echo "   ✗ Trend-colors tests failed:"
+  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
+  ERRORS=$((ERRORS + 1))
+fi
+
 # Extra: brace balance check (catches missing closing braces that node --check misses in ES modules)
 echo ""
 echo "1b. Checking brace balance..."

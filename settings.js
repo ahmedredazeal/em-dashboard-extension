@@ -7,34 +7,43 @@
 import { parseSentryUrl } from './src/parsers.js';
 import { runMigrations } from './src/migrations.js';
 import { importTrendSamples } from './src/sentry-trend.js';
+import { colorForIndex } from './src/trend-colors.js';
 
 // ── Sentry view row rendering ──────────────────────────────────────────────
 // Storage shape: settings.sentry.views = [{ label: string, url: string }, ...]
 // Each row in the UI has: label input, URL input, ×, and a preview line below
 // showing what we parsed from the URL.
 
-function renderSentryViewRows(views, trackedViewId) {
+function renderSentryViewRows(views, trackedViewIds) {
   const list = document.getElementById('sentry-views-list');
   if (!list) return;
   list.innerHTML = '';
+  const tracked = Array.isArray(trackedViewIds) ? trackedViewIds : [];
   const rows = views.length > 0 ? views : [{ label: '', url: '' }];
-  rows.forEach(view => list.appendChild(createSentryViewRow(view, trackedViewId)));
+  // colorIndex is the view's position in the saved views list, so the color
+  // is stable per view and matches the chart legend.
+  rows.forEach((view, idx) => list.appendChild(createSentryViewRow(view, tracked, idx)));
 }
 
-function createSentryViewRow(view, trackedViewId) {
+function createSentryViewRow(view, trackedViewIds, colorIndex) {
   const row = document.createElement('div');
   row.className = 'sentry-view-row';
   row.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--surface,#1a1b23);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:6px;';
   
   const parsed = view.url ? parseSentryUrl(view.url) : null;
   const parsedViewId = parsed?.viewId || '';
-  const isTracked = !!(trackedViewId && parsedViewId && trackedViewId === parsedViewId);
+  const tracked = Array.isArray(trackedViewIds) ? trackedViewIds : [];
+  const isTracked = !!(parsedViewId && tracked.includes(parsedViewId));
+  const color = colorForIndex(colorIndex);
   
   row.innerHTML = `
     <div style="display:flex;gap:6px;align-items:center;">
+      <span class="sv-swatch" title="Chart color for this view"
+        style="width:10px;height:10px;border-radius:2px;flex-shrink:0;
+               background:${color};opacity:${isTracked ? '1' : '0.25'};"></span>
       <input type="text" class="sv-label" placeholder="Label (e.g. HRM Issues)"
         value="${escapeAttr(view.label || '')}"
-        style="width:120px;flex-shrink:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
+        style="width:110px;flex-shrink:0;padding:5px 8px;background:var(--surface-raised,#1f2937);
                border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
                color:var(--text);font-size:12px;"/>
       <input type="url" class="sv-url" placeholder="https://zeal.sentry.io/issues/views/..."
@@ -44,10 +53,11 @@ function createSentryViewRow(view, trackedViewId) {
                color:var(--text);font-size:11px;font-family:monospace;"/>
       <button type="button" class="sv-track"
         data-view-id="${escapeAttr(parsedViewId)}"
-        title="Show daily issue-count trend chart for this view in the dashboard. Only one view can be tracked at a time."
-        style="background:none;border:1px solid ${isTracked ? 'var(--primary,#6366f1)' : 'var(--border,rgba(255,255,255,0.1))'};
+        data-color="${color}"
+        title="Track this view's daily issue-count trend in the dashboard. Multiple views can be tracked — each draws its own line on the chart."
+        style="background:none;border:1px solid ${isTracked ? color : 'var(--border,rgba(255,255,255,0.1))'};
                border-radius:4px;padding:3px 8px;
-               color:${isTracked ? 'var(--primary,#6366f1)' : 'var(--text-muted)'};
+               color:${isTracked ? color : 'var(--text-muted)'};
                font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;
                font-weight:${isTracked ? '600' : '400'};">
         ${isTracked ? '● Tracking' : 'Track'}
@@ -63,49 +73,51 @@ function createSentryViewRow(view, trackedViewId) {
   const previewEl = row.querySelector('.sv-preview');
   const trackBtn  = row.querySelector('.sv-track');
   const removeBtn = row.querySelector('.sv-remove');
+  const swatch    = row.querySelector('.sv-swatch');
   
   updateRowPreview(urlInput, previewEl, trackBtn);
   urlInput.addEventListener('input', () => updateRowPreview(urlInput, previewEl, trackBtn));
   
   trackBtn.addEventListener('click', async () => {
     const active = trackBtn.textContent.includes('Tracking');
+    const viewId = trackBtn.dataset.viewId || null;
+    const btnColor = trackBtn.dataset.color || 'var(--primary,#6366f1)';
 
-    // Deselect all track buttons first
-    document.querySelectorAll('.sv-track').forEach(btn => {
-      btn.textContent = 'Track';
-      btn.style.color = 'var(--text-muted)';
-      btn.style.borderColor = 'var(--border,rgba(255,255,255,0.1))';
-      btn.style.fontWeight = '400';
-    });
-    if (!active) {
+    // Multi-select: toggle THIS view only; leave others untouched.
+    if (active) {
+      trackBtn.textContent = 'Track';
+      trackBtn.style.color = 'var(--text-muted)';
+      trackBtn.style.borderColor = 'var(--border,rgba(255,255,255,0.1))';
+      trackBtn.style.fontWeight = '400';
+      if (swatch) swatch.style.opacity = '0.25';
+    } else {
       trackBtn.textContent = '● Tracking';
-      trackBtn.style.color = 'var(--primary,#6366f1)';
-      trackBtn.style.borderColor = 'var(--primary,#6366f1)';
+      trackBtn.style.color = btnColor;
+      trackBtn.style.borderColor = btnColor;
       trackBtn.style.fontWeight = '600';
+      if (swatch) swatch.style.opacity = '1';
     }
 
-    // AUTO-SAVE trackedViewId immediately — don't require the Save button.
-    // Bug: previously the save only happened on the main Save button click,
-    // so navigating away without pressing Save silently discarded the Track choice.
-    const newTrackedId = active ? null : (trackBtn.dataset.viewId || null);
+    // AUTO-SAVE the trackedViewIds array immediately (no Save button needed).
+    if (!viewId) return;
     try {
       const r = await chrome.storage.local.get(['settings']);
       const s = r.settings || {};
       s.sentry = s.sentry || {};
-      s.sentry.trackedViewId = newTrackedId;
+      const set = new Set(Array.isArray(s.sentry.trackedViewIds) ? s.sentry.trackedViewIds : []);
+      if (active) set.delete(viewId);   // untrack — history is kept in storage
+      else        set.add(viewId);      // track
+      s.sentry.trackedViewIds = [...set];
       await chrome.storage.local.set({ settings: s });
 
-      // Brief visual confirmation so user knows the click was persisted
-      if (!active && newTrackedId) {
+      if (!active) {
         trackBtn.textContent = '✓ Saved';
         setTimeout(() => {
-          if (trackBtn.textContent === '\u2713 Saved') {
-            trackBtn.textContent = '\u25cf Tracking';
-          }
+          if (trackBtn.textContent === '\u2713 Saved') trackBtn.textContent = '\u25cf Tracking';
         }, 1400);
       }
     } catch (e) {
-      console.warn('[settings] Failed to auto-save trackedViewId:', e.message);
+      console.warn('[settings] Failed to auto-save trackedViewIds:', e.message);
     }
   });
   
@@ -113,7 +125,7 @@ function createSentryViewRow(view, trackedViewId) {
     row.remove();
     const list = document.getElementById('sentry-views-list');
     if (list && list.children.length === 0) {
-      list.appendChild(createSentryViewRow({ label: '', url: '' }, null));
+      list.appendChild(createSentryViewRow({ label: '', url: '' }, [], 0));
     }
   });
   
@@ -173,10 +185,12 @@ function collectSentryViewsFromRows() {
     .filter(v => v.label || v.url);
 }
 
-// Returns the viewId of whichever row has the Track button active, or null
-function getTrackedViewId() {
-  const btn = document.querySelector('.sv-track[style*="6366f1"]');
-  return btn?.dataset.viewId || null;
+// Returns the viewIds of all rows whose Track button is active (● Tracking).
+function getTrackedViewIds() {
+  return Array.from(document.querySelectorAll('.sv-track'))
+    .filter(btn => btn.textContent.includes('Tracking'))
+    .map(btn => btn.dataset.viewId)
+    .filter(Boolean);
 }
 
 (async function() {
@@ -202,7 +216,7 @@ function getTrackedViewId() {
   
   // Always render Sentry view rows — runs even on fresh install (no settings.sentry yet)
   // so the user always sees one empty row to fill in
-  renderSentryViewRows(settings.sentry?.views || [], settings.sentry?.trackedViewId || null);
+  renderSentryViewRows(settings.sentry?.views || [], settings.sentry?.trackedViewIds || (settings.sentry?.trackedViewId ? [settings.sentry.trackedViewId] : []));
   
   if (settings.squad) {
     document.getElementById('squad-key').value = settings.squad.key || '';
@@ -222,7 +236,7 @@ function getTrackedViewId() {
   // "+ Add another view" — append blank row to Sentry view list
   document.getElementById('add-sentry-view')?.addEventListener('click', () => {
     const list = document.getElementById('sentry-views-list');
-    if (list) list.appendChild(createSentryViewRow({ label: '', url: '' }));
+    if (list) list.appendChild(createSentryViewRow({ label: '', url: '' }, [], list.children.length));
   });
   
   // Test Jira connection
@@ -342,7 +356,7 @@ function getTrackedViewId() {
           baseUrl: document.getElementById('sentry-url').value.trim(),
           org: document.getElementById('sentry-org').value.trim(),
           views: collectSentryViewsFromRows(),
-          trackedViewId: getTrackedViewId(),
+          trackedViewIds: getTrackedViewIds(),
           token: document.getElementById('sentry-token').value.trim()
         },
         squad: {
@@ -450,7 +464,29 @@ function getTrackedViewId() {
         const parts = [`✓ ${imported} sample${imported === 1 ? '' : 's'} imported`];
         if (skipped > 0) parts.push(`${skipped} skipped (live readings kept)`);
         if (errors  > 0) parts.push(`${errors} invalid rows ignored`);
+
+        // Decision #3: silent import + warning if the view isn't currently tracked.
+        // The data is stored regardless; it appears on the chart once the view is tracked.
+        const r2 = await chrome.storage.local.get(['settings']);
+        const trackedIds = Array.isArray(r2.settings?.sentry?.trackedViewIds)
+          ? r2.settings.sentry.trackedViewIds
+          : (r2.settings?.sentry?.trackedViewId ? [r2.settings.sentry.trackedViewId] : []);
+        const isTracked = trackedIds.includes(payload.viewId);
+
         setStatus(parts.join(' · '), 'var(--status-on-track,#22c55e)');
+
+        if (!isTracked) {
+          // Non-blocking notice below the status line
+          const note = document.getElementById('sentry-import-note');
+          if (note) {
+            note.style.display = 'block';
+            note.innerHTML = `⚠ This data is for <strong>${escapeAttr(payload.viewLabel || payload.viewId)}</strong>, which isn't currently tracked. ` +
+              `It's been saved, but won't show on the chart until you click <strong>Track</strong> on that view above.`;
+          }
+        } else {
+          const note = document.getElementById('sentry-import-note');
+          if (note) note.style.display = 'none';
+        }
       } catch (err) {
         setStatus(`✗ ${err.message}`, 'var(--status-off-track,#ef4444)');
       } finally {

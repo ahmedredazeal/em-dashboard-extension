@@ -7,6 +7,7 @@
 import * as privacyMode from './src/privacy-mode.js';
 import * as metrics from './src/metrics.js';
 import { getTrendSamples } from './src/sentry-trend.js';
+import { colorForIndex } from './src/trend-colors.js';
 import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.js';
 
 // Current state
@@ -1354,97 +1355,162 @@ function buildSprintProgressBar(stories) {
 }
 
 // ── Sentry Trend Chart ────────────────────────────────────────────────────
+// Legend toggle state — viewIds whose line is currently hidden
+const _hiddenTrendViews = new Set();
+
 async function renderSentryTrend() {
   const card = document.getElementById('sentry-trend-card');
   if (!card) return;
-  
-  const trackedViewId = state.settings?.sentry?.trackedViewId;
-  if (!trackedViewId) {
-    // Show a setup prompt instead of hiding silently
+
+  const series = await getTrackedSeries();
+
+  if (series.length === 0) {
+    // No views tracked — setup prompt
     card.style.display = '';
     card.innerHTML = `
       <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
         <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px;">SENTRY TREND</div>
         <div style="font-size:12px;color:var(--text-muted);">
-          Track a Sentry view to see its daily issue count trend here.<br/>
-          <span style="color:var(--primary,#6366f1);">Settings → Sentry views → click Track on one view → Save.</span>
+          Track one or more Sentry views to see their daily issue-count trends here.<br/>
+          <span style="color:var(--primary,#6366f1);">Settings → Sentry views → click Track on the views you want.</span>
         </div>
       </div>`;
     return;
   }
-  
-  // Find label for the tracked view
-  const views = state.settings?.sentry?.views || [];
-  const trackedView = views.find(v => {
-    try {
-      const p = v.url ? (new URL(v.url)).pathname.match(/\/issues\/views\/(\d+)/)?.[1] : null;
-      return p === trackedViewId;
-    } catch { return false; }
-  });
-  const viewLabel = trackedView?.label || `View ${trackedViewId}`;
-  
-  let samples;
-  try {
-    samples = await getTrendSamples(trackedViewId);
-  } catch (e) {
-    console.warn('[popup] Failed to load trend samples:', e.message);
-    samples = [];
-  }
-  
-  card.style.display = '';
-  card.innerHTML = buildTrendCardHTML(viewLabel, samples);
 
-  // Wire the export button (created inside the HTML above)
-  const exportBtn = card.querySelector('.sentry-export-btn');
-  if (exportBtn && samples.length > 0) {
-    exportBtn.addEventListener('click', () =>
-      exportSentryTrend(viewLabel, trackedViewId, samples)
-    );
+  card.style.display = '';
+  card.innerHTML = buildMultiTrendCardHTML(series);
+
+  wireTrendExport(card, series);
+  wireTrendLegend(card, series);
+}
+
+/** Parse the numeric Sentry view id out of a saved view URL. */
+function _viewIdFromUrl(url) {
+  try {
+    return url ? ((new URL(url)).pathname.match(/\/issues\/views\/(\d+)/)?.[1] || null) : null;
+  } catch { return null; }
+}
+
+/**
+ * Build the list of tracked series: one entry per tracked view, each with its
+ * stable color (by position in the views list), label, and last-30-day samples.
+ */
+async function getTrackedSeries() {
+  const sentry = state.settings?.sentry || {};
+  const trackedIds = Array.isArray(sentry.trackedViewIds)
+    ? sentry.trackedViewIds
+    : (sentry.trackedViewId ? [sentry.trackedViewId] : []);
+  const views = sentry.views || [];
+
+  const series = [];
+  for (const viewId of trackedIds) {
+    const idx   = views.findIndex(v => _viewIdFromUrl(v.url) === viewId);
+    const label = (idx >= 0 ? views[idx].label : '') || `View ${viewId}`;
+    const color = colorForIndex(idx >= 0 ? idx : series.length);
+    let samples = [];
+    try { samples = await getTrendSamples(viewId); } catch { samples = []; }
+    series.push({ viewId, label, color, samples: samples.slice(-30) });
   }
+  return series;
+}
+
+/** Wire the export dropdown (⬇ → per-view + All). */
+function wireTrendExport(card, series) {
+  const btn  = card.querySelector('.sentry-export-btn');
+  const menu = card.querySelector('.sentry-export-menu');
+  if (!btn || !menu) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = menu.style.display !== 'none';
+    if (open) { menu.style.display = 'none'; return; }
+    menu.style.display = 'block';
+    setTimeout(() => {
+      const close = (ev) => {
+        if (!menu.contains(ev.target) && ev.target !== btn) {
+          menu.style.display = 'none';
+          document.removeEventListener('click', close);
+        }
+      };
+      document.addEventListener('click', close);
+    }, 0);
+  });
+
+  card.querySelectorAll('.sentry-export-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.style.display = 'none';
+      const vid = item.dataset.viewId;
+      if (vid === '__all__') {
+        exportSentryTrend(series, 'all');
+      } else {
+        const s = series.find(x => x.viewId === vid);
+        if (s) exportSentryTrend([s], 'single');
+      }
+    });
+  });
+}
+
+/** Wire legend entries — click to toggle a line's visibility. */
+function wireTrendLegend(card, series) {
+  card.querySelectorAll('.trend-legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const vid = item.dataset.viewId;
+      if (_hiddenTrendViews.has(vid)) _hiddenTrendViews.delete(vid);
+      else _hiddenTrendViews.add(vid);
+      renderSentryTrend(); // re-render with updated visibility
+    });
+  });
 }
 
 // ── Sentry Trend Export ───────────────────────────────────────────────────
-
 /**
- * Export the Sentry trend for the currently tracked view.
- * Two outputs simultaneously:
- *   1. JSON file download (same format used for import)
- *   2. New tab with a print-ready page → user saves as PDF
+ * Export tracked Sentry trend data.
+ *   - mode 'single': seriesArr has one entry → 1 JSON file + that view's PDF
+ *   - mode 'all':    seriesArr has all entries → one JSON file per view (batch)
+ *                    + one combined multi-line PDF
+ * Each JSON file is strictly one-view (same format the importer expects), so
+ * any export can be re-imported independently.
  */
-async function exportSentryTrend(viewLabel, viewId, samples) {
-  const now       = new Date();
-  const dateStr   = now.toISOString().slice(0, 10);
-  const safeName  = viewLabel.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const filename  = `EM-Dashboard-Sentry-${safeName}-${dateStr}.json`;
+async function exportSentryTrend(seriesArr, mode) {
+  const now     = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
 
-  // ① Build the export payload (same format the import expects)
-  const payload = {
-    version:    '1',
-    exportedAt: now.toISOString(),
-    viewId,
-    viewLabel,
-    samples:    [...samples].sort((a, b) => (a.day < b.day ? -1 : 1)),
-  };
-
-  // ② Download the JSON file
-  const blob    = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const jsonUrl = URL.createObjectURL(blob);
-  const a       = document.createElement('a');
-  a.href        = jsonUrl;
-  a.download    = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(jsonUrl), 2000);
-
-  // ③ Open the print page, passing data directly in the URL query param.
-  // Using a query param avoids any chrome.storage timing/propagation issues —
-  // the data is self-contained in the URL and available the moment the page loads.
-  try {
-    const encoded = encodeURIComponent(JSON.stringify({
+  // ① Download one JSON file per series (staggered so the browser doesn't
+  //    drop rapid-fire downloads).
+  for (const s of seriesArr) {
+    const safeName = (s.label || s.viewId).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const payload = {
       version:    '1',
       exportedAt: now.toISOString(),
-      viewId,
-      viewLabel,
-      samples:    payload.samples,
+      viewId:     s.viewId,
+      viewLabel:  s.label,
+      samples:    [...s.samples].sort((a, b) => (a.day < b.day ? -1 : 1)),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `EM-Dashboard-Sentry-${safeName}-${dateStr}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    if (seriesArr.length > 1) await new Promise(r => setTimeout(r, 350));
+  }
+
+  // ② Open the print page. Single view → that view; all → combined multi-line.
+  try {
+    const printSeries = seriesArr.map(s => ({
+      viewId:    s.viewId,
+      viewLabel: s.label,
+      color:     s.color,
+      samples:   [...s.samples].sort((a, b) => (a.day < b.day ? -1 : 1)),
+    }));
+    const encoded = encodeURIComponent(JSON.stringify({
+      version:    '2',
+      exportedAt: now.toISOString(),
+      mode:       mode === 'all' ? 'multi' : 'single',
+      series:     printSeries,
     }));
     chrome.tabs.create({ url: chrome.runtime.getURL('print.html') + '?data=' + encoded });
   } catch (e) {
@@ -1452,187 +1518,167 @@ async function exportSentryTrend(viewLabel, viewId, samples) {
   }
 }
 
+/**
+ * Build the multi-line Sentry trend card.
+ * Shared X (union of date ranges) and Y (max across visible series) axes,
+ * one colored polyline per visible series, a clickable legend, and the
+ * export dropdown.
+ */
+function buildMultiTrendCardHTML(series) {
+  const visible = series.filter(s => !_hiddenTrendViews.has(s.viewId));
+  const withData = visible.filter(s => s.samples.length > 0);
 
-function buildTrendCardHTML(label, samples) {
-  // Only show last 30 days for compactness
-  const last30 = samples.slice(-30);
-  
-  if (last30.length < 1) {
-    return `
-      <div style="padding:10px 12px;background:var(--surface);
-                  border:1px solid var(--border,rgba(255,255,255,0.05));
-                  border-radius:8px;font-size:11px;color:var(--text-muted);">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
-                    text-transform:uppercase;margin-bottom:6px;">${escapeHtml(label)} Trend</div>
-        Open the panel daily to build trend history.
-      </div>`;
-  }
-  
-  // Single data point on day 1
-  if (last30.length === 1) {
-    const pt = last30[0];
-    return `
-      <div style="padding:10px 12px;background:var(--surface);
-                  border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
-                       text-transform:uppercase;">${escapeHtml(label)} · last 30 days</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text);">${pt.count} today</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;padding:6px 0;">
-          <div style="width:8px;height:8px;background:#6366f1;border-radius:50%;flex-shrink:0;"></div>
-          <span style="font-size:11px;color:var(--text-muted);">First reading · ${pt.day} · ${pt.count} unresolved</span>
-        </div>
-        <div style="font-size:10px;color:var(--text-muted);">Open the panel daily to build the trend line.</div>
-      </div>`;
-  }
-  
-  const counts  = last30.map(s => s.count);
-  const days    = last30.map(s => s.day);
-  const minVal  = Math.min(...counts);
-  const maxVal  = Math.max(...counts);
-  const today   = last30[last30.length - 1];
-  const prev    = last30[last30.length - 2];
-  const delta   = today.count - prev.count;
-  const deltaStr = delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '=';
-  const deltaColor = delta > 0 ? '#f97316' : delta < 0 ? '#22c55e' : 'var(--text-muted)';
+  // ── Export dropdown menu (always available) ───────────────────────────
+  const exportItems =
+    series.map(s =>
+      `<div class="sentry-export-item" data-view-id="${escapeHtml(s.viewId)}"
+        style="padding:6px 10px;font-size:11px;color:var(--text);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+        <span style="width:8px;height:8px;border-radius:2px;background:${s.color};flex-shrink:0;"></span>
+        ${escapeHtml(s.label)}
+      </div>`
+    ).join('') +
+    (series.length > 1
+      ? `<div class="sentry-export-item" data-view-id="__all__"
+          style="padding:6px 10px;font-size:11px;color:var(--text);cursor:pointer;white-space:nowrap;border-top:1px solid var(--border,rgba(255,255,255,0.1));font-weight:600;">
+          All views (separate files)
+        </div>`
+      : '');
 
-  // ── Chart dimensions ────────────────────────────────────────────────────
-  // PAD_B increased to 20 (was 16) so x-axis text has breathing room and
-  // doesn't visually collide with the HTML min/max row below the SVG.
-  const W = 280, H = 60, PAD_L = 4, PAD_R = 4, PAD_T = 8, PAD_B = 20;
-  const PW = W - PAD_L - PAD_R;
-  const PH = H - PAD_T - PAD_B;
-
-  // ── Y-axis with padding ─────────────────────────────────────────────────
-  // Bug fixed: when all counts are equal (range = 0), the old formula
-  // put every point at y = PAD_T + PH (the very bottom of the chart area),
-  // producing a flat line hugging the floor with all the space above empty.
-  // Fix: add ~15 % padding above and below the data range so flat or
-  // near-flat series render centred in the chart, not pinned to the edge.
-  const dataRange = maxVal - minVal;
-  const yPad  = Math.max(Math.ceil(maxVal * 0.15), 3); // ≥15 % of max, min 3
-  const yMin  = Math.max(0, minVal - yPad);
-  const yMax  = maxVal + yPad;
-  const yRange = yMax - yMin || 1;
-
-  const px = (i) => PAD_L + (i / (last30.length - 1)) * PW;
-  const py = (v)  => PAD_T + PH - ((v - yMin) / yRange) * PH;
-
-  // ── Date-normalised x-axis ────────────────────────────────────────────────
-  // Points are positioned by actual calendar date so gaps in recordings appear
-  // as proportionally wider empty space (a 14-day gap = 14× a 1-day step).
-  const firstMs = new Date(days[0]).getTime();
-  const lastMs  = new Date(days[days.length - 1]).getTime();
-  const totalMs = lastMs - firstMs || 1;
-  const pxD = (day) => PAD_L + ((new Date(day).getTime() - firstMs) / totalMs) * PW;
-
-  // ── Gap detection → segment list ─────────────────────────────────────────
-  // Each gap (> 1 day between consecutive samples) becomes a grey "no data"
-  // rectangle. We break the polyline at gaps so no fake diagonal line is drawn
-  // implying a trend through unknown territory.
-  const _MS_PER_DAY = 86400000;
-  const segments = [];
-  let streak = [last30[0]];
-  for (let _i = 1; _i < last30.length; _i++) {
-    const diffDays = Math.round((new Date(last30[_i].day) - new Date(last30[_i-1].day)) / _MS_PER_DAY);
-    if (diffDays > 1) {
-      segments.push({ type: 'data', points: [...streak] });
-      segments.push({ type: 'gap', start: last30[_i-1].day, end: last30[_i].day, days: diffDays - 1 });
-      streak = [last30[_i]];
-    } else {
-      streak.push(last30[_i]);
-    }
-  }
-  segments.push({ type: 'data', points: streak });
-
-  // ── X-axis labels ─────────────────────────────────────────────────────────
-  const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const xLabels = [];
-  const labelIdxs = [0, Math.floor((last30.length - 1) / 2), last30.length - 1];
-  labelIdxs.forEach((idx, li) => {
-    const xPos = pxD(days[idx]);
-    if (li === 1) {
-      const gap = Math.min(xPos - pxD(days[labelIdxs[0]]), pxD(days[labelIdxs[2]]) - xPos);
-      if (gap < 40) return;
-    }
-    const d   = days[idx];
-    const txt = li === 2 ? 'today' : `${parseInt(d.slice(8))} ${_MONTHS[parseInt(d.slice(5,7))-1]}`;
-    const anchor = li === 0 ? 'start' : li === 2 ? 'end' : 'middle';
-    xLabels.push(`<text x="${xPos.toFixed(1)}" y="${H-4}" text-anchor="${anchor}" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${txt}</text>`);
-  });
-
-  // ── Build SVG parts ────────────────────────────────────────────────────────
-  let _svgParts = '';
-
-  // Gap rectangles (drawn first, behind the lines)
-  for (const seg of segments) {
-    if (seg.type !== 'gap') continue;
-    const gx1 = pxD(seg.start), gx2 = pxD(seg.end);
-    const gw  = Math.max(gx2 - gx1, 2);
-    const mx  = ((gx1 + gx2) / 2).toFixed(1);
-    const my  = (PAD_T + PH / 2).toFixed(1);
-    _svgParts += `<rect x="${gx1.toFixed(1)}" y="${PAD_T}" width="${gw.toFixed(1)}" height="${PH}" fill="rgba(148,163,184,0.10)" rx="2"/>`;
-    if (gw > 32) {
-      _svgParts += `<text x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7.5" font-family="system-ui" opacity="0.75">no data · ${seg.days}d</text>`;
-    }
-  }
-
-  // Data segments: area fill then polyline (no line drawn across gaps)
-  for (const seg of segments) {
-    if (seg.type !== 'data' || seg.points.length === 0) continue;
-    const segPts = seg.points.map(s => `${pxD(s.day).toFixed(1)},${py(s.count).toFixed(1)}`).join(' ');
-    if (seg.points.length > 1) {
-      const fx = pxD(seg.points[0].day).toFixed(1);
-      const lx = pxD(seg.points[seg.points.length-1].day).toFixed(1);
-      const by = (PAD_T + PH).toFixed(1);
-      _svgParts += `<path d="M${fx},${by} L${segPts.split(' ').join(' L')} L${lx},${by} Z" fill="url(#tg)"/>`;
-    }
-    _svgParts += `<polyline points="${segPts}" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-  }
-
-  // End dot on latest sample
-  _svgParts += `<circle cx="${pxD(today.day).toFixed(1)}" cy="${py(today.count).toFixed(1)}" r="2.5" fill="#6366f1"/>`;
-
-  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;">
-    <defs>
-      <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
-        <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
-      </linearGradient>
-    </defs>
-    ${_svgParts}
-    ${xLabels.join('')}
-  </svg>`;
-
-  // ── Footer row ──────────────────────────────────────────────────────────
-  // Bug fixed: when dataRange = 0 both labels read "min 23 max 23" which
-  // looks broken. Show "stable at N" instead.
-  const footer = dataRange === 0
-    ? `<span>stable at ${minVal}</span>`
-    : `<span>min ${minVal}</span><span>max ${maxVal}</span>`;
-
-  return `
-    <div style="padding:10px 12px;background:var(--surface,#11131c);
-                border:1px solid var(--border,rgba(255,255,255,0.05));
-                border-radius:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
-                     text-transform:uppercase;">${escapeHtml(label)} · last 30 days</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button class="sentry-export-btn" title="Export data &amp; chart"
-            style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
-                   padding:2px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;
-                   flex-shrink:0;line-height:1.4;" aria-label="Export">⬇</button>
-          <span style="font-size:11px;font-weight:700;color:${deltaColor};">${deltaStr} vs yesterday</span>
-          <span style="font-size:13px;font-weight:700;color:var(--text);">${today.count}</span>
-        </div>
-      </div>
-      ${svg}
-      <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:9px;color:var(--text-muted);">
-        ${footer}
+  const exportControl = `
+    <div style="position:relative;flex-shrink:0;">
+      <button class="sentry-export-btn" title="Export data & chart" aria-label="Export"
+        style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;
+               padding:2px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;line-height:1.4;">⬇</button>
+      <div class="sentry-export-menu"
+        style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:99;
+               background:var(--surface);border:1px solid var(--border);border-radius:8px;
+               box-shadow:0 8px 24px rgba(0,0,0,0.4);min-width:160px;overflow:hidden;">
+        <div style="padding:5px 10px;font-size:9px;font-weight:600;color:var(--text-muted);
+                    letter-spacing:0.3px;text-transform:uppercase;border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">Export</div>
+        ${exportItems}
       </div>
     </div>`;
+
+  // ── Legend (all series; hidden ones greyed + struck through) ──────────
+  const legend = series.map(s => {
+    const hidden = _hiddenTrendViews.has(s.viewId);
+    const last   = s.samples[s.samples.length - 1];
+    const prev   = s.samples[s.samples.length - 2];
+    const latest = last ? last.count : '–';
+    const delta  = (last && prev) ? last.count - prev.count : 0;
+    const dStr   = !last ? '' : delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '=';
+    const dCol   = delta > 0 ? '#f97316' : delta < 0 ? '#22c55e' : 'var(--text-muted)';
+    return `<div class="trend-legend-item" data-view-id="${escapeHtml(s.viewId)}"
+        title="Click to ${hidden ? 'show' : 'hide'} this line"
+        style="display:flex;align-items:center;gap:5px;cursor:pointer;opacity:${hidden ? '0.4' : '1'};">
+        <span style="width:8px;height:8px;border-radius:2px;background:${s.color};flex-shrink:0;"></span>
+        <span style="font-size:10px;color:var(--text);${hidden ? 'text-decoration:line-through;' : ''}">${escapeHtml(s.label)}</span>
+        <span style="font-size:10px;font-weight:600;color:var(--text);">${latest}</span>
+        ${dStr ? `<span style="font-size:9px;font-weight:700;color:${dCol};">${dStr}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  const header = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;
+                   text-transform:uppercase;">Sentry Trend · last 30 days</span>
+      ${exportControl}
+    </div>`;
+
+  const legendRow = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;">${legend}</div>`;
+
+  const cardOpen  = `<div style="padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">`;
+  const cardClose = `</div>`;
+
+  // ── No visible data → show header + legend + prompt ───────────────────
+  if (withData.length === 0) {
+    return `${cardOpen}${header}
+      <div style="font-size:12px;color:var(--text-muted);padding:6px 0;">
+        Open the panel daily to build trend history${visible.length < series.length ? ' (some lines hidden)' : ''}.
+      </div>
+      ${legendRow}${cardClose}`;
+  }
+
+  // ── Shared axes ───────────────────────────────────────────────────────
+  const allDays   = [];
+  const allCounts = [];
+  withData.forEach(s => s.samples.forEach(p => { allDays.push(p.day); allCounts.push(p.count); }));
+
+  const allMs   = allDays.map(d => new Date(d).getTime());
+  const firstMs = Math.min(...allMs);
+  const lastMs  = Math.max(...allMs);
+  const totalMs = lastMs - firstMs || 1;
+
+  const minVal  = Math.min(...allCounts);
+  const maxVal  = Math.max(...allCounts);
+  const yPad    = Math.max(Math.ceil(maxVal * 0.15), 3);
+  const yMin    = Math.max(0, minVal - yPad);
+  const yMax    = maxVal + yPad;
+  const yRange  = yMax - yMin || 1;
+
+  const W = 280, H = 70, PAD_L = 4, PAD_R = 4, PAD_T = 8, PAD_B = 20;
+  const PW = W - PAD_L - PAD_R, PH = H - PAD_T - PAD_B;
+  const pxD = (day) => PAD_L + ((new Date(day).getTime() - firstMs) / totalMs) * PW;
+  const py  = (v)   => PAD_T + PH - ((v - yMin) / yRange) * PH;
+
+  const _MS_PER_DAY = 86400000;
+  const showGaps = withData.length === 1; // gap shading only when single line (keeps multi-line readable)
+
+  let svgParts = '';
+  for (const s of withData) {
+    const pts = s.samples;
+
+    // Segment by gaps (>1 day) so we never draw a fake line across missing days
+    const segs = [];
+    let streak = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const diff = Math.round((new Date(pts[i].day) - new Date(pts[i-1].day)) / _MS_PER_DAY);
+      if (diff > 1) {
+        segs.push({ type: 'data', points: [...streak] });
+        segs.push({ type: 'gap', start: pts[i-1].day, end: pts[i].day, days: diff - 1 });
+        streak = [pts[i]];
+      } else {
+        streak.push(pts[i]);
+      }
+    }
+    segs.push({ type: 'data', points: streak });
+
+    if (showGaps) {
+      for (const seg of segs) {
+        if (seg.type !== 'gap') continue;
+        const gx1 = pxD(seg.start), gx2 = pxD(seg.end), gw = Math.max(gx2 - gx1, 2);
+        svgParts += `<rect x="${gx1.toFixed(1)}" y="${PAD_T}" width="${gw.toFixed(1)}" height="${PH}" fill="rgba(148,163,184,0.10)" rx="2"/>`;
+        if (gw > 32) {
+          const mx = ((gx1 + gx2) / 2).toFixed(1), my = (PAD_T + PH / 2).toFixed(1);
+          svgParts += `<text x="${mx}" y="${my}" text-anchor="middle" dominant-baseline="central" fill="var(--text-muted)" font-size="7.5" font-family="system-ui" opacity="0.75">no data · ${seg.days}d</text>`;
+        }
+      }
+    }
+
+    for (const seg of segs) {
+      if (seg.type !== 'data' || seg.points.length === 0) continue;
+      const segPts = seg.points.map(p => `${pxD(p.day).toFixed(1)},${py(p.count).toFixed(1)}`).join(' ');
+      svgParts += `<polyline points="${segPts}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+
+    const last = pts[pts.length - 1];
+    svgParts += `<circle cx="${pxD(last.day).toFixed(1)}" cy="${py(last.count).toFixed(1)}" r="2.5" fill="${s.color}"/>`;
+  }
+
+  // X-axis labels: first date (left) and "today" (right)
+  const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const firstDay = new Date(firstMs).toISOString().slice(0, 10);
+  const fmtDay = d => `${parseInt(d.slice(8))} ${_MONTHS[parseInt(d.slice(5,7))-1]}`;
+  let xLabels = `<text x="${PAD_L}" y="${H-4}" text-anchor="start" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${fmtDay(firstDay)}</text>`;
+  xLabels    += `<text x="${(PAD_L+PW).toFixed(1)}" y="${H-4}" text-anchor="end" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">today</text>`;
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;">
+    ${svgParts}
+    ${xLabels}
+  </svg>`;
+
+  return `${cardOpen}${header}${svg}${legendRow}${cardClose}`;
 }
 
 // ── Inline SVG chart builders ────────────────────────────────────────────

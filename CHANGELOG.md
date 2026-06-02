@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.8.0 (2026-06-02) — Multi-view Sentry tracking
+
+**New feature: track multiple Sentry views at once.**
+
+Previously only one Sentry view could be tracked. Now you can track any number of
+views and the trend chart draws each as its own colored line on a single shared chart.
+
+### Tracking
+- `settings.sentry.trackedViewId` (single string) → `settings.sentry.trackedViewIds` (array).
+  A migration wraps any existing tracked view into a one-element array, so current
+  tracking is preserved on upgrade.
+- Settings → each Sentry view row now has a multi-select Track toggle (multiple can be
+  active) and shows the view's assigned color swatch.
+- `background.js` records a daily sample for every tracked view.
+
+### Chart
+- One colored polyline per view, on a shared X axis (union of all date ranges) and shared
+  Y axis (max across views). A view with a shorter history starts its line later.
+- Legend with color swatch + label + latest count + day-over-day delta per view.
+- **Click a legend entry to hide/show that line.**
+- Gap shading ("no data · Nd") is shown only when a single line is visible, to keep
+  multi-line charts readable.
+- Colors are assigned by the view's position in the views list (stable per view),
+  defined in the shared `src/trend-colors.js`.
+
+### Export — now a dropdown
+- ⬇ opens a menu: one entry per tracked view + "All views".
+- Per view → that view's JSON file + a single-view PDF.
+- All views → one JSON file per view (batch download) + one combined multi-line PDF.
+- Every JSON file stays strictly one-view, so any export is independently importable.
+
+### Import
+- Unchanged routing (the file carries its own viewId). Live readings still win.
+- If you import a file for a view that isn't currently tracked, the data is saved
+  silently and an amber notice in Settings reminds you to click Track on that view.
+
+### Other
+- New `docs/MULTI_VIEW_TRACKING.md` documenting the data model, colors, all scenarios.
+- New `src/trend-colors.js` + `tests/trend-colors.test.js`.
+- `print.html`/`print.js` extended to render combined multi-line PDFs (v2 payload),
+  still backward-compatible with single-view exports.
+
+---
+
 ## v1.7.6 (2026-06-01) — Fix sprint name + member filter
 
 **Fixed:**

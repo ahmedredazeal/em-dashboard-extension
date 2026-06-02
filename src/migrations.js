@@ -91,6 +91,33 @@ async function migrateToV1_4_4(settings) {
 }
 
 /**
+ * Migrate to v1.8.0 — multi-view Sentry tracking.
+ * The single `settings.sentry.trackedViewId` (string) becomes
+ * `settings.sentry.trackedViewIds` (string[]). Any existing tracked view is
+ * wrapped into a one-element array so current tracking is preserved.
+ * The old key is left in place (harmless) for one version in case of rollback.
+ */
+async function migrateToV1_8_0(settings) {
+  settings.migrationsApplied = settings.migrationsApplied || {};
+  if (settings.migrationsApplied['v1_8_0_multi_view_tracking']) {
+    return settings;
+  }
+
+  settings.sentry = settings.sentry || {};
+
+  // Only seed the array if it doesn't already exist
+  if (!Array.isArray(settings.sentry.trackedViewIds)) {
+    const old = settings.sentry.trackedViewId;
+    settings.sentry.trackedViewIds = (old && typeof old === 'string') ? [old] : [];
+    console.log(`[migration] v1.8.0: trackedViewId "${old || '(none)'}" → trackedViewIds [${settings.sentry.trackedViewIds.join(', ')}]`);
+  }
+
+  settings.migrationsApplied['v1_8_0_multi_view_tracking'] = true;
+  await chrome.storage.local.set({ settings });
+  return settings;
+}
+
+/**
  * Run all necessary migrations
  */
 export async function runMigrations() {
@@ -109,6 +136,7 @@ export async function runMigrations() {
   // Run migrations in order
   settings = await migrateToV1_1_0(settings);    // no-op (disabled)
   settings = await migrateToV1_4_4(settings);
+  settings = await migrateToV1_8_0(settings);
   
   return settings;
 }
