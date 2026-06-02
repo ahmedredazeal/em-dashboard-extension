@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.8.4 (2026-06-02) — Fix: member filter showing only time-loggers
+
+**Bug fix:**
+- The engineers list in the timesheet member filter could collapse to only the
+  handful of people who had logged time in the current sprint (e.g. 5 instead of
+  the full 13–14), most often after the extension was reloaded from a new folder
+  (which resets local storage and the accumulated member list).
+- Members are now discovered from **sprint assignees as well as worklog authors**,
+  so the filter shows everyone with a ticket in the sprint and repopulates the
+  full team immediately after any storage reset.
+- Defensive: saving Settings now re-reads the discovered-members list fresh from
+  storage instead of the page-load snapshot, so a Save can never overwrite members
+  the background discovered while the Settings page was open.
+
+---
+
 ## v1.8.3 (2026-06-02) — Sentry chart: point hover tooltips + mid-span date
 
 **Enhancements:**

@@ -346,6 +346,8 @@ function getTrackedViewIds() {
     resultDiv.classList.add('hidden');
     
     try {
+      const freshSnapshot = await chrome.storage.local.get(['settings']);
+      const freshAnalytics = freshSnapshot.settings?.analytics || {};
       const newSettings = {
         jira: {
           baseUrl: document.getElementById('jira-url').value.trim(),
@@ -385,8 +387,11 @@ function getTrackedViewIds() {
           severityFloor: 'medium'
         },
         analytics: {
-          discoveredMembers: settings.analytics?.discoveredMembers || [],
-          monitoredMembers: settings.analytics?.monitoredMembers || []
+          // Re-read fresh from storage rather than the page-load snapshot, so a
+          // Save never overwrites members the background discovered while this
+          // settings page was open.
+          discoveredMembers: freshAnalytics.discoveredMembers || settings.analytics?.discoveredMembers || [],
+          monitoredMembers: freshAnalytics.monitoredMembers ?? settings.analytics?.monitoredMembers ?? []
         }
       };
       

@@ -299,8 +299,19 @@ async function fetchJiraData(settings) {
       const timesheet = timesheetRaw.sort((a, b) => b.total - a.total);
       const issueTypeSplit = aggregateByIssueType(allWorklogs);
       
-      // Persist discovered member names so settings page can show checkboxes
-      const discoveredNames = timesheet.map(m => m.name);
+      // Persist discovered member names so settings page can show checkboxes.
+      // Discover from BOTH worklog authors AND sprint assignees — so the filter
+      // shows everyone with a ticket this sprint (the full team), not only the
+      // few who have logged time. This also repopulates the full list quickly
+      // if chrome.storage.local was reset (e.g. extension reloaded from a new
+      // folder), instead of collapsing to just the current time-loggers.
+      const assigneeNames = (normalizedStories || [])
+        .map(s => s.assignee)
+        .filter(Boolean);
+      const discoveredNames = [...new Set([
+        ...timesheet.map(m => m.name),
+        ...assigneeNames
+      ])];
       if (discoveredNames.length > 0) {
         const settingsResult = await chrome.storage.local.get(['settings']);
         const currentSettings = settingsResult.settings || {};

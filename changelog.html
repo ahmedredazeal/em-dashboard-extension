@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v1.8.4</div>
+      <div class="cl-desc">
+        <strong>Fix: member filter showing only time-loggers.</strong>
+        The engineers list could shrink to just the few people who logged time this sprint (e.g. 5 instead of 13–14), usually after reloading the extension from a new folder. Members are now discovered from sprint assignees too, so the full team shows up and repopulates immediately after any storage reset. Saving Settings also no longer risks overwriting the discovered list.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v1.8.3</div>
       <div class="cl-desc">
         <strong>Sentry chart: hover tooltips + mid-span date.</strong>
