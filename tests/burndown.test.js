@@ -67,6 +67,20 @@ test('in progress → null',      () => assertEqual(transitionToDoneTimestamp(is
 test('no changelog → null',     () => assertEqual(transitionToDoneTimestamp({}), null));
 test('empty histories → null',  () => assertEqual(transitionToDoneTimestamp({ changelog: { histories: [] } }), null));
 
+// Custom done-category status name (not in DONE_STATUS_NAMES) via extraDoneNames
+const issueCustomDone = {
+  changelog: { histories: [
+    { created: '2026-05-10T10:00:00Z', items: [{ field: 'status', toString: 'In Progress' }] },
+    { created: '2026-05-14T16:00:00Z', items: [{ field: 'status', toString: 'Deployed' }] }
+  ]}
+};
+test('custom done name ignored without hint', () => assertEqual(
+  transitionToDoneTimestamp(issueCustomDone), null
+));
+test('custom done name matched with hint', () => assertEqual(
+  transitionToDoneTimestamp(issueCustomDone, ['Deployed']), '2026-05-14T16:00:00Z'
+));
+
 // ── dayIndex ───────────────────────────────────────────────────────────────
 console.log('\ndayIndex');
 test('same day = 0',    () => assertEqual(dayIndex('2026-05-05T00:00:00Z', '2026-05-05T00:00:00Z'), 0));
@@ -140,6 +154,14 @@ test('todayIndex = daysElapsed when within sprint', () => assertEqual(resultMid.
 const sprintOver = { startDate: '2026-05-05T00:00:00Z', totalDays: 14, totalPoints: 30, daysElapsed: 99 };
 const resultOver = computeBurndownSeries(sprintOver, stories14);
 test('todayIndex clamps to totalDays when daysElapsed overshoots', () => assertEqual(resultOver.todayIndex, 14));
+
+// Explicit todayIndex (0-based, floor-aligned with closedDay) wins over daysElapsed
+const sprintExplicit = { startDate: '2026-05-05T00:00:00Z', totalDays: 14, totalPoints: 30, daysElapsed: 6, todayIndex: 5 };
+const resultExplicit = computeBurndownSeries(sprintExplicit, stories14);
+test('explicit todayIndex overrides daysElapsed', () => assertEqual(resultExplicit.todayIndex, 5));
+test('explicit todayIndex clamps to totalDays', () => assertEqual(
+  computeBurndownSeries({ ...sprintExplicit, todayIndex: 99 }, stories14).todayIndex, 14
+));
 
 // Edge: no story points
 const sprintEmpty = { startDate: '2026-05-05T00:00:00Z', totalDays: 5, totalPoints: 0 };

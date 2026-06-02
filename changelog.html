@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v1.8.6</div>
+      <div class="cl-desc">
+        <strong>Fix: burndown not reflecting today's completed points.</strong>
+        The Actual line ran one day too far, so points finished today landed on yesterday's slot and "today" read as no change. The line now ends on the true current day, so today's burn shows immediately. Custom done-status names (e.g. "Deployed") are also recognised from the changelog, keeping the burndown in step with the progress bar.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v1.8.5</div>
       <div class="cl-desc">
         <strong>Burndown: Jira-style hover tooltips.</strong>

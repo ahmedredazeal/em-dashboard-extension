@@ -39,16 +39,24 @@ export function isDoneStatus(statusName) {
  * const ts = transitionToDoneTimestamp(issue);
  * // → "2026-05-12T14:30:22.000+0000" or null
  */
-export function transitionToDoneTimestamp(issue) {
+export function transitionToDoneTimestamp(issue, extraDoneNames = []) {
   const histories = issue.changelog?.histories;
   if (!Array.isArray(histories) || histories.length === 0) return null;
+
+  // Teams often use custom done-category status names ("Deployed", "Merged",
+  // "Live") that aren't in DONE_STATUS_NAMES. Callers can pass those names so a
+  // transition into them is recognised as a close.
+  const extra = new Set(
+    (extraDoneNames || []).map(n => (n || '').toLowerCase().trim()).filter(Boolean)
+  );
 
   // Walk backward: most recent transition wins (handles re-open → close cycles)
   for (let i = histories.length - 1; i >= 0; i--) {
     const h = histories[i];
     if (!h.created || !Array.isArray(h.items)) continue;
     for (const item of h.items) {
-      if (item.field === 'status' && isDoneStatus(item.toString)) {
+      if (item.field === 'status' &&
+          (isDoneStatus(item.toString) || extra.has((item.toString || '').toLowerCase().trim()))) {
         return h.created;
       }
     }
@@ -82,7 +90,12 @@ export function dayIndex(timestamp, sprintStartDate) {
 export function attachCloseTimestamps(rawIssues, stories, sprintStartDate) {
   return stories.map((story, i) => {
     const raw = rawIssues[i];
-    const closedAt = raw ? transitionToDoneTimestamp(raw) : null;
+    // When the story is currently in a done-category status, also treat its
+    // current status NAME as a done status. This lets teams with custom done
+    // names get an accurate close time from the changelog (the transition into
+    // that status) rather than relying on the last-edited date.
+    const extraDone = (story.statusCategory === 'done' && story.status) ? [story.status] : [];
+    const closedAt = raw ? transitionToDoneTimestamp(raw, extraDone) : null;
     return {
       ...story,
       closedAt: closedAt || null,

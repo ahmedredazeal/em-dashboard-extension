@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.8.6 (2026-06-02) — Fix: burndown not reflecting today's completed points
+
+**Bug fix:**
+- The burndown "Actual" line was drawn one day too far into the future, so points
+  completed **today** rendered on the previous day's slot and hovering today's
+  point read "No change" — even though the sprint header / progress bar correctly
+  counted those points as done. Cause: the actual line's end-of-line index used a
+  ceiling day count while completions are bucketed with a floor day count, an
+  off-by-one. The actual line now ends on the true current day, so today's burn
+  shows up immediately.
+- Custom done-category status names (e.g. "Deployed", "Merged") are now recognised
+  by their changelog transition, giving an accurate close day instead of relying
+  on the last-edited date. This keeps the burndown's notion of "done" in step with
+  the progress bar (which uses Jira's status category).
+
+---
+
 ## v1.8.5 (2026-06-02) — Burndown: Jira-style hover tooltips
 
 **Enhancement:**

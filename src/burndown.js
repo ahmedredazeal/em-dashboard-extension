@@ -88,13 +88,15 @@ export function computeBurndownSeries(sprint, stories) {
   const { startDate, totalDays = 14, totalPoints = 0 } = sprint;
 
   // todayIndex = how far the "actual" line should extend (Jira draws remaining
-  // work only up to now, not across future days). Falls back to totalDays
-  // (full width) when daysElapsed isn't supplied, preserving old behavior for
-  // callers/tests that don't pass it.
+  // work only up to now, not across future days). Prefer an explicit 0-based
+  // todayIndex (which must use the SAME calendar-day flooring as closedDay, so
+  // today's closures land on today's point). Fall back to daysElapsed, then to
+  // totalDays (full width) for callers/tests that don't supply either.
   const _td = totalDays || 14;
-  const todayIndex = (typeof sprint.daysElapsed === 'number')
-    ? Math.max(0, Math.min(sprint.daysElapsed, _td))
-    : _td;
+  const _rawToday = (typeof sprint.todayIndex === 'number')
+    ? sprint.todayIndex
+    : (typeof sprint.daysElapsed === 'number') ? sprint.daysElapsed : _td;
+  const todayIndex = Math.max(0, Math.min(_rawToday, _td));
 
   if (!totalPoints || !totalDays) {
     const empty = new Array((totalDays || 14) + 1).fill(totalPoints || 0);

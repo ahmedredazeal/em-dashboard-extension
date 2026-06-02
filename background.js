@@ -241,9 +241,13 @@ async function fetchJiraData(settings) {
     try {
       const workingDays = settings.ui?.workingDays || [0, 1, 2, 3, 4]; // Sun-Thu default
       
-      // Burndown
+      // Burndown — todayIndex must use the SAME flooring as closedDay
+      // (changelog-parser.dayIndex) so today's closures land on today's point.
+      // daysElapsed above uses ceil (correct for the 1-based "Day X/Y" header)
+      // but is off-by-one as a 0-based day index.
+      const burndownTodayIndex = Math.max(0, dayIndex(now.toISOString(), activeSprint.startDate));
       const burndown = computeBurndownSeries(
-        { startDate: activeSprint.startDate, totalDays, totalPoints, daysElapsed },
+        { startDate: activeSprint.startDate, totalDays, totalPoints, daysElapsed, todayIndex: burndownTodayIndex },
         normalizedStories
       );
       
