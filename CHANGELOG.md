@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.8.2 (2026-06-02) — Sentry chart: dots on every point
+
+**Enhancement:**
+- The multi-view Sentry trend chart now draws a small dot on **every** data
+  point (previously only the latest point of each line had a dot), matching the
+  PDF/print view. Dots are smaller (r=1.5) to stay clean in the compact panel,
+  with a slightly larger dot (r=2.2) on each line's latest reading so "today"
+  still stands out.
+
+---
+
 ## v1.8.1 (2026-06-02) — Fix burndown "Actual" line drawn as a flat line
 
 **Fixed:**

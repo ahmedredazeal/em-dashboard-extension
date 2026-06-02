@@ -1660,10 +1660,15 @@ function buildMultiTrendCardHTML(series) {
       if (seg.type !== 'data' || seg.points.length === 0) continue;
       const segPts = seg.points.map(p => `${pxD(p.day).toFixed(1)},${py(p.count).toFixed(1)}`).join(' ');
       svgParts += `<polyline points="${segPts}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      // Small dot on every data point (like the print view), not just the last
+      for (const p of seg.points) {
+        svgParts += `<circle cx="${pxD(p.day).toFixed(1)}" cy="${py(p.count).toFixed(1)}" r="1.5" fill="${s.color}"/>`;
+      }
     }
 
+    // Slightly larger dot on the latest reading so "today" stands out
     const last = pts[pts.length - 1];
-    svgParts += `<circle cx="${pxD(last.day).toFixed(1)}" cy="${py(last.count).toFixed(1)}" r="2.5" fill="${s.color}"/>`;
+    svgParts += `<circle cx="${pxD(last.day).toFixed(1)}" cy="${py(last.count).toFixed(1)}" r="2.2" fill="${s.color}"/>`;
   }
 
   // X-axis labels: first date (left) and "today" (right)
