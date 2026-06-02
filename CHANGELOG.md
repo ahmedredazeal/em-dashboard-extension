@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.8.1 (2026-06-02) — Fix burndown "Actual" line drawn as a flat line
+
+**Fixed:**
+- The burndown **Actual** line was drawn across the entire sprint width
+  (all days, including days that haven't happened yet). Because no work is
+  logged on future days, the remaining value repeated from today to sprint end,
+  rendering as a flat horizontal line that didn't look like a burndown.
+- Fix (matches Jira's "Remaining work" behavior): the Actual line is now drawn
+  **only up to today**. Ideal and By-due-date — both forward-looking — still
+  span the full sprint. A dot marks today's remaining so it's visible even on
+  day 0–1 of a sprint.
+- `computeBurndownSeries` now accepts `daysElapsed` and returns `todayIndex`
+  (the day the Actual line should stop at). Defaults to full width when not
+  supplied, so existing callers/tests are unaffected.
+
+---
+
 ## v1.8.0 (2026-06-02) — Multi-view Sentry tracking
 
 **New feature: track multiple Sentry views at once.**

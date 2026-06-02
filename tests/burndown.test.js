@@ -129,6 +129,18 @@ test('actual[14] = 17 (HRM-3+4 open)',  () => assertEqual(result.actual[14], 17)
 test('hasActualData = true',    () => assertEqual(result.hasActualData, true));
 test('totalPoints = 30',        () => assertEqual(result.totalPoints, 30));
 
+// todayIndex: defaults to totalDays when daysElapsed not supplied
+test('todayIndex defaults to totalDays', () => assertEqual(result.todayIndex, 14));
+
+// todayIndex: clamps to daysElapsed when supplied (for truncating the actual line)
+const sprintMid = { startDate: '2026-05-05T00:00:00Z', totalDays: 14, totalPoints: 30, daysElapsed: 5 };
+const resultMid = computeBurndownSeries(sprintMid, stories14);
+test('todayIndex = daysElapsed when within sprint', () => assertEqual(resultMid.todayIndex, 5));
+
+const sprintOver = { startDate: '2026-05-05T00:00:00Z', totalDays: 14, totalPoints: 30, daysElapsed: 99 };
+const resultOver = computeBurndownSeries(sprintOver, stories14);
+test('todayIndex clamps to totalDays when daysElapsed overshoots', () => assertEqual(resultOver.todayIndex, 14));
+
 // Edge: no story points
 const sprintEmpty = { startDate: '2026-05-05T00:00:00Z', totalDays: 5, totalPoints: 0 };
 const resultEmpty = computeBurndownSeries(sprintEmpty, []);

@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver minor">v1.8.1</div>
+      <div class="cl-desc">
+        <strong>Fix: burndown "Actual" line was flat across the whole sprint.</strong>
+        It was drawn for every day including future days (where remaining never changes), producing a straight horizontal line. Now the Actual line stops at today — like Jira's "Remaining work" — while Ideal and By-due-date still span the full sprint. A dot marks today's remaining.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v1.8.0</div>
       <div class="cl-desc">
         <strong>Multi-view Sentry tracking.</strong>

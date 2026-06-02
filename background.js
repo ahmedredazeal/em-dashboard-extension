@@ -243,7 +243,7 @@ async function fetchJiraData(settings) {
       
       // Burndown
       const burndown = computeBurndownSeries(
-        { startDate: activeSprint.startDate, totalDays, totalPoints },
+        { startDate: activeSprint.startDate, totalDays, totalPoints, daysElapsed },
         normalizedStories
       );
       

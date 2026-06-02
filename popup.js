@@ -1696,7 +1696,7 @@ function _niceStep(max, steps=4) {
 function buildBurndownSVG(bd) {
   const W=320, H=150, PAD={top:10,right:16,bottom:38,left:36};
   const PW=W-PAD.left-PAD.right, PH=H-PAD.top-PAD.bottom;
-  const { ideal, estimate, actual, labels, totalPoints, totalDays, hasActualData } = bd;
+  const { ideal, estimate, actual, labels, totalPoints, totalDays, hasActualData, todayIndex } = bd;
   const step = _niceStep(totalPoints, 4);
   const yMax = Math.ceil(totalPoints / step) * step || 1;
   const px = d => PAD.left + (d/totalDays)*PW;
@@ -1724,11 +1724,23 @@ function buildBurndownSVG(bd) {
     <line x1="${PAD.left+52}" y1="${ly}" x2="${PAD.left+66}" y2="${ly}" stroke="${_C.estimate}" stroke-width="2"/>
     <text x="${PAD.left+70}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">By due date</text>
     ${hasActualData ? `<line x1="${PAD.left+140}" y1="${ly}" x2="${PAD.left+154}" y2="${ly}" stroke="${_C.actual}" stroke-width="2"/><text x="${PAD.left+158}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Actual</text>` : `<text x="${PAD.left+140}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" opacity="0.5">Actual: no data yet</text>`}`;
+  // Actual line — drawn ONLY up to today (Jira-style: remaining work stops at
+  // "now"; future days show just the guideline/estimate). Without this the
+  // actual line runs flat across the whole sprint and looks like a straight line.
+  let actualSvg = '';
+  if (hasActualData) {
+    const ti = (typeof todayIndex === 'number') ? Math.max(0, Math.min(todayIndex, totalDays)) : totalDays;
+    const actualToToday = actual.slice(0, ti + 1);
+    if (actualToToday.length >= 2) actualSvg += poly(actualToToday, _C.actual);
+    // Dot at today's remaining — visible even when only day 0 exists
+    const lastV = actualToToday[actualToToday.length - 1];
+    actualSvg += `<circle cx="${px(ti).toFixed(1)}" cy="${py(lastV).toFixed(1)}" r="2.5" fill="${_C.actual}"/>`;
+  }
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
     ${grid}<line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${H-PAD.bottom}" stroke="${_C.grid}" stroke-width="1"/>
     <line x1="${PAD.left}" y1="${H-PAD.bottom}" x2="${W-PAD.right}" y2="${H-PAD.bottom}" stroke="${_C.grid}" stroke-width="1"/>
     ${ylbl}${xlbl}${poly(ideal,_C.ideal,'5 3')}${poly(estimate,_C.estimate)}
-    ${hasActualData?poly(actual,_C.actual):''}${legend}</svg>`;
+    ${actualSvg}${legend}</svg>`;
 }
 
 function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {

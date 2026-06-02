@@ -87,12 +87,22 @@ function remainingByDay(totalPoints, totalDays, closeDays) {
 export function computeBurndownSeries(sprint, stories) {
   const { startDate, totalDays = 14, totalPoints = 0 } = sprint;
 
+  // todayIndex = how far the "actual" line should extend (Jira draws remaining
+  // work only up to now, not across future days). Falls back to totalDays
+  // (full width) when daysElapsed isn't supplied, preserving old behavior for
+  // callers/tests that don't pass it.
+  const _td = totalDays || 14;
+  const todayIndex = (typeof sprint.daysElapsed === 'number')
+    ? Math.max(0, Math.min(sprint.daysElapsed, _td))
+    : _td;
+
   if (!totalPoints || !totalDays) {
     const empty = new Array((totalDays || 14) + 1).fill(totalPoints || 0);
     return {
       ideal: empty, estimate: empty, actual: empty,
       labels: sprintDayLabels(startDate, totalDays || 14),
       totalPoints: totalPoints || 0, totalDays: totalDays || 14,
+      todayIndex,
       hasActualData: false
     };
   }
@@ -136,6 +146,7 @@ export function computeBurndownSeries(sprint, stories) {
     labels: sprintDayLabels(startDate, totalDays),
     totalPoints,
     totalDays,
+    todayIndex,
     hasActualData: actualClosed > 0
   };
 }
