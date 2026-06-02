@@ -727,3 +727,8 @@ body.privacy-on [data-privacy-mask]::after {
 .theme-logo-22 { width: 22px; height: 22px; }
 .theme-logo-40 { width: 40px; height: 40px; }
 .theme-logo-72 { width: 72px; height: 72px; }
+
+/* Sentry trend chart — invisible hover targets on data points.
+   Use fill via class (presentation attribute would block the :hover rule). */
+.trend-point { fill: transparent; cursor: pointer; }
+.trend-point:hover { fill: rgba(148, 163, 184, 0.22); }

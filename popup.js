@@ -1383,6 +1383,26 @@ async function renderSentryTrend() {
 
   wireTrendExport(card, series);
   wireTrendLegend(card, series);
+  wireTrendHover(card);
+}
+
+/** Wire hover tooltips on chart points — shows "Label · date · value". */
+function wireTrendHover(card) {
+  const tip = card.querySelector('.trend-tooltip');
+  if (!tip) return;
+  card.querySelectorAll('.trend-point').forEach(pt => {
+    pt.addEventListener('mouseenter', () => {
+      tip.textContent = pt.getAttribute('data-info') || '';
+      tip.style.display = 'block';
+      const cardRect = card.getBoundingClientRect();
+      const ptRect   = pt.getBoundingClientRect();
+      const x = ptRect.left + ptRect.width / 2 - cardRect.left;
+      const y = ptRect.top - cardRect.top;
+      tip.style.left = `${x}px`;
+      tip.style.top  = `${Math.max(y - 4, 12)}px`;
+    });
+    pt.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
 }
 
 /** Parse the numeric Sentry view id out of a saved view URL. */
@@ -1588,7 +1608,7 @@ function buildMultiTrendCardHTML(series) {
   const legendRow = `
     <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;">${legend}</div>`;
 
-  const cardOpen  = `<div style="padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">`;
+  const cardOpen  = `<div class="sentry-trend-wrap" style="position:relative;padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;"><div class="trend-tooltip" style="display:none;position:absolute;z-index:50;pointer-events:none;transform:translate(-50%,-100%);background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:5px;padding:3px 7px;font-size:10px;color:var(--text);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.4);"></div>`;
   const cardClose = `</div>`;
 
   // ── No visible data → show header + legend + prompt ───────────────────
@@ -1625,6 +1645,10 @@ function buildMultiTrendCardHTML(series) {
   const _MS_PER_DAY = 86400000;
   const showGaps = withData.length === 1; // gap shading only when single line (keeps multi-line readable)
 
+  // Date formatter (used for tooltips and x-axis labels): "2 Jun"
+  const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const _fmtDay = d => `${parseInt(d.slice(8))} ${_MONTHS[parseInt(d.slice(5,7))-1]}`;
+
   let svgParts = '';
   for (const s of withData) {
     const pts = s.samples;
@@ -1660,9 +1684,13 @@ function buildMultiTrendCardHTML(series) {
       if (seg.type !== 'data' || seg.points.length === 0) continue;
       const segPts = seg.points.map(p => `${pxD(p.day).toFixed(1)},${py(p.count).toFixed(1)}`).join(' ');
       svgParts += `<polyline points="${segPts}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-      // Small dot on every data point (like the print view), not just the last
+      // Small visible dot on every data point (like the print view), plus a
+      // larger transparent "hit" circle that's easy to hover and carries the
+      // date/value tooltip text.
       for (const p of seg.points) {
-        svgParts += `<circle cx="${pxD(p.day).toFixed(1)}" cy="${py(p.count).toFixed(1)}" r="1.5" fill="${s.color}"/>`;
+        const cx = pxD(p.day).toFixed(1), cy = py(p.count).toFixed(1);
+        svgParts += `<circle cx="${cx}" cy="${cy}" r="1.5" fill="${s.color}"/>`;
+        svgParts += `<circle class="trend-point" cx="${cx}" cy="${cy}" r="5" data-info="${escapeHtml(s.label)} · ${_fmtDay(p.day)} · ${p.count}"/>`;
       }
     }
 
@@ -1671,11 +1699,15 @@ function buildMultiTrendCardHTML(series) {
     svgParts += `<circle cx="${pxD(last.day).toFixed(1)}" cy="${py(last.count).toFixed(1)}" r="2.2" fill="${s.color}"/>`;
   }
 
-  // X-axis labels: first date (left) and "today" (right)
-  const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // X-axis labels: first date (left), today (right), and a mid-span date when
+  // the range is more than 2 days so the timeline has a reference point.
   const firstDay = new Date(firstMs).toISOString().slice(0, 10);
-  const fmtDay = d => `${parseInt(d.slice(8))} ${_MONTHS[parseInt(d.slice(5,7))-1]}`;
-  let xLabels = `<text x="${PAD_L}" y="${H-4}" text-anchor="start" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${fmtDay(firstDay)}</text>`;
+  let xLabels = `<text x="${PAD_L}" y="${H-4}" text-anchor="start" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${_fmtDay(firstDay)}</text>`;
+  const spanDays = Math.round((lastMs - firstMs) / _MS_PER_DAY);
+  if (spanDays > 2) {
+    const midDay = new Date((firstMs + lastMs) / 2).toISOString().slice(0, 10);
+    xLabels += `<text x="${(PAD_L + PW/2).toFixed(1)}" y="${H-4}" text-anchor="middle" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${_fmtDay(midDay)}</text>`;
+  }
   xLabels    += `<text x="${(PAD_L+PW).toFixed(1)}" y="${H-4}" text-anchor="end" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">today</text>`;
 
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;">

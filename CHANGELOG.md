@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.8.3 (2026-06-02) — Sentry chart: point hover tooltips + mid-span date
+
+**Enhancements:**
+- **Hover tooltips** — hovering any point on a trend line now shows a small
+  tooltip with the view label, date, and issue count (e.g. "HRM All Issues · 2 Jun · 19").
+  Each point has a larger invisible hit-area so the tiny dots are easy to hover,
+  with a subtle highlight on hover.
+- **Mid-span x-axis label** — when the chart spans more than 2 days, a middle
+  date is shown between the first date and "today", giving the timeline a
+  reference point instead of just the two ends.
+
+---
+
 ## v1.8.2 (2026-06-02) — Sentry chart: dots on every point
 
 **Enhancement:**
