@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.9.5 (2026-06-04) — Fix: totalCount ReferenceError in renderInsights
+
+**Bug fix:** The Phase 2 refactor left `totalCount` undefined in the member filter template, causing a ReferenceError on every analytics render. Added the missing `const totalCount = discoveredMembers.length` before the filter block.
+
+---
+
 ## v1.9.4 (2026-06-03) — Phase 3: settings split + EM squad management
 
 **Settings page split by role**

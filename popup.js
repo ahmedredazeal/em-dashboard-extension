@@ -634,6 +634,7 @@ function renderInsights() {
   
   // In engineer mode use the Me/Squad scope toggle; in EM mode keep the DDL filter.
   const isEngineer = state.settings?.role === 'engineer';
+  const totalCount    = discoveredMembers.length;
   const filteredCount = (monitored?.length > 0) ? monitored.length : totalCount;
   const filterActive  = monitored?.length > 0;
   const memberFilterHtml = discoveredMembers.length > 0 ? `
