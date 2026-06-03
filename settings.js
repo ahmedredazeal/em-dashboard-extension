@@ -208,7 +208,49 @@ function getTrackedViewIds() {
     document.getElementById('jira-token').value = settings.jira.token || '';
   }
 
-  // ── Role toggle ─────────────────────────────────────────────────────
+  // ── Role-specific section visibility ───────────────────────────────
+  function applyRoleToSettings(role) {
+    document.querySelectorAll('.em-only').forEach(el => {
+      el.style.display = role === 'em' ? '' : 'none';
+    });
+  }
+  applyRoleToSettings(settings.role || '');
+
+  // ── Squad members (EM mode) ─────────────────────────────────────────
+  let squadMembers = [...(settings.analytics?.discoveredMembers || [])];
+
+  function renderMemberTags() {
+    const container = document.getElementById('squad-member-tags');
+    if (!container) return;
+    if (squadMembers.length === 0) {
+      container.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">No members yet — save a sprint to auto-populate, or add manually below.</p>';
+      return;
+    }
+    container.innerHTML = squadMembers.map(name =>
+      `<span class="member-tag">${escapeAttr(name)
+      }<button class="member-remove" data-name="${escapeAttr(name)}" type="button" title="Remove">×</button></span>`
+    ).join('');
+    container.querySelectorAll('.member-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        squadMembers = squadMembers.filter(n => n !== btn.dataset.name);
+        renderMemberTags();
+      });
+    });
+  }
+  renderMemberTags();
+
+  function addMember() {
+    const input = document.getElementById('add-member-input');
+    const name  = input?.value.trim();
+    if (!name || squadMembers.includes(name)) { if (input) input.value = ''; return; }
+    squadMembers.push(name);
+    renderMemberTags();
+    if (input) input.value = '';
+  }
+  document.getElementById('add-member-btn')?.addEventListener('click', addMember);
+  document.getElementById('add-member-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addMember(); }
+  });
   const roleHints = {
     em:       'Full squad view — team timesheet, burndown and alerts for everyone.',
     engineer: 'Personal view by default. Squad context available on demand.'
@@ -230,6 +272,7 @@ function getTrackedViewIds() {
       const role = btn.dataset.role;
       settings.role = role;
       setRolePill(role);
+      applyRoleToSettings(role);
       await chrome.storage.local.set({ settings });
       const hint = document.getElementById('role-hint');
       if (hint) { hint.textContent = '✓ Saved'; setTimeout(() => setRolePill(role), 1200); }
@@ -415,12 +458,18 @@ function getTrackedViewIds() {
           severityFloor: 'medium'
         },
         analytics: {
-          // Re-read fresh from storage rather than the page-load snapshot, so a
-          // Save never overwrites members the background discovered while this
-          // settings page was open.
-          discoveredMembers: freshAnalytics.discoveredMembers || settings.analytics?.discoveredMembers || [],
+          // When role is EM and the member list has been curated in this session,
+          // save the curated list and lock it so background auto-discovery stops
+          // overriding the EM's intentional choices.
+          discoveredMembers: (settings.role === 'em' && squadMembers.length > 0)
+            ? squadMembers
+            : (freshAnalytics.discoveredMembers || settings.analytics?.discoveredMembers || []),
+          squadMembersCurated: settings.role === 'em' && squadMembers.length > 0,
           monitoredMembers: freshAnalytics.monitoredMembers ?? settings.analytics?.monitoredMembers ?? []
-        }
+        },
+        // Preserve role and viewScope across saves
+        role:      settings.role      || 'em',
+        viewScope: settings.viewScope || 'squad'
       };
       
       await chrome.storage.local.set({ settings: newSettings });

@@ -137,13 +137,29 @@
         <span class="field-hint">Display name for your squad</span>
       </div>
 
-      <div class="field">
+      <div class="field em-only" id="extra-boards-field">
         <label for="squad-extra-boards">Extra boards <small style="color:var(--text-muted);font-weight:normal;">(optional, one per line)</small></label>
         <textarea id="squad-extra-boards" rows="3" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;" placeholder="Support Board|456&#10;POS Board|789"></textarea>
         <span class="field-hint">
           Format: <code>Name|BoardID</code> — one per line. Name is shown as the section label.<br/>
           Find board ID in Jira board URL: <code>/jira/software/projects/HRM/boards/<strong>42</strong></code>
         </span>
+      </div>
+    </div>
+
+    <!-- Squad members (EM only) -->
+    <div class="settings-section em-only" id="squad-members-section">
+      <h2>Squad members</h2>
+      <p class="hint">
+        Curate who appears in the team filter and analytics.
+        Pre-populated automatically from sprint assignees — add or remove as needed.
+        Once saved, the list is locked to your curation (background auto-discovery stops updating it).
+      </p>
+      <div id="squad-member-tags" class="member-tags-container"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <input type="text" id="add-member-input" placeholder="Add name…"
+          style="flex:1;padding:8px;background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:6px;color:var(--text);font-size:13px;"/>
+        <button id="add-member-btn" class="btn-secondary" type="button" style="flex-shrink:0;">Add</button>
       </div>
     </div>
 

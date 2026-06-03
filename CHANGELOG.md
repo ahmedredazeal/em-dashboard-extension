@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.9.4 (2026-06-03) — Phase 3: settings split + EM squad management
+
+**Settings page split by role**
+- All `.em-only` sections (extra boards, squad member management) are hidden
+  in Engineer mode. Role toggle immediately shows/hides the relevant sections.
+- `role` and `viewScope` are now preserved across Settings saves (they were
+  previously wiped, causing the role selection to reset on save).
+
+**EM squad member management (new section)**
+- EMs see a new "Squad members" section in Settings with all discovered team
+  members shown as removable tags. Names can be added manually (type + Add or Enter).
+- Saving with a curated list sets `squadMembersCurated: true` in analytics —
+  background auto-discovery then stops overriding the EM's intentional list.
+- Removing the EM role or clearing the list re-enables auto-discovery.
+
+---
+
 ## v1.9.3 (2026-06-03) — Phase 2: Me / Squad scope filter for engineer mode
 
 **New: engineer mode view scoping**

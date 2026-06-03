@@ -397,16 +397,22 @@ async function fetchJiraData(settings) {
       if (discoveredNames.length > 0) {
         const settingsResult = await chrome.storage.local.get(['settings']);
         const currentSettings = settingsResult.settings || {};
-        const existingNames = currentSettings.analytics?.discoveredMembers || [];
-        const merged = [...new Set([...existingNames, ...discoveredNames])];
-        if (merged.length !== existingNames.length) {
-          await chrome.storage.local.set({
-            settings: {
-              ...currentSettings,
-              analytics: { ...currentSettings.analytics, discoveredMembers: merged }
-            }
-          });
-          console.log(`[background] Discovered ${merged.length} team members for timesheet`);
+        // When an EM has manually curated the squad list, respect that choice
+        // and don't auto-add newly discovered members on top of it.
+        if (currentSettings.analytics?.squadMembersCurated) {
+          console.log('[background] Squad members curated by EM — skipping auto-discovery update');
+        } else {
+          const existingNames = currentSettings.analytics?.discoveredMembers || [];
+          const merged = [...new Set([...existingNames, ...discoveredNames])];
+          if (merged.length !== existingNames.length) {
+            await chrome.storage.local.set({
+              settings: {
+                ...currentSettings,
+                analytics: { ...currentSettings.analytics, discoveredMembers: merged }
+              }
+            });
+            console.log(`[background] Discovered ${merged.length} team members for timesheet`);
+          }
         }
       }
       
