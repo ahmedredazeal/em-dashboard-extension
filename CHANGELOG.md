@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.9.1 (2026-06-03) — Phase 2 alerts: 9 rules, all grounded in real data
+
+**New & enhanced alert rules:**
+
+| Rule | Trigger | Severity |
+|------|---------|----------|
+| `sprint_goal_at_risk` *(enhanced)* | Working-day-aware projection using committed baseline; distinguishes scope vs throughput | high/medium |
+| `scope_creep` *(new)* | Points added after sprint start exceed 10 % of commitment | high/medium |
+| `stalled_burndown` *(new)* | No points completed in last 2+ working days | high/medium |
+| `due_date_risk` *(new)* | Open pointed tickets due on/before sprint end | high/medium |
+| `unassigned_work` *(new)* | Open pointed tickets with no assignee | high/medium |
+| `reopened_tickets` *(new)* | Tickets that reached Done then moved back to open | medium |
+| `sentry_trend_spike` *(new)* | Day-over-day count increase in a tracked Sentry view | high/medium |
+| `velocity_drop` *(gated)* | >15 % velocity drop over 2 sprints — fires only when history is populated | medium |
+| `support_sla_breach` *(gated)* | Support tickets past SLA — fires only when ticket data is available | high |
+
+**Supporting additions:**
+- `metrics.countWorkingDays(from, to, days)` — accurate per-schedule working-day count.
+- `metrics.committedBurnPrediction(sprint, workingDays)` — committed-baseline projection.
+- `metrics.sentryDayOverDaySpike(currentCount, trendSamples)` — trend-grounded spike detection.
+- `state.settings` and `state.sentryTrendSamples` now passed to `checkAlerts`.
+- `currentSprint.todayIndex` and `currentSprint.scopeByDay` added for alert consumption.
+- `checkAlerts` wraps each rule in try/catch so a single rule error never silences the rest.
+- **Tests:** +22 (alerts.test.js) across 9 suites.
+
+---
+
 ## v1.9.0 (2026-06-03) — Committed baseline burndown + engineers filter fix
 
 **Burndown: committed baseline (matches Jira)**

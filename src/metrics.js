@@ -261,3 +261,109 @@ export function ticketStale(ticket) {
   
   return ageDays > 2;
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Working-day utilities
+
+/**
+ * Count working days between two dates (inclusive of from, exclusive of to).
+ * @param {Date|string} fromDate
+ * @param {Date|string} toDate
+ * @param {number[]} workingDayNums  0=Sun … 6=Sat  (default Sun–Thu)
+ */
+export function countWorkingDays(fromDate, toDate, workingDayNums = [0, 1, 2, 3, 4]) {
+  const wdSet = new Set(workingDayNums);
+  const d    = new Date(fromDate); d.setHours(12, 0, 0, 0);
+  const end  = new Date(toDate);  end.setHours(12, 0, 0, 0);
+  let count = 0;
+  while (d < end) {
+    if (wdSet.has(d.getDay())) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Enhanced sprint prediction using committed baseline + working days
+
+/**
+ * Project whether the sprint will hit its committed goal.
+ * Uses working-day-aware velocity and the committed (sprint-start) baseline,
+ * not the live story-point sum, so mid-sprint estimate edits don't distort it.
+ *
+ * @param {Object} sprint  - currentSprint object (needs committedPoints,
+ *                           completedPoints, startDate, endDate)
+ * @param {number[]} workingDays - [0,1,2,3,4] Sun-Thu default
+ * @returns {{ predicted, risk, shortfall, dailyVelocity, neededVelocity,
+ *             wdElapsed, wdRemaining, wdTotal }}
+ */
+export function committedBurnPrediction(sprint, workingDays = [0, 1, 2, 3, 4]) {
+  const baseline = sprint?.committedPoints || sprint?.totalPoints || 0;
+  if (!baseline || !sprint?.startDate || !sprint?.endDate) {
+    return { predicted: 0, risk: 'no-data', shortfall: 0, dailyVelocity: 0,
+             neededVelocity: 0, wdElapsed: 0, wdRemaining: 0, wdTotal: 0 };
+  }
+  const now     = new Date();
+  const start   = new Date(sprint.startDate);
+  const end     = new Date(sprint.endDate);
+  const wdTotal     = countWorkingDays(start, end, workingDays);
+  const wdElapsed   = Math.min(countWorkingDays(start, now, workingDays), wdTotal);
+  const wdRemaining = Math.max(0, wdTotal - wdElapsed);
+
+  // Too early — first 20 % of working days (min 2) gives benefit of the doubt
+  const earlyThreshold = Math.max(2, Math.floor(wdTotal * 0.2));
+  if (wdElapsed <= earlyThreshold) {
+    return { predicted: baseline, risk: 'early', shortfall: 0,
+             dailyVelocity: 0, neededVelocity: 0, wdElapsed, wdRemaining, wdTotal };
+  }
+
+  const completedPoints = sprint.completedPoints || 0;
+  if (wdRemaining === 0) {
+    const risk = completedPoints >= baseline * 0.85 ? 'none' : 'goal-missed';
+    return { predicted: completedPoints, risk, shortfall: Math.max(0, baseline - completedPoints),
+             dailyVelocity: 0, neededVelocity: 0, wdElapsed, wdRemaining, wdTotal };
+  }
+
+  const dailyVelocity   = completedPoints / wdElapsed;
+  const projected       = completedPoints + dailyVelocity * wdRemaining;
+  const neededVelocity  = (baseline - completedPoints) / wdRemaining;
+  const pct             = projected / baseline;
+
+  let risk = 'none';
+  if (pct < 0.60) risk = 'high';
+  else if (pct < 0.85) risk = 'medium';
+
+  return {
+    predicted: Math.round(projected),
+    risk,
+    shortfall: Math.max(0, Math.round(baseline - projected)),
+    dailyVelocity:  Math.round(dailyVelocity  * 10) / 10,
+    neededVelocity: Math.round(neededVelocity  * 10) / 10,
+    wdElapsed, wdRemaining, wdTotal
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Sentry trend spike
+
+/**
+ * Detect a day-over-day spike in a Sentry view's issue count.
+ * @param {number}   currentCount   - live count from the latest Sentry fetch
+ * @param {Array}    trendSamples   - [{date:'YYYY-MM-DD', count}] sorted asc
+ * @param {number}   deltaThreshold - absolute new-issue count to consider a spike
+ * @param {number}   pctThreshold   - % increase to consider a spike
+ * @returns {null | {delta, pctChange, prevCount, prevDate}}
+ */
+export function sentryDayOverDaySpike(
+  currentCount, trendSamples,
+  deltaThreshold = 10, pctThreshold = 25
+) {
+  if (!trendSamples || trendSamples.length === 0) return null;
+  const sorted = [...trendSamples].sort((a, b) => a.date.localeCompare(b.date));
+  const last   = sorted[sorted.length - 1];
+  const delta  = currentCount - last.count;
+  if (delta <= 0) return null;
+  const pct = last.count > 0 ? Math.round(delta / last.count * 100) : null;
+  if (delta < deltaThreshold && (pct === null || pct < pctThreshold)) return null;
+  return { delta, pctChange: pct, prevCount: last.count, prevDate: last.date };
+}

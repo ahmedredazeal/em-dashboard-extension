@@ -14,7 +14,7 @@ import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { runMigrations } from './src/migrations.js';
-import { recordTrendSample } from './src/sentry-trend.js';
+import { recordTrendSample, getTrendSamples } from './src/sentry-trend.js';
 import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } from './src/worklog-aggregator.js';
 
 // Run data migrations on service worker init (idempotent — flagged per migration)
@@ -110,6 +110,26 @@ async function checkDashboard() {
     // Wait for both to finish before running alert rules + badge
     await Promise.allSettled([jiraPromise, sentryPromise]);
     
+    // Enrich state for alert rules: settings (workingDays etc.) and per-view
+    // Sentry trend samples (for day-over-day spike detection).
+    state.settings = settings;
+    state.sentryTrendSamples = {};
+    try {
+      for (const view of (state.sentryViews || [])) {
+        const months = await getTrendSamples(view.viewId, 2);
+        const today = new Date().toISOString().slice(0, 10);
+        const cutoff = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
+        const flat = months
+          .flatMap(m => (m.samples || []).map(s => ({
+            date: `${m.yearMonth}-${String(s.day).padStart(2, '0')}`,
+            count: s.count
+          })))
+          .filter(s => s.date >= cutoff && s.date < today)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        state.sentryTrendSamples[view.viewId] = flat;
+      }
+    } catch (e) { console.warn('[background] sentryTrendSamples read failed:', e.message); }
+
     // Run alert rules over complete state
     const newAlerts = alerts.checkAlerts(state);
     console.log(`[background] ${newAlerts.length} new alerts fired`);
@@ -281,6 +301,8 @@ async function fetchJiraData(settings) {
       committedPoints,
       totalDays,
       daysElapsed,
+      todayIndex: todayCalIdx,
+      scopeByDay,
       stories: normalizedStories
     };
     console.log('[background] Current sprint:', currentSprint.name, `${totalPoints}pt/${totalDays}d`);
