@@ -176,7 +176,10 @@ async function fetchJiraData(settings) {
   } catch (e) {
     console.warn('[background] getCurrentUser failed:', e.message);
   }
-  
+
+  // Squad key — required for all Jira queries
+  const squadKey = settings.squad?.key;
+
   if (!squadKey) {
     throw new Error('Squad project key not configured');
   }

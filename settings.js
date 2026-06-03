@@ -469,7 +469,7 @@ function getTrackedViewIds() {
         },
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',
-        viewScope: settings.viewScope || 'squad'
+        viewScope: settings.viewScope || (settings.role === 'engineer' ? 'me' : 'squad')
       };
       
       await chrome.storage.local.set({ settings: newSettings });

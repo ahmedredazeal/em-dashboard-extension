@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.9.6 (2026-06-04) — Code review: 6 bugs fixed (v1.8.7–v1.9.5 audit)
+
+Full audit of all changes since v1.8.7. Six bugs identified and fixed:
+
+| # | Severity | File | Bug | Introduced |
+|---|----------|------|-----|-----------|
+| 1 | Critical | `background.js` | `const squadKey = settings.squad?.key` was deleted by the Phase 1 `getCurrentUser` insert. Every Jira fetch threw `ReferenceError: squadKey is not defined`, breaking all data loading. | v1.9.2 |
+| 2 | High | `popup.js` | `totalCount` used before declaration inside `memberFilterHtml` template in `renderInsights`. | v1.9.3 (patched v1.9.5) |
+| 3 | Medium | `popup.js` | Engineer "me" timesheet filter: if `state.currentUser` not yet loaded, `ts.filter(m => m.name === undefined)` → empty timesheet silently. Now falls back to full list. | v1.9.3 |
+| 4 | Medium | `popup.js` | Engineer story filter: same null-currentUser issue. `isEngineerMe` now gates on `!!state.currentUser?.accountId`. | v1.9.3 |
+| 5 | Low | `popup.js` | Welcome screen `Continue` saved `settings.role` but not `settings.viewScope`, so a subsequent settings Save could collapse an engineer's scope to 'squad'. | v1.9.2 |
+| 6 | Low | `settings.js` | Save handler used `settings.viewScope \|\| 'squad'` regardless of role. Changed to role-aware default so engineers always default to 'me'. | v1.9.4 |
+
+No logic errors found in: burndown committed-baseline, alert rules, scope pill wiring, 
+parsers (`assigneeAccountId` confirmed present), `todayIndex` propagation to alerts, or 
+extra-board/support-board scoping (correctly excluded from me/squad filter — team charts).
+
+---
+
 ## v1.9.5 (2026-06-04) — Fix: totalCount ReferenceError in renderInsights
 
 **Bug fix:** The Phase 2 refactor left `totalCount` undefined in the member filter template, causing a ReferenceError on every analytics render. Added the missing `const totalCount = discoveredMembers.length` before the filter block.

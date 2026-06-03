@@ -536,7 +536,9 @@ function renderRoleSelectScreen() {
     if (!state.pendingRole) return;
     state.settings        = state.settings || {};
     state.settings.role   = state.pendingRole;
-    state.viewScope       = state.pendingRole === 'engineer' ? 'me' : 'squad';
+    // Persist the default viewScope so settings saves never collapse it to 'squad'
+    state.settings.viewScope = state.pendingRole === 'engineer' ? 'me' : 'squad';
+    state.viewScope          = state.settings.viewScope;
     await chrome.storage.local.set({ settings: state.settings });
 
     if (state.settings?.jira?.token && state.settings?.sentry?.token) {
@@ -610,9 +612,12 @@ function renderInsights() {
   // filteredTs: engineers see their own data in 'me' mode; EM uses the DDL filter.
   const filteredTs = (() => {
     if (state.settings?.role === 'engineer') {
-      return state.viewScope === 'me'
-        ? ts.filter(m => m.name === state.currentUser?.displayName)
-        : ts; // squad = full team, no DDL filter in engineer mode
+      if (state.viewScope === 'me') {
+        // Guard: if currentUser hasn't loaded yet, show all rather than an empty timesheet
+        if (!state.currentUser?.displayName) return ts;
+        return ts.filter(m => m.name === state.currentUser.displayName);
+      }
+      return ts; // squad = full team, no DDL filter in engineer mode
     }
     return monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
   })();
@@ -979,9 +984,10 @@ function renderTodayScreen() {
     // In engineer "me" mode show only the current user's stories;
     // EM mode and engineer squad mode show the full list.
     const isEngineer   = state.settings?.role === 'engineer';
-    const isEngineerMe = isEngineer && state.viewScope === 'me';
+    // Guard: only apply me-filter when currentUser.accountId is loaded, else show all
+    const isEngineerMe = isEngineer && state.viewScope === 'me' && !!state.currentUser?.accountId;
     const displayStories = isEngineerMe
-      ? stories.filter(s => s.assigneeAccountId === state.currentUser?.accountId)
+      ? stories.filter(s => s.assigneeAccountId === state.currentUser.accountId)
       : stories;
 
     // Section title + count (with scope toggle for engineers)

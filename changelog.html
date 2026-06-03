@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v1.9.6</div>
+      <div class="cl-desc">
+        <strong>Code review: 6 bugs fixed (v1.8.7–v1.9.5 audit).</strong>
+        Critical: squadKey deleted by Phase 1 edit (broke all Jira fetching). High: totalCount undefined in analytics render (already patched in v1.9.5). Medium: engineer me-filter threw silently on null currentUser for both stories and timesheet. Low: viewScope not persisted from welcome screen or with role-aware default in settings save.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v1.9.5</div>
       <div class="cl-desc"><strong>Fix: totalCount ReferenceError in analytics render.</strong> Phase 2 restructure left totalCount undefined inside the member filter template. Fixed.</div>
     </div>
