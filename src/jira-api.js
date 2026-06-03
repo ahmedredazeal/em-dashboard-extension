@@ -78,6 +78,19 @@ export class JiraClient {
   }
 
   /**
+   * Fetch the authenticated user's profile (accountId + displayName).
+   * Used to seed the engineer "me" scope for role-based views.
+   */
+  async getCurrentUser() {
+    const data = await this._get('/rest/api/3/myself');
+    return {
+      accountId:    data.accountId    || '',
+      displayName:  data.displayName  || '',
+      emailAddress: data.emailAddress || ''
+    };
+  }
+
+  /**
    * Find the board for a project key
    * Returns the first scrum board found (prefers scrum over kanban)
    * @param {string} projectKey - e.g. 'HRM'

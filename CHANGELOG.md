@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.9.2 (2026-06-03) — Phase 1: role foundation + welcome screen
+
+**New: dual-role support plumbing**
+- First-launch welcome screen — shown automatically when no role is configured.
+  Two clickable role cards (Engineering Manager / Engineer) with descriptions;
+  "Continue →" saves the role and navigates appropriately (credentials already
+  set → dashboard, new user → Settings).
+- `settings.role` stored in local settings; `state.viewScope` derived from it
+  (`'me'` for Engineer, `'squad'` for EM) — ready for Phase 2 filters.
+- Role pill toggle added to the top of Settings so the user can switch roles
+  at any time without going through the welcome screen again.
+- `JiraClient.getCurrentUser()` — fetches `/rest/api/3/myself`; stores
+  `{ accountId, displayName, emailAddress }` in local storage as `currentUser`
+  and in `state.currentUser`. Used in Phase 2 for the engineer "me" scope.
+
+---
+
 ## v1.9.1 (2026-06-03) — Phase 2 alerts: 9 rules, all grounded in real data
 
 **New & enhanced alert rules:**

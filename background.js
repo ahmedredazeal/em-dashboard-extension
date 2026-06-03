@@ -95,6 +95,10 @@ async function checkDashboard() {
         state.currentSprint   = data.currentSprint   || null;
         state.supportTickets  = data.supportTickets  || [];
         state.extraBoardsData = data.extraBoardsData || [];
+        if (data.currentUser) {
+          state.currentUser = data.currentUser;
+          await chrome.storage.local.set({ currentUser: data.currentUser });
+        }
         await saveAndNotify('jira');
       })
       .catch(err => console.error('[background] Jira fetch failed:', err.message));
@@ -163,8 +167,15 @@ async function fetchJiraData(settings) {
     settings.jira.email,
     settings.jira.token
   );
-  
-  const squadKey = settings.squad?.key;
+
+  // Fetch current user early — needed for engineer "me" scope
+  let currentUser = null;
+  try {
+    currentUser = await client.getCurrentUser();
+    console.log(`[background] Current user: ${currentUser.displayName} (${currentUser.accountId})`);
+  } catch (e) {
+    console.warn('[background] getCurrentUser failed:', e.message);
+  }
   
   if (!squadKey) {
     throw new Error('Squad project key not configured');
@@ -554,7 +565,7 @@ async function fetchJiraData(settings) {
   }
   
   console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
-  return { sprintHistory, currentSprint, supportTickets, extraBoardsData };
+  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, currentUser };
 }
 
 /**

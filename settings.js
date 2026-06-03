@@ -207,6 +207,34 @@ function getTrackedViewIds() {
     document.getElementById('jira-email').value = settings.jira.email || '';
     document.getElementById('jira-token').value = settings.jira.token || '';
   }
+
+  // ── Role toggle ─────────────────────────────────────────────────────
+  const roleHints = {
+    em:       'Full squad view — team timesheet, burndown and alerts for everyone.',
+    engineer: 'Personal view by default. Squad context available on demand.'
+  };
+  function setRolePill(role) {
+    ['em', 'eng'].forEach(id => {
+      const btn = document.getElementById(`role-pill-${id}`);
+      if (!btn) return;
+      const btnRole = btn.dataset.role;
+      btn.classList.toggle('active', btnRole === role);
+    });
+    const hint = document.getElementById('role-hint');
+    if (hint) hint.textContent = roleHints[role] || '';
+  }
+  setRolePill(settings.role || '');
+
+  document.querySelectorAll('.role-pill').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const role = btn.dataset.role;
+      settings.role = role;
+      setRolePill(role);
+      await chrome.storage.local.set({ settings });
+      const hint = document.getElementById('role-hint');
+      if (hint) { hint.textContent = '✓ Saved'; setTimeout(() => setRolePill(role), 1200); }
+    });
+  });
   
   if (settings.sentry) {
     document.getElementById('sentry-url').value = settings.sentry.baseUrl || 'https://zeal.sentry.io';

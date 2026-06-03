@@ -52,6 +52,13 @@ async function boot() {
   state.settings = result.settings || {};
   state.alerts = result.alerts || [];
   
+  // First launch: show role-selection screen if no role has been chosen yet.
+  // This comes BEFORE the credentials check so new users pick their role first.
+  if (!state.settings.role) {
+    showScreen('role-select');
+    return;
+  }
+
   // Check if credentials are configured
   if (!state.settings.jira?.token || !state.settings.sentry?.token) {
     showScreen('auth');
@@ -147,7 +154,7 @@ async function loadData() {
   try {
     const cacheResult = await chrome.storage.local.get([
       'settings', 'sprintHistory', 'currentSprint', 'sentryIssues',
-      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData'
+      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData', 'currentUser'
     ]);
     
     // Always refresh settings so squad.extraBoards reflects latest save
@@ -160,6 +167,10 @@ async function loadData() {
     state.supportTickets   = cacheResult.supportTickets   || [];
     state.alerts           = cacheResult.alerts           || [];
     state.extraBoardsData  = cacheResult.extraBoardsData  || [];
+    state.currentUser      = cacheResult.currentUser      || null;
+
+    // Derive view scope from role (Phase 2 will expose a toggle to override)
+    state.viewScope = state.settings?.role === 'engineer' ? 'me' : 'squad';
     
     // Load sprint analytics from separate cache key
     if (state.currentSprint?.name) {
@@ -313,7 +324,7 @@ function updateContextBar(screenId) {
   const countdown = document.getElementById('refresh-countdown');
   if (countdown) countdown.style.display = 'none';
   
-  if (screenId === 'auth') {
+  if (screenId === 'auth' || screenId === 'role-select') {
     // No context bar for auth
     return;
   }
@@ -437,6 +448,9 @@ function renderScreen(screenId) {
     case 'auth':
       // Static content, no render needed
       break;
+    case 'role-select':
+      renderRoleSelectScreen();
+      break;
     case 'today':
       renderTodayScreen();
       break;
@@ -459,7 +473,83 @@ function renderCurrentScreen() {
 }
 
 /**
- * Render sprint analytics section (burndown + timesheet charts).
+ * Render the first-launch role-selection screen.
+ * Shown once when settings.role is not yet set.
+ */
+function renderRoleSelectScreen() {
+  const body = document.getElementById('role-select-body');
+  if (!body) return;
+
+  const sel = state.pendingRole || '';
+  const roleCards = [
+    {
+      role: 'em',
+      icon: '👔',
+      title: 'Engineering Manager',
+      desc: 'Full squad view — burndown, team timesheet, sprint health and alerts for everyone.'
+    },
+    {
+      role: 'engineer',
+      icon: '💻',
+      title: 'Engineer',
+      desc: 'Your assignments by default. Switch to squad view when you need the big picture.'
+    }
+  ];
+
+  body.innerHTML = `
+    <div style="text-align:center;padding:24px 0 20px;">
+      <span class="theme-logo theme-logo-40" style="margin-bottom:14px;display:inline-block;">
+        <img class="logo-light" src="icons/cap-color.png" alt="EM Dashboard" style="width:40px;height:40px;">
+        <img class="logo-dark"  src="icons/cap-white.png" alt="" style="width:40px;height:40px;">
+      </span>
+      <h2 style="font-size:16px;font-weight:600;margin:0 0 6px;">How are you using this?</h2>
+      <p style="font-size:12px;color:var(--text-muted);margin:0;">Sets your default view — change it anytime in Settings.</p>
+    </div>
+    <div class="role-cards">
+      ${roleCards.map(c => `
+        <button class="role-card ${sel === c.role ? 'selected' : ''}" data-role="${c.role}">
+          <span class="role-card-icon">${c.icon}</span>
+          <span class="role-card-title">${c.title}</span>
+          <span class="role-card-desc">${c.desc}</span>
+        </button>
+      `).join('')}
+    </div>
+    <button id="role-continue-btn" class="btn-primary"
+      style="width:100%;margin-top:16px;opacity:${sel ? '1' : '0.45'};pointer-events:${sel ? 'auto' : 'none'};">
+      ${state.settings?.jira?.token ? 'Continue →' : 'Go to Settings →'}
+    </button>
+  `;
+
+  // Role card selection
+  body.querySelectorAll('.role-card').forEach(card => {
+    card.addEventListener('click', () => {
+      state.pendingRole = card.dataset.role;
+      renderRoleSelectScreen();
+    });
+  });
+
+  // Continue / Go to Settings
+  document.getElementById('role-continue-btn')?.addEventListener('click', async () => {
+    if (!state.pendingRole) return;
+    state.settings        = state.settings || {};
+    state.settings.role   = state.pendingRole;
+    state.viewScope       = state.pendingRole === 'engineer' ? 'me' : 'squad';
+    await chrome.storage.local.set({ settings: state.settings });
+
+    if (state.settings?.jira?.token && state.settings?.sentry?.token) {
+      // Credentials already set — go straight to the dashboard
+      await loadData();
+      showScreen('today');
+      refreshDashboard();
+    } else {
+      // New user — open settings to complete setup
+      chrome.runtime.openOptionsPage();
+    }
+  });
+}
+
+
+/**
  * Called from renderTodayScreen after the sprint section renders.
  */
 // ── Insights section rendering ────────────────────────────────────────
