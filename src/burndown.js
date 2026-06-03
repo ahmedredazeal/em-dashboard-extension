@@ -86,60 +86,85 @@ function remainingByDay(totalPoints, totalDays, closeDays) {
  */
 export function computeBurndownSeries(sprint, stories) {
   const { startDate, totalDays = 14, totalPoints = 0 } = sprint;
+  // committedPoints = the scope at sprint kickoff (may differ from the live
+  // sum of story points when estimates are edited or stories added mid-sprint).
+  // Fall back to totalPoints so callers that haven't been updated yet still work.
+  const committedPoints = sprint.committedPoints || totalPoints;
+  // scopeByDay: { [day]: { added, removed, estimateDelta } } — scope changes by day
+  const scopeByDay = sprint.scopeByDay || {};
 
-  // todayIndex = how far the "actual" line should extend (Jira draws remaining
-  // work only up to now, not across future days). Prefer an explicit 0-based
-  // todayIndex (which must use the SAME calendar-day flooring as closedDay, so
-  // today's closures land on today's point). Fall back to daysElapsed, then to
-  // totalDays (full width) for callers/tests that don't supply either.
   const _td = totalDays || 14;
   const _rawToday = (typeof sprint.todayIndex === 'number')
     ? sprint.todayIndex
     : (typeof sprint.daysElapsed === 'number') ? sprint.daysElapsed : _td;
   const todayIndex = Math.max(0, Math.min(_rawToday, _td));
 
-  if (!totalPoints || !totalDays) {
-    const empty = new Array((totalDays || 14) + 1).fill(totalPoints || 0);
+  if (!committedPoints && !totalPoints || !totalDays) {
+    const empty = new Array((totalDays || 14) + 1).fill(committedPoints || 0);
     return {
       ideal: empty, estimate: empty, actual: empty,
       labels: sprintDayLabels(startDate, totalDays || 14),
-      totalPoints: totalPoints || 0, totalDays: totalDays || 14,
-      todayIndex,
-      hasActualData: false
+      totalPoints: totalPoints || 0, committedPoints: committedPoints || 0,
+      totalDays: totalDays || 14, todayIndex, hasActualData: false, perDayData: []
     };
   }
 
   // ── Ideal ──────────────────────────────────────────────────────────
-  // Uniform burn: totalPoints/totalDays per day
-  const dailyIdeal = totalPoints / totalDays;
+  // Guideline anchored to committedPoints (the sprint's agreed scope),
+  // not the live total — so it never shifts when estimates change.
+  const dailyIdeal = committedPoints / totalDays;
   const ideal = Array.from({ length: totalDays + 1 }, (_, d) =>
-    Math.max(0, Math.round((totalPoints - dailyIdeal * d) * 10) / 10)
+    Math.max(0, Math.round((committedPoints - dailyIdeal * d) * 10) / 10)
   );
 
-  // ── Estimate ───────────────────────────────────────────────────────
-  // Expand each story into (points) burn events on its due day
+  // ── Estimate (by due date) ──────────────────────────────────────────
   const estimateCloseDays = [];
   for (const s of stories) {
     if (!s.dueDate || !s.points) continue;
     const dDay = dayIndex(s.dueDate, startDate);
     for (let p = 0; p < s.points; p++) estimateCloseDays.push(dDay);
   }
-  // Stories without due dates contribute to the residual (never burned)
   const estimateTotal = stories.filter(s => s.dueDate && s.points).reduce((a, s) => a + s.points, 0);
-  const estimateNoDate = totalPoints - estimateTotal; // points with no due date
+  const estimateNoDate = totalPoints - estimateTotal;
   const estimateRaw = remainingByDay(estimateTotal, totalDays, estimateCloseDays);
   const estimate = estimateRaw.map(r => r + estimateNoDate);
 
-  // ── Actual ─────────────────────────────────────────────────────────
-  const actualCloseDays = [];
+  // ── Actual — with scope-change steps ───────────────────────────────
+  // Build per-day completion and scope deltas.
+  const burnPerDay = new Array(_td + 1).fill(0);
   for (const s of stories) {
     if (s.closedDay === null || s.closedDay === undefined || !s.points) continue;
-    for (let p = 0; p < s.points; p++) actualCloseDays.push(s.closedDay);
+    const d = Math.max(0, Math.min(s.closedDay, _td));
+    burnPerDay[d] += s.points;
   }
   const actualClosed = stories
     .filter(s => s.closedDay !== null && s.closedDay !== undefined)
-    .reduce((a, s) => a + s.points, 0);
-  const actual = remainingByDay(totalPoints, totalDays, actualCloseDays);
+    .reduce((a, s) => a + (s.points || 0), 0);
+
+  // Net scope change per day (positive = scope grew, negative = scope shrank)
+  const scopeNetPerDay = new Array(_td + 1).fill(0);
+  let hasScopeChanges = false;
+  for (const [dayStr, sc] of Object.entries(scopeByDay)) {
+    const d = Math.max(0, Math.min(Number(dayStr), _td));
+    const net = (sc.added || 0) - (sc.removed || 0) + (sc.estimateDelta || 0);
+    if (net !== 0) { scopeNetPerDay[d] += net; hasScopeChanges = true; }
+  }
+
+  // Remaining starts at committedPoints and steps down for completions,
+  // up/down for scope changes (both are visible on the chart).
+  const actual = new Array(_td + 1);
+  actual[0] = committedPoints - burnPerDay[0] + scopeNetPerDay[0];
+  for (let i = 1; i <= _td; i++) {
+    actual[i] = Math.max(0, actual[i - 1] - burnPerDay[i] + scopeNetPerDay[i]);
+  }
+
+  // Per-day detail for hover tooltips and segment colouring.
+  const perDayData = Array.from({ length: _td + 1 }, (_, d) => ({
+    day: d,
+    remaining: actual[d],
+    completedDelta: burnPerDay[d],
+    scopeNet: scopeNetPerDay[d]  // >0 added, <0 removed/reduced
+  }));
 
   return {
     ideal,
@@ -147,8 +172,10 @@ export function computeBurndownSeries(sprint, stories) {
     actual,
     labels: sprintDayLabels(startDate, totalDays),
     totalPoints,
+    committedPoints,
     totalDays,
     todayIndex,
-    hasActualData: actualClosed > 0
+    hasActualData: actualClosed > 0 || hasScopeChanges,
+    perDayData
   };
 }

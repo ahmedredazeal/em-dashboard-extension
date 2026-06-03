@@ -509,14 +509,17 @@ function renderInsights() {
   // ── Member filter — ONE popover, two trigger buttons ─────────────────
   // Rendering memberFilterHtml in two cards creates duplicate IDs (same string).
   // Fix: full popover in TIME LOGGED, a trigger-only button in ESTIMATE.
-  const filteredCount = filteredTs.length;
-  const totalCount    = discoveredMembers.length;
+  // filteredCount = how many members are selected in the filter (not how many
+  // have timesheet rows). If no filter is active (monitored === null) show the
+  // total; the user sees "all 14 members included."
+  const filteredCount = (monitored?.length > 0) ? monitored.length : totalCount;
+  const filterActive  = monitored?.length > 0;
 
   const memberFilterHtml = discoveredMembers.length > 0 ? `
     <div style="position:relative;display:inline-block;">
       <button id="member-filter-btn" title="Filter team members"
-        style="background:none;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:4px;padding:2px 6px;color:var(--text-muted);font-size:11px;cursor:pointer;line-height:1.4;">
-        👥 ${filteredCount}/${totalCount}
+        style="background:none;border:1px solid ${filterActive ? 'var(--primary,#6366f1)' : 'var(--border,rgba(255,255,255,0.1))'};border-radius:4px;padding:2px 6px;color:${filterActive ? 'var(--primary,#6366f1)' : 'var(--text-muted)'};font-size:11px;cursor:pointer;line-height:1.4;">
+        👥 ${filteredCount}/${totalCount}${filterActive ? ' ●' : ''}
       </button>
       <div id="member-filter-popover"
         style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:99;
@@ -762,17 +765,17 @@ function renderInsights() {
       e.stopPropagation();
       const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked'))
         .map(cb => cb.dataset.name);
+      const totalCbs = document.querySelectorAll('.member-filter-cb').length;
 
-      // Mutate state.settings directly rather than round-tripping through storage.
-      // Reading from storage first can return a stale snapshot if a partial-update
-      // just updated state.settings in memory without flushing. Overwriting
-      // state.settings = storedValue then loses those in-memory changes, so the
-      // filter appears to have no effect on the next renderInsights() call.
+      // null = "show all" — store null rather than a full-length array so the
+      // filter is correctly considered inactive (fixes badge showing wrong count
+      // and subtle "applied something unexpected" behaviour on re-open).
+      const newMonitored = (selected.length === 0 || selected.length >= totalCbs)
+        ? null : selected;
       state.settings = state.settings || {};
       state.settings.analytics = {
         ...(state.settings.analytics || {}),
-        // null = show all; non-empty array = apply filter
-        monitoredMembers: selected.length > 0 ? selected : null
+        monitoredMembers: newMonitored
       };
       await chrome.storage.local.set({ settings: state.settings });
 
@@ -853,7 +856,7 @@ function renderTodayScreen() {
     const onTrack = prediction.onTrack;
     
     // Headline shows just sprint name + points + day; risk goes into the mini bar pills
-    let topLine = `${sp.name} · ${sp.completedPoints}/${sp.totalPoints}pt · Day ${sp.daysElapsed}/${sp.totalDays}`;
+    let topLine = `${sp.name} · ${sp.completedPoints}/${sp.committedPoints || sp.totalPoints}pt · Day ${sp.daysElapsed}/${sp.totalDays}`;
     
     let riskText = '';
     if (prediction.risk === 'early') {
@@ -1315,16 +1318,16 @@ function buildSprintProgressBar(stories) {
   if (!stories || stories.length === 0) return '';
   
   const totalPoints = stories.reduce((s, t) => s + (t.points || 0), 0);
-  const usePoints   = totalPoints > 0;
+  // Use the committed baseline as the denominator (matches Jira burndown total).
+  const committedPts = state.currentSprint?.committedPoints || totalPoints;
+  const usePoints   = committedPts > 0;
   
   let donePts, inProgPts, openPts, total;
   if (usePoints) {
     donePts   = stories.filter(s => s.statusCategory === 'done').reduce((sum,s) => sum + (s.points||0), 0);
     inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').reduce((sum,s) => sum + (s.points||0), 0);
-    openPts   = totalPoints - donePts - inProgPts;
-    total     = totalPoints;
-  } else {
-    donePts   = stories.filter(s => s.statusCategory === 'done').length;
+    openPts   = committedPts - donePts - inProgPts;
+    total     = committedPts;
     inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').length;
     openPts   = stories.length - donePts - inProgPts;
     total     = stories.length;
@@ -1766,9 +1769,14 @@ function _niceStep(max, steps=4) {
 function buildBurndownSVG(bd) {
   const W=320, H=150, PAD={top:10,right:16,bottom:38,left:36};
   const PW=W-PAD.left-PAD.right, PH=H-PAD.top-PAD.bottom;
-  const { ideal, estimate, actual, labels, totalPoints, totalDays, hasActualData, todayIndex } = bd;
-  const step = _niceStep(totalPoints, 4);
-  const yMax = Math.ceil(totalPoints / step) * step || 1;
+  const { ideal, estimate, actual, labels, totalPoints, committedPoints: bdCommitted,
+          totalDays, hasActualData, todayIndex, perDayData = [] } = bd;
+  // yMax is based on the committed baseline so the guideline always fits;
+  // also accommodate actual peaks from scope additions.
+  const peakVal = Math.max(bdCommitted || totalPoints,
+    ...actual.slice(0, Math.min((todayIndex ?? actual.length - 1) + 1, actual.length)));
+  const step = _niceStep(peakVal, 4);
+  const yMax = Math.ceil(peakVal / step) * step || 1;
   const px = d => PAD.left + (d/totalDays)*PW;
   const py = v => PAD.top + PH - (Math.max(0,v)/yMax)*PH;
   const poly = (arr,col,dash='') => {
@@ -1790,10 +1798,15 @@ function buildBurndownSVG(bd) {
   const ly=H-8;
   const legend=`
     <line x1="${PAD.left}" y1="${ly}" x2="${PAD.left+14}" y2="${ly}" stroke="${_C.ideal}" stroke-width="2" stroke-dasharray="4 2"/>
-    <text x="${PAD.left+18}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Ideal</text>
-    <line x1="${PAD.left+52}" y1="${ly}" x2="${PAD.left+66}" y2="${ly}" stroke="${_C.estimate}" stroke-width="2"/>
-    <text x="${PAD.left+70}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">By due date</text>
-    ${hasActualData ? `<line x1="${PAD.left+140}" y1="${ly}" x2="${PAD.left+154}" y2="${ly}" stroke="${_C.actual}" stroke-width="2"/><text x="${PAD.left+158}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Actual</text>` : `<text x="${PAD.left+140}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" opacity="0.5">Actual: no data yet</text>`}`;
+    <text x="${PAD.left+18}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Committed</text>
+    <line x1="${PAD.left+82}" y1="${ly}" x2="${PAD.left+96}" y2="${ly}" stroke="${_C.estimate}" stroke-width="2"/>
+    <text x="${PAD.left+100}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">By due date</text>
+    ${hasActualData ? `
+    <line x1="${PAD.left+172}" y1="${ly}" x2="${PAD.left+186}" y2="${ly}" stroke="#639922" stroke-width="2"/>
+    <text x="${PAD.left+190}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">Done</text>
+    <line x1="${PAD.left+220}" y1="${ly}" x2="${PAD.left+234}" y2="${ly}" stroke="#BA7517" stroke-width="2"/>
+    <text x="${PAD.left+238}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="10" font-family="system-ui">+Scope</text>
+    ` : `<text x="${PAD.left+172}" y="${ly}" dominant-baseline="central" fill="${_C.text}" font-size="9" opacity="0.5">Remaining: no data yet</text>`}`;
   // Actual line — drawn ONLY up to today (Jira-style: remaining work stops at
   // "now"; future days show just the guideline/estimate). Without this the
   // actual line runs flat across the whole sprint and looks like a straight line.
@@ -1801,29 +1814,41 @@ function buildBurndownSVG(bd) {
   if (hasActualData) {
     const ti = (typeof todayIndex === 'number') ? Math.max(0, Math.min(todayIndex, totalDays)) : totalDays;
     const actualToToday = actual.slice(0, ti + 1);
-    if (actualToToday.length >= 2) actualSvg += poly(actualToToday, _C.actual);
+    // Segment colours encode the cause of each day's change:
+    //  green  — work completed (the classic burn)
+    //  amber  — scope added mid-sprint (remaining steps up)
+    //  blue dashed — scope removed or estimate reduced (remaining drops for non-work reasons)
+    const SEG = { done: '#639922', add: '#BA7517', remove: '#378ADD' };
+    for (let d = 1; d <= ti; d++) {
+      const pd = perDayData[d] || {};
+      const sNet = pd.scopeNet || 0;
+      let col = SEG.done, dash = '';
+      if (sNet > 0)                           { col = SEG.add; }
+      else if (sNet < 0 && !pd.completedDelta){ col = SEG.remove; dash = '5 3'; }
+      actualSvg += `<polyline points="${px(d-1).toFixed(1)},${py(actual[d-1]).toFixed(1)} ${px(d).toFixed(1)},${py(actual[d]).toFixed(1)}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+    }
     // Dot at today's remaining — visible even when only day 0 exists
     const lastV = actualToToday[actualToToday.length - 1];
-    actualSvg += `<circle cx="${px(ti).toFixed(1)}" cy="${py(lastV).toFixed(1)}" r="2.5" fill="${_C.actual}"/>`;
-    // Invisible hover targets on each day's remaining-work point. Each carries
-    // the date and that day's change in remaining work (Jira-style tooltip:
-    // "N points removed" / "N points added" / "No change").
+    actualSvg += `<circle cx="${px(ti).toFixed(1)}" cy="${py(lastV).toFixed(1)}" r="2.5" fill="${SEG.done}"/>`;
+    // Invisible hover targets with date, completed, and scope info
     const _fmtPts = n => { const a = Math.abs(n); return Number.isInteger(a) ? `${a}` : a.toFixed(1); };
     for (let d = 0; d <= ti; d++) {
       const v = actual[d];
       const dateLbl = (labels && labels[d]) ? labels[d].replace(/\s(\d{4})$/, ', $1') : `Day ${d}`;
-      let change;
+      const pd = perDayData[d] || {};
+      // Line 1: date. Line 2: change summary (one or more causes).
+      let parts = [];
       if (d === 0) {
-        change = `${_fmtPts(v)} ${_fmtPts(v) === '1' ? 'point' : 'points'} to go`;
+        parts.push(`${_fmtPts(v)} ${v === 1 ? 'point' : 'points'} committed`);
       } else {
-        const delta = actual[d - 1] - v; // positive = work removed/completed
-        if (Math.abs(delta) < 1e-9) change = 'No change';
-        else {
-          const noun = _fmtPts(delta) === '1' ? 'point' : 'points';
-          change = delta > 0 ? `${_fmtPts(delta)} ${noun} removed` : `${_fmtPts(delta)} ${noun} added`;
-        }
+        const comp = pd.completedDelta || 0;
+        const sNet = pd.scopeNet || 0;
+        if (comp > 0) parts.push(`${_fmtPts(comp)} ${comp === 1 ? 'point' : 'points'} removed`);
+        if (sNet > 0) parts.push(`+${_fmtPts(sNet)} scope added`);
+        if (sNet < 0) parts.push(`${_fmtPts(Math.abs(sNet))} pts scope reduced`);
+        if (parts.length === 0) parts.push('No change');
       }
-      actualHit += `<circle class="bd-point" cx="${px(d).toFixed(1)}" cy="${py(v).toFixed(1)}" r="6" data-date="${dateLbl}" data-change="${change}"/>`;
+      actualHit += `<circle class="bd-point" cx="${px(d).toFixed(1)}" cy="${py(v).toFixed(1)}" r="6" data-date="${dateLbl}" data-change="${parts.join(' · ')}"/>`;
     }
   }
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">

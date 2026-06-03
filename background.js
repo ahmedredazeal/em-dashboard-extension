@@ -9,7 +9,7 @@ import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone } from './src/parsers.js';
-import { attachCloseTimestamps, dayIndex } from './src/changelog-parser.js';
+import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, wasAddedAfterSprintStart } from './src/changelog-parser.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
@@ -212,6 +212,49 @@ async function fetchJiraData(settings) {
     });
     
     console.log(`[background] Stories with close dates: ${normalizedStories.filter(s=>s.closedAt).length}/${normalizedStories.length}`);
+
+    // ── Committed baseline + scope changes ────────────────────────────
+    // Reconstruct the sprint-start committed scope from changelogs so the
+    // burndown matches Jira: estimate changes and mid-sprint additions are shown
+    // as scope-change steps rather than silently rebasing the guideline.
+    let committedPoints = 0;
+    const scopeByDay = {}; // { [dayIndex]: { added, removed, estimateDelta } }
+    const addScope = (day, field, pts) => {
+      const d = Math.max(0, Math.min(day, totalDays));
+      if (!scopeByDay[d]) scopeByDay[d] = { added: 0, removed: 0, estimateDelta: 0 };
+      scopeByDay[d][field] += pts;
+    };
+
+    for (let i = 0; i < normalizedStories.length; i++) {
+      const story = normalizedStories[i];
+      const raw   = stories[i];
+      const currentPts = story.points || 0;
+
+      // Was this issue added to the sprint after it started?
+      if (wasAddedAfterSprintStart(raw, activeSprint.startDate, activeSprint.id)) {
+        if (currentPts > 0) {
+          // Scope addition: contributes to the per-day step, not the baseline.
+          // Attribute to day 0 if we can't find the exact add day (rare).
+          const { changeDayAfterStart } = estimateAtSprintStart(raw, activeSprint.startDate, storyPointsField);
+          addScope(changeDayAfterStart ?? 0, 'added', currentPts);
+        }
+        continue; // not part of the committed baseline
+      }
+
+      // Sprint-start estimate (or current if no estimate changes after start).
+      const { startEst, changeDayAfterStart } = estimateAtSprintStart(raw, activeSprint.startDate, storyPointsField);
+      const baselinePts = startEst !== null ? startEst : currentPts;
+      committedPoints += baselinePts;
+
+      // Estimate was changed mid-sprint → treat as a scope change on that day.
+      if (startEst !== null && currentPts !== startEst) {
+        const delta = currentPts - startEst;
+        addScope(changeDayAfterStart ?? 0, 'estimateDelta', delta);
+      }
+    }
+
+    // Safety: fall back to live total if reconstruction produced 0 (e.g. no changelog).
+    if (committedPoints === 0) committedPoints = totalPoints;
     
     const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
     const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
@@ -235,6 +278,7 @@ async function fetchJiraData(settings) {
       completedStories: completedStories.length,
       totalPoints,
       completedPoints,
+      committedPoints,
       totalDays,
       daysElapsed,
       stories: normalizedStories
@@ -248,7 +292,7 @@ async function fetchJiraData(settings) {
       // Burndown — todayIndex is the calendar-date index of "now" (same basis
       // as each ticket's closedDay), so today's closures land on today's point.
       const burndown = computeBurndownSeries(
-        { startDate: activeSprint.startDate, totalDays, totalPoints, daysElapsed, todayIndex: todayCalIdx },
+        { startDate: activeSprint.startDate, totalDays, totalPoints, committedPoints, scopeByDay, daysElapsed, todayIndex: todayCalIdx },
         normalizedStories
       );
       

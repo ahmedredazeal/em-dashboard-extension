@@ -4,7 +4,7 @@
  * Tests for src/changelog-parser.js and src/burndown.js
  */
 
-import { isDoneStatus, transitionToDoneTimestamp, dayIndex, attachCloseTimestamps } from '../src/changelog-parser.js';
+import { isDoneStatus, transitionToDoneTimestamp, dayIndex, attachCloseTimestamps, estimateAtSprintStart, wasAddedAfterSprintStart } from '../src/changelog-parser.js';
 import { computeBurndownSeries, sprintDayLabels } from '../src/burndown.js';
 
 let pass = 0, fail = 0;
@@ -192,6 +192,51 @@ const resultNoDue = computeBurndownSeries(sprintNoDue, storiesNoDue);
 test('no due dates: estimate stays flat at total', () =>
   assertEqual(resultNoDue.estimate.every(v => v === 10), true)
 );
+
+// ── estimateAtSprintStart ─────────────────────────────────────────────────────
+console.log('\nestimateAtSprintStart');
+const spStart65 = '2026-06-01T13:41:45.553Z';
+const issNoEstChange = { changelog: { histories: [
+  { created: '2026-06-02T10:00:00', items: [{ field: 'status', toString: 'Closed' }] }
+]}};
+const issEstChanged = { changelog: { histories: [
+  { created: '2026-06-02T09:00:00', items: [{ fieldId: 'customfield_10039', field: 'Story point estimate', from: '5', fromString: '5', to: '2', toString: '2' }] }
+]}};
+const issEstBeforeStart = { changelog: { histories: [
+  { created: '2026-05-30T09:00:00', items: [{ fieldId: 'customfield_10039', field: 'Story point estimate', from: '3', fromString: '3', to: '2', toString: '2' }] }
+]}};
+test('no estimate change after start => startEst null', () => assertEqual(estimateAtSprintStart(issNoEstChange, spStart65, 'customfield_10039').startEst, null));
+test('estimate changed after start => startEst = from value', () => assertEqual(estimateAtSprintStart(issEstChanged, spStart65, 'customfield_10039').startEst, 5));
+// changeDayAfterStart is a dayIndex() result — tz-robustness tested via dayIndex tests.
+test('estimate changed before start => startEst null', () => assertEqual(estimateAtSprintStart(issEstBeforeStart, spStart65, 'customfield_10039').startEst, null));
+
+// ── wasAddedAfterSprintStart ──────────────────────────────────────────────────
+console.log('\nwasAddedAfterSprintStart');
+const issAddedAfter = { changelog: { histories: [
+  { created: '2026-06-03T10:00:00', items: [{ field: 'Sprint', from: null, to: '2347' }] }
+]}};
+const issFromStart = { changelog: { histories: [
+  { created: '2026-06-01T09:00:00Z', items: [{ field: 'Sprint', from: null, to: '2347' }] }  // 09:00Z < 13:41Z start
+]}};
+test('added after start => true', () => assertEqual(wasAddedAfterSprintStart(issAddedAfter, spStart65, 2347), true));
+test('added at/before start => false', () => assertEqual(wasAddedAfterSprintStart(issFromStart, spStart65, 2347), false));
+
+// ── computeBurndownSeries with committedPoints + scopeByDay ───────────────────
+console.log('\ncommitted baseline');
+const sprintC = { startDate: '2026-06-01T12:00:00', totalDays: 6, totalPoints: 44, committedPoints: 47, todayIndex: 3, scopeByDay: { 2: { added: 0, removed: 0, estimateDelta: -3 } } };
+const storiesC = [{ points: 4, dueDate: null, closedDay: 1 }, { points: 2, dueDate: null, closedDay: 2 }, { points: 38, dueDate: null, closedDay: null }];
+const resC = computeBurndownSeries(sprintC, storiesC);
+test('committed: ideal[0] = committedPoints', () => assertEqual(resC.ideal[0], 47));
+test('committed: actual[0] = committedPoints', () => assertEqual(resC.actual[0], 47));
+test('committed: actual[1] = 43 (4 pts done)', () => assertEqual(resC.actual[1], 43));
+test('committed: actual[2] = 38 (2 done + −3 scope)', () => assertEqual(resC.actual[2], 38));
+test('committed: perDayData[2].scopeNet = −3', () => assertEqual(resC.perDayData[2].scopeNet, -3));
+test('committed: perDayData[1].completedDelta = 4', () => assertEqual(resC.perDayData[1].completedDelta, 4));
+test('committed: returned committedPoints = 47', () => assertEqual(resC.committedPoints, 47));
+test('committed: falls back to totalPoints when committedPoints = 0', () => {
+  const r = computeBurndownSeries({ startDate: '2026-06-01T12:00:00', totalDays: 5, totalPoints: 30 }, storiesC);
+  assertEqual(r.committedPoints, 30);
+});
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail > 0 ? 1 : 0);

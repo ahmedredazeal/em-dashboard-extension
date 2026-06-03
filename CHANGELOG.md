@@ -1,5 +1,34 @@
 # Changelog
 
+## v1.9.0 (2026-06-03) — Committed baseline burndown + engineers filter fix
+
+**Burndown: committed baseline (matches Jira)**
+- The burndown now anchors its guideline to the **sprint-start committed scope**
+  instead of the live current total. Points are reconstructed from each issue's
+  changelog, so estimate edits and mid-sprint additions appear as scope-change
+  steps rather than silently rebasing the chart.
+- Remaining-work line segments are colour-coded: green = work completed,
+  amber = scope added mid-sprint, blue dashed = scope removed or estimate reduced.
+- Hover tooltips now include scope info when relevant, e.g.
+  "Jun 3 · 2 points removed · +6 scope added".
+- Sprint header and progress bar denominator both use the committed baseline so
+  every surface agrees with Jira (e.g. 47 pts, not the live 44).
+- Legend updated: "Committed", "Done", "+Scope".
+
+**Engineers filter fix**
+- The 👥 badge now shows how many members are **selected** (e.g. 8/14) instead
+  of how many of those selected have timesheet rows (which could show 3/14 for
+  an 8-member selection and was very confusing).
+- Selecting all members and clicking Apply now correctly stores null ("show all")
+  instead of a full-name array, preventing the filter from looking active when
+  it isn't.
+- The filter button highlights in primary colour when a filter is active.
+
+**Tests:** +13 new (estimateAtSprintStart, wasAddedAfterSprintStart, committed
+baseline series); 63 total, all timezone-safe.
+
+---
+
 ## v1.8.7 (2026-06-02) — Fix: burndown day-bucketing for mid-afternoon sprint starts
 
 **Bug fix (root cause of "today shows no change"):**

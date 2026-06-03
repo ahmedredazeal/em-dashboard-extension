@@ -93,6 +93,74 @@ export function dayIndex(timestamp, sprintStartDate) {
  * @param {string} sprintStartDate
  * @returns {Array} Augmented stories with closedAt + closedDay
  */
+/**
+ * Returns the story-point estimate an issue had at sprint start by replaying
+ * changelog changes for the estimate field. If the estimate was never changed
+ * after sprint start, returns null (current value = start value).
+ *
+ * @param {Object} rawIssue          - Raw Jira issue with changelog.histories
+ * @param {string} sprintStartDate   - ISO datetime of sprint start
+ * @param {string} estimateFieldId   - e.g. 'customfield_10039'
+ * @returns {{ startEst: number|null, changeDayAfterStart: number|null }}
+ */
+export function estimateAtSprintStart(rawIssue, sprintStartDate, estimateFieldId) {
+  const histories = rawIssue?.changelog?.histories;
+  if (!Array.isArray(histories) || histories.length === 0) {
+    return { startEst: null, changeDayAfterStart: null };
+  }
+  const startMs = new Date(sprintStartDate).getTime();
+  let earliest = null; // { created, from, fromString }
+  for (const h of histories) {
+    const t = new Date(h.created).getTime();
+    if (t <= startMs || !Array.isArray(h.items)) continue;
+    for (const item of h.items) {
+      if (item.fieldId === estimateFieldId || item.field === 'Story point estimate') {
+        if (!earliest || t < new Date(earliest.created).getTime()) {
+          earliest = { created: h.created, from: item.from, fromString: item.fromString };
+        }
+      }
+    }
+  }
+  if (!earliest) return { startEst: null, changeDayAfterStart: null };
+  const raw = earliest.from ?? earliest.fromString;
+  const startEst = raw != null ? parseFloat(raw) : null;
+  return {
+    startEst: (!isNaN(startEst) ? startEst : null),
+    changeDayAfterStart: dayIndex(earliest.created, sprintStartDate)
+  };
+}
+
+/**
+ * Returns true if the issue was added to the given sprint AFTER the sprint
+ * started (i.e. it is a mid-sprint scope addition, not part of the commitment).
+ *
+ * @param {Object} rawIssue        - Raw Jira issue with changelog.histories
+ * @param {string} sprintStartDate - ISO datetime of sprint start
+ * @param {number|string} sprintId - Numeric sprint id
+ * @returns {boolean}
+ */
+export function wasAddedAfterSprintStart(rawIssue, sprintStartDate, sprintId) {
+  const histories = rawIssue?.changelog?.histories;
+  if (!Array.isArray(histories)) return false;
+  const startMs = new Date(sprintStartDate).getTime();
+  const sid = String(sprintId);
+  for (const h of histories) {
+    if (new Date(h.created).getTime() <= startMs || !Array.isArray(h.items)) continue;
+    for (const item of h.items) {
+      if (item.field === 'Sprint') {
+        const toIds = (item.to || '').split(',').map(s => s.trim());
+        const fromIds = (item.from || '').split(',').map(s => s.trim());
+        if (toIds.includes(sid) && !fromIds.includes(sid)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Augment each story with a closedAt timestamp and closedDay index derived
+ * from the issue's changelog status transitions.
+ */
 export function attachCloseTimestamps(rawIssues, stories, sprintStartDate) {
   return stories.map((story, i) => {
     const raw = rawIssues[i];
