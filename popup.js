@@ -169,8 +169,11 @@ async function loadData() {
     state.extraBoardsData  = cacheResult.extraBoardsData  || [];
     state.currentUser      = cacheResult.currentUser      || null;
 
-    // Derive view scope from role (Phase 2 will expose a toggle to override)
-    state.viewScope = state.settings?.role === 'engineer' ? 'me' : 'squad';
+    // viewScope: engineers respect their last chosen scope (default 'me');
+    // EM is always 'squad' (DDL filter sits on top of that).
+    state.viewScope = state.settings?.role === 'engineer'
+      ? (state.settings?.viewScope || 'me')
+      : 'squad';
     
     // Load sprint analytics from separate cache key
     if (state.currentSprint?.name) {
@@ -549,6 +552,31 @@ function renderRoleSelectScreen() {
 }
 
 
+/** Render the Me / Squad scope toggle (engineer mode only). */
+function buildScopeToggleHtml() {
+  const me    = state.viewScope === 'me';
+  const squad = !me;
+  return `<span class="view-scope-row" style="display:inline-flex;gap:4px;vertical-align:middle;">
+    <button class="scope-pill${me    ? ' active' : ''}" data-scope="me">Me</button>
+    <button class="scope-pill${squad ? ' active' : ''}" data-scope="squad">Squad</button>
+  </span>`;
+}
+
+/** Wire Me/Squad scope pill clicks. Each click persists the scope and re-renders. */
+function wireScopePills(container) {
+  if (!container) return;
+  container.querySelectorAll('.scope-pill').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      state.viewScope          = btn.dataset.scope;
+      state.settings           = state.settings || {};
+      state.settings.viewScope = state.viewScope;
+      await chrome.storage.local.set({ settings: state.settings });
+      renderCurrentScreen();
+    });
+  });
+}
+
+
 /**
  * Called from renderTodayScreen after the sprint section renders.
  */
@@ -579,7 +607,15 @@ function renderInsights() {
   // Detect legacy format ({name, week1, week2} — pre-v1.5.4) and prompt refresh
   const isLegacyFormat = ts.length > 0 && ts[0].week1 !== undefined && !ts[0].byProject;
   const monitored = state.settings?.analytics?.monitoredMembers;
-  const filteredTs = monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
+  // filteredTs: engineers see their own data in 'me' mode; EM uses the DDL filter.
+  const filteredTs = (() => {
+    if (state.settings?.role === 'engineer') {
+      return state.viewScope === 'me'
+        ? ts.filter(m => m.name === state.currentUser?.displayName)
+        : ts; // squad = full team, no DDL filter in engineer mode
+    }
+    return monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
+  })();
   const discoveredMembers = state.settings?.analytics?.discoveredMembers || ts.map(m => m.name);
   
   // Quarter dropdown (Sprint + available quarters in current year)
@@ -596,15 +632,10 @@ function renderInsights() {
   
   const modeDropdown = `<select id="timesheet-mode-select" style="font-size:10px;padding:2px 4px;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">${quarterOptions}</select>`;
   
-  // ── Member filter — ONE popover, two trigger buttons ─────────────────
-  // Rendering memberFilterHtml in two cards creates duplicate IDs (same string).
-  // Fix: full popover in TIME LOGGED, a trigger-only button in ESTIMATE.
-  // filteredCount = how many members are selected in the filter (not how many
-  // have timesheet rows). If no filter is active (monitored === null) show the
-  // total; the user sees "all 14 members included."
+  // In engineer mode use the Me/Squad scope toggle; in EM mode keep the DDL filter.
+  const isEngineer = state.settings?.role === 'engineer';
   const filteredCount = (monitored?.length > 0) ? monitored.length : totalCount;
   const filterActive  = monitored?.length > 0;
-
   const memberFilterHtml = discoveredMembers.length > 0 ? `
     <div style="position:relative;display:inline-block;">
       <button id="member-filter-btn" title="Filter team members"
@@ -636,6 +667,8 @@ function renderInsights() {
                  border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer;">Apply</button>
       </div>
     </div>` : '';
+  // Engineer mode: scope toggle replaces the DDL filter. EM mode: DDL filter.
+  const filterControl = isEngineer ? buildScopeToggleHtml() : memberFilterHtml;
 
   // (Estimate vs Actual uses the same filter btn in the shared control bar above)
   
@@ -711,7 +744,7 @@ function renderInsights() {
       <span style="font-size:10px;color:var(--text-muted);">${modeRange}</span>
       <div style="display:flex;align-items:center;gap:6px;">
         ${modeDropdown}
-        ${memberFilterHtml}
+        ${filterControl}
       </div>
     </div>`;
 
@@ -776,6 +809,8 @@ function renderInsights() {
     </div>`;
 
   wireBurndownHover();
+  // Engineer me/squad toggle wiring
+  if (state.settings?.role === 'engineer') wireScopePills(contentEl);
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');
@@ -938,10 +973,27 @@ function renderTodayScreen() {
   
   if (state.currentSprint) {
     const sp = state.currentSprint;
-    
-    // Section title + total count
+    const stories = sp.stories || [];
+
+    // In engineer "me" mode show only the current user's stories;
+    // EM mode and engineer squad mode show the full list.
+    const isEngineer   = state.settings?.role === 'engineer';
+    const isEngineerMe = isEngineer && state.viewScope === 'me';
+    const displayStories = isEngineerMe
+      ? stories.filter(s => s.assigneeAccountId === state.currentUser?.accountId)
+      : stories;
+
+    // Section title + count (with scope toggle for engineers)
     if (sprintTitleEl) sprintTitleEl.textContent = `Current Sprint (${sp.name})`;
-    if (sprintTotalEl) sprintTotalEl.textContent = `${sp.totalStories} TICKETS`;
+    if (sprintTotalEl) {
+      const countText = isEngineerMe
+        ? `${displayStories.length}/${stories.length} TICKETS`
+        : `${displayStories.length} TICKETS`;
+      sprintTotalEl.innerHTML = isEngineer
+        ? `${countText} ${buildScopeToggleHtml()}`
+        : countText;
+      wireScopePills(sprintTotalEl);
+    }
     const prediction = metrics.sprintBurndownPrediction(sp);
     const onTrack = prediction.onTrack;
     
@@ -962,24 +1014,23 @@ function renderTodayScreen() {
     
     // Mini progress bar in collapsed header (always visible)
     const countEl = document.getElementById('sprint-glance-ticket-counts');
-    const stories = sp.stories || [];
     const isSupport = (sp.boardLabel||sp.boardName||state.settings?.squad?.key||'').toLowerCase().includes('support');
-    if (countEl && stories.length > 0) {
-      countEl.innerHTML = buildMiniProgressBar(stories, {
-        showUnassigned: false,    // not relevant for sprint
+    if (countEl && displayStories.length > 0) {
+      countEl.innerHTML = buildMiniProgressBar(displayStories, {
+        showUnassigned: false,
         riskText,
       });
     }
-    
-    // Story list in body (no summary line — it's in the header now)
-    if (stories.length > 0 && glanceBody) {
+
+    // Story list in body
+    if (displayStories.length > 0 && glanceBody) {
       const existingList = document.getElementById('sprint-story-list');
       if (existingList) existingList.remove();
-      
+
       const jiraBase = state.settings?.jira?.baseUrl || '';
       const listEl = document.createElement('div');
       listEl.id = 'sprint-story-list';
-      listEl.innerHTML = stories.map(s => renderTicketRow(s, jiraBase)).join('');
+      listEl.innerHTML = displayStories.map(s => renderTicketRow(s, jiraBase)).join('');
       glanceBody.appendChild(listEl);
       wireTicketClicks(listEl);
     }

@@ -781,3 +781,18 @@ body.privacy-on [data-privacy-mask]::after {
 }
 .role-pill:hover  { border-color: rgba(99,102,241,0.5); color: var(--text); }
 .role-pill.active { border-color: var(--primary, #6366f1); background: rgba(99,102,241,0.12); color: var(--primary, #6366f1); font-weight: 600; }
+
+/* ── Me / Squad scope pills (engineer mode) ─────────────────────────── */
+.scope-pill {
+  padding: 2px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+  line-height: 1.5;
+}
+.scope-pill:hover  { border-color: rgba(99,102,241,0.4); color: var(--text); }
+.scope-pill.active { border-color: var(--primary,#6366f1); background: rgba(99,102,241,0.12); color: var(--primary,#6366f1); font-weight: 600; }

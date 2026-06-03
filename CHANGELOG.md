@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.9.3 (2026-06-03) — Phase 2: Me / Squad scope filter for engineer mode
+
+**New: engineer mode view scoping**
+- A **Me / Squad** pill toggle appears in engineer mode on:
+  - Sprint tickets (next to the ticket count in the header)
+  - Time tracking / Actual vs Estimate (in the analytics section header, replacing the EM squad DDL)
+- **Me** (default): shows only stories assigned to the signed-in engineer
+  (`assigneeAccountId` match) and that engineer's timesheet / estimate data.
+- **Squad**: shows the full team view — identical to EM mode for those sections.
+- Chosen scope persists across sessions via `settings.viewScope`.
+- EM mode is unchanged: DDL squad filter stays as-is; no scope toggle shown.
+- `wireScopePills()` + `buildScopeToggleHtml()` shared helpers ensure both
+  sections always stay in sync (one click re-renders both).
+
+---
+
 ## v1.9.2 (2026-06-03) — Phase 1: role foundation + welcome screen
 
 **New: dual-role support plumbing**
