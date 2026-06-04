@@ -678,9 +678,14 @@ async function updateBadge(alertList) {
  */
 async function notifyHighSeverity(newAlerts, settings) {
   if (!settings.alerts?.desktopNotifications) return;
-  
-  const highSeverity = newAlerts.filter(a => a.severity === 'high');
-  
+
+  // T-AS-3: per-rule desktop notification control (default: notify)
+  const highSeverity = newAlerts.filter(a => {
+    if (a.severity !== 'high') return false;
+    const ruleConf = settings.alerts?.rules?.[a.ruleId];
+    return ruleConf?.notifyDesktop !== false;
+  });
+
   for (const alert of highSeverity) {
     try {
       await chrome.notifications.create({

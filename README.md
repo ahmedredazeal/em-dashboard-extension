@@ -22,6 +22,10 @@ First launch prompts you to choose your role. Role is persisted and can be chang
 | Sprint progress | Team — unchanged | Team — unchanged |
 | Sentry trend | Configured views — unchanged | Configured views — unchanged |
 
+### Alert rules — fully configurable in Settings
+
+Open Settings → Alert rules to enable/disable each rule, tune thresholds (scope-creep %, stalled days, Sentry spike delta/%), and control per-rule desktop notifications independently. A Reset to defaults button restores the original hardcoded values.
+
 ### Alert rules (9 — all grounded in real data)
 | Rule | Fires when |
 |---|---|

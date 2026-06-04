@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.2.0
+## Current version: v2.3.0
 
 ## Last session: Ahmed + Claude — 2026-06-04
 
@@ -22,6 +22,7 @@
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: `squadKey` deleted by Phase 1 edit breaking all Jira fetches. |
 | v1.9.7–v1.9.8 | UX: section reorder (Sentry → Insights → Extra boards → Current Sprint), Me/Squad filter on charts and extra boards, sprint filter row, welcome SVG icons. Bug: `wireScopePills(contentEl)` was undefined (should be `content`). |
 | v1.9.9 | Root cause of "scaled-up header": Python reorder scripts created duplicate copies of ALL screen divs. Rebuilt `popup.html` atomically. Merged auth+role-select into one welcome screen. `Hello, Zealer! 👋`, 120px logo, square role cards, ascending-bars EM icon. |
+| v2.3.0 | Alert Settings: per-rule enable/disable, configurable thresholds (scope_creep %, stalled_burndown days, sentry_spike delta/%), per-rule desktop notif (🔔), reset-to-defaults, migration. |
 | v2.2.0 | Rebrand to "Zealer Dashboard" (all user-facing strings + docs; internal IDs unchanged). Toolbar icon → circular blue badge, visible both light/dark. action.default_icon added. |
 | v2.1.3 | Fix: engineer Me filter no longer shows squad data (never falls back to squad chart; accountId matching; stale-cache + no-data states). |
 | v2.1.2 | Fix: sprint progress % bug (points ÷ ticket-count → now points ÷ totalPoints). Adds "x pts done · y pts to go". |
@@ -44,7 +45,7 @@
 |---|---|---|
 | 5 | ✅ Done | Engineer progress circles: sprint donut (pts, multi-status) + support donut (count, QA Accepted = done). Hidden if no assignments. Always "me"-scoped. |
 | 6 | 📋 Discuss | Splash screen (2s, logo + animation). Discuss style when reached. |
-| Alert settings | 📋 Planned | Per-rule enable/disable + threshold config in Settings page. |
+| Alert settings | ✅ Done | Per-rule enable/disable + threshold config in Settings page. |
 
 ---
 

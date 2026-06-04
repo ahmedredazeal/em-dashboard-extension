@@ -1,5 +1,34 @@
 # Changelog
 
+## v2.3.0 (2026-06-04) — Alert Settings (T-AS-1/2/3)
+
+A new **Alert rules** section in Settings gives per-rule control over all
+9 alert rules. Changes take effect on the next background refresh cycle.
+
+**T-AS-1 — Enable / disable.** Each rule has a pill toggle. Disabled rules
+are skipped entirely in `checkAlerts()`. All rules default to enabled so
+existing users see no change in behaviour.
+
+**T-AS-2 — Configurable thresholds.** Rules with numeric parameters expose
+inline inputs (auto-saved on change/Enter):
+- `scope_creep` — Threshold % (default 10%)
+- `stalled_burndown` — Stalled days (default 2 working days)
+- `sentry_trend_spike` — Min Δ issues (default 10) + Min % (default 25%)
+
+**T-AS-3 — Per-rule desktop notification toggle (🔔).** Each row has a bell
+icon that independently controls whether that rule fires a desktop
+notification. Only applies to high-severity alerts; medium-severity alerts
+never trigger desktop notifications regardless of this setting.
+
+**Reset to defaults** button restores all rules to the original hardcoded
+settings.
+
+**Migration:** `migrateToV2_3_0_alertSettings` initialises `settings.alerts.rules`
+on first run for existing users, preserving identical behaviour until they
+change something.
+
+---
+
 ## v2.2.0 (2026-06-04) — Rebrand to "Zealer Dashboard" + toolbar icon fix
 
 **Renamed** from "EM Dashboard" to **Zealer Dashboard** everywhere user-facing:

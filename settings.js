@@ -10,9 +10,149 @@ import { importTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
 
 // ── Sentry view row rendering ──────────────────────────────────────────────
+// ── Alert rule metadata (UI only — source of truth for labels/defaults) ──
+const ALERT_RULES = [
+  { id: 'sprint_goal_at_risk', label: 'Sprint goal at risk',  notifyDefault: true,
+    desc: 'Working-day burndown projects a shortfall vs the committed baseline.' },
+  { id: 'scope_creep',         label: 'Scope creep',          notifyDefault: true,
+    desc: 'Points added after sprint start exceed the threshold.',
+    thresholds: [{ key: 'thresholdPct', label: 'Threshold', default: 10, min: 5, max: 50, step: 5, unit: '%' }] },
+  { id: 'stalled_burndown',    label: 'Stalled burndown',     notifyDefault: false,
+    desc: 'No points completed for the given number of consecutive working days.',
+    thresholds: [{ key: 'stalledDays', label: 'Days', default: 2, min: 1, max: 7, step: 1, unit: '' }] },
+  { id: 'due_date_risk',       label: 'Due date risk',        notifyDefault: true,
+    desc: 'Open pointed tickets are due by sprint end.' },
+  { id: 'unassigned_work',     label: 'Unassigned work',      notifyDefault: false,
+    desc: 'Open pointed tickets have no assignee.' },
+  { id: 'reopened_tickets',    label: 'Reopened tickets',     notifyDefault: false,
+    desc: 'A ticket that reached Done moved back to open (rework indicator).' },
+  { id: 'sentry_trend_spike',  label: 'Sentry trend spike',   notifyDefault: true,
+    desc: 'Day-over-day Sentry issue count spikes beyond the delta or % threshold.',
+    thresholds: [
+      { key: 'spikeDelta', label: 'Min Δ',  default: 10, min: 5, max: 100, step: 5, unit: '' },
+      { key: 'spikePct',   label: 'Min %',  default: 25, min: 5, max: 100, step: 5, unit: '%' },
+    ] },
+  { id: 'velocity_drop',       label: 'Velocity drop',        notifyDefault: false,
+    desc: 'Velocity drops >15% for 2 consecutive sprints. Needs ≥3 sprints of history.' },
+  { id: 'support_sla_breach',  label: 'Support SLA breach',   notifyDefault: true,
+    desc: 'A support ticket exceeds the SLA. Needs a support board configured.' },
+];
+
+const DEFAULT_ALERT_RULES = {
+  sprint_goal_at_risk: { enabled: true, notifyDesktop: true  },
+  scope_creep:         { enabled: true, notifyDesktop: true,  thresholdPct: 10 },
+  stalled_burndown:    { enabled: true, notifyDesktop: false, stalledDays:   2  },
+  due_date_risk:       { enabled: true, notifyDesktop: true  },
+  unassigned_work:     { enabled: true, notifyDesktop: false },
+  reopened_tickets:    { enabled: true, notifyDesktop: false },
+  sentry_trend_spike:  { enabled: true, notifyDesktop: true,  spikeDelta: 10, spikePct: 25 },
+  velocity_drop:       { enabled: true, notifyDesktop: false },
+  support_sla_breach:  { enabled: true, notifyDesktop: true  },
+};
+
 // Storage shape: settings.sentry.views = [{ label: string, url: string }, ...]
 // Each row in the UI has: label input, URL input, ×, and a preview line below
 // showing what we parsed from the URL.
+
+// ── Alert settings UI ─────────────────────────────────────────────────────
+function renderAlertSettings(settings) {
+  const list = document.getElementById('alert-rules-list');
+  if (!list) return;
+
+  const current = settings.alerts?.rules || {};
+
+  list.innerHTML = ALERT_RULES.map(rule => {
+    const conf    = current[rule.id] || {};
+    const enabled = conf.enabled !== false;
+    const notify  = conf.notifyDesktop !== false;
+
+    const thresholdHtml = (rule.thresholds || []).map(t => {
+      const val = conf[t.key] ?? t.default;
+      return `<label class="alert-threshold-label">${t.label}
+        <input type="number" class="alert-threshold-input"
+          data-rule="${rule.id}" data-key="${t.key}"
+          value="${val}" min="${t.min}" max="${t.max}" step="${t.step}"
+          ${enabled ? '' : 'disabled'}>
+        ${t.unit ? `<span class="alert-unit">${t.unit}</span>` : ''}
+      </label>`;
+    }).join('');
+
+    return `<div class="alert-rule-row${enabled ? '' : ' rule-disabled'}" data-rule="${rule.id}">
+      <label class="alert-toggle" title="${enabled ? 'Disable rule' : 'Enable rule'}">
+        <input type="checkbox" class="alert-enabled-cb" data-rule="${rule.id}"${enabled ? ' checked' : ''}>
+        <span class="alert-toggle-track"></span>
+      </label>
+      <div class="alert-rule-info">
+        <span class="alert-rule-label">${rule.label}</span>
+        <span class="alert-rule-desc">${rule.desc}</span>
+      </div>
+      <div class="alert-rule-controls">
+        ${thresholdHtml}
+        <button class="alert-notify-btn${notify ? ' active' : ''}"
+          data-rule="${rule.id}" title="${notify ? 'Desktop notification ON — click to turn off' : 'Desktop notification OFF — click to turn on'}"
+          ${enabled ? '' : 'disabled'}>🔔</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Enable/disable toggle ───────────────────────────────────────────
+  list.querySelectorAll('.alert-enabled-cb').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const id = cb.dataset.rule;
+      settings.alerts = settings.alerts || {};
+      settings.alerts.rules = settings.alerts.rules || {};
+      settings.alerts.rules[id] = {
+        ...(DEFAULT_ALERT_RULES[id] || {}),
+        ...(settings.alerts.rules[id] || {}),
+        enabled: cb.checked,
+      };
+      await chrome.storage.local.set({ settings });
+      renderAlertSettings(settings);
+    });
+  });
+
+  // ── 🔔 Desktop notification toggle ─────────────────────────────────
+  list.querySelectorAll('.alert-notify-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.rule;
+      settings.alerts = settings.alerts || {};
+      settings.alerts.rules = settings.alerts.rules || {};
+      const cur = settings.alerts.rules[id] || {};
+      const wasOn = cur.notifyDesktop !== false;
+      settings.alerts.rules[id] = {
+        ...(DEFAULT_ALERT_RULES[id] || {}),
+        ...cur,
+        notifyDesktop: !wasOn,
+      };
+      await chrome.storage.local.set({ settings });
+      renderAlertSettings(settings);
+    });
+  });
+
+  // ── Threshold inputs (auto-save on blur/enter) ──────────────────────
+  list.querySelectorAll('.alert-threshold-input').forEach(inp => {
+    const save = async () => {
+      const id  = inp.dataset.rule;
+      const key = inp.dataset.key;
+      const val = parseInt(inp.value, 10);
+      if (isNaN(val)) return;
+      const meta = ALERT_RULES.find(r => r.id === id);
+      const t    = meta?.thresholds?.find(x => x.key === key);
+      const clamped = t ? Math.min(t.max, Math.max(t.min, val)) : val;
+      inp.value = clamped;
+      settings.alerts = settings.alerts || {};
+      settings.alerts.rules = settings.alerts.rules || {};
+      settings.alerts.rules[id] = {
+        ...(DEFAULT_ALERT_RULES[id] || {}),
+        ...(settings.alerts.rules[id] || {}),
+        [key]: clamped,
+      };
+      await chrome.storage.local.set({ settings });
+    };
+    inp.addEventListener('change', save);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  });
+}
 
 function renderSentryViewRows(views, trackedViewIds) {
   const list = document.getElementById('sentry-views-list');
@@ -215,6 +355,15 @@ function getTrackedViewIds() {
     });
   }
   applyRoleToSettings(settings.role || '');
+
+  // ── Alert settings ───────────────────────────────────────────────────
+  renderAlertSettings(settings);
+  document.getElementById('reset-alerts-btn')?.addEventListener('click', async () => {
+    if (!confirm('Reset all alert rules to defaults?')) return;
+    settings.alerts = { ...settings.alerts, rules: JSON.parse(JSON.stringify(DEFAULT_ALERT_RULES)) };
+    await chrome.storage.local.set({ settings });
+    renderAlertSettings(settings);
+  });
 
   // ── Squad members (EM mode) ─────────────────────────────────────────
   let squadMembers = [...(settings.analytics?.discoveredMembers || [])];

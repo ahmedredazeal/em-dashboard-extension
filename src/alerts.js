@@ -51,10 +51,11 @@ export function scopeCreep(state) {
   const sp = state.currentSprint;
   if (!sp?.committedPoints || !sp.scopeByDay) return null;
 
+  const thresholdPct = state.settings?.alerts?.rules?.scope_creep?.thresholdPct ?? 10;
   const netAdded = Object.values(sp.scopeByDay).reduce((s, sc) => s + (sc.added || 0), 0);
   if (netAdded === 0) return null;
   const pct = Math.round(netAdded / sp.committedPoints * 100);
-  if (pct < 10) return null;
+  if (pct < thresholdPct) return null;
 
   return mkAlert('scope_creep', pct >= 20 ? 'high' : 'medium',
     `Scope creep: +${netAdded} pts added to ${sp.name} after kickoff` +
@@ -67,17 +68,17 @@ export function scopeCreep(state) {
 export function stalledBurndown(state) {
   const sp  = state.currentSprint;
   const wds = state.settings?.ui?.workingDays || [0, 1, 2, 3, 4];
-  if (!sp?.stories || sp.todayIndex == null || sp.todayIndex < 3) return null;
+  const stalledDays = state.settings?.alerts?.rules?.stalled_burndown?.stalledDays ?? 2;
+  if (!sp?.stories || sp.todayIndex == null || sp.todayIndex < stalledDays) return null;
 
-  // Collect the last 3 working-day indices counting back from today
   const wdSet = new Set(wds);
   const start = new Date(sp.startDate); start.setHours(0, 0, 0, 0);
   const recentWds = [];
-  for (let d = sp.todayIndex; d >= 0 && recentWds.length < 3; d--) {
+  for (let d = sp.todayIndex; d >= 0 && recentWds.length < stalledDays; d--) {
     const date = new Date(start); date.setDate(start.getDate() + d);
     if (wdSet.has(date.getDay())) recentWds.push(d);
   }
-  if (recentWds.length < 2) return null;
+  if (recentWds.length < stalledDays) return null;
 
   const hadWork = sp.stories.some(s =>
     s.closedDay != null && (s.points || 0) > 0 && recentWds.includes(s.closedDay)
@@ -85,8 +86,8 @@ export function stalledBurndown(state) {
   if (hadWork) return null;
 
   const open = (sp.committedPoints || sp.totalPoints || 0) - (sp.completedPoints || 0);
-  return mkAlert('stalled_burndown', recentWds.length >= 3 ? 'high' : 'medium',
-    `No points completed in the last ${recentWds.length} working days (${sp.name}).` +
+  return mkAlert('stalled_burndown', stalledDays >= 3 ? 'high' : 'medium',
+    `No points completed in the last ${stalledDays} working days (${sp.name}).` +
     ` ${open} pts still open — check for blockers.`
   );
 }
@@ -167,8 +168,11 @@ export function sentryTrendSpike(state) {
   const samples = state.sentryTrendSamples;
   if (!views?.length || !samples) return null;
 
+  const spikeDelta = state.settings?.alerts?.rules?.sentry_trend_spike?.spikeDelta ?? 10;
+  const spikePct   = state.settings?.alerts?.rules?.sentry_trend_spike?.spikePct   ?? 25;
+
   const spikes = views
-    .map(v => ({ v, spike: metrics.sentryDayOverDaySpike(v.count, samples[v.viewId] || []) }))
+    .map(v => ({ v, spike: metrics.sentryDayOverDaySpike(v.count, samples[v.viewId] || [], spikeDelta, spikePct) }))
     .filter(x => x.spike);
   if (spikes.length === 0) return null;
 
@@ -219,20 +223,22 @@ export function supportSLABreach(state) {
 
 // ── Run all rules ─────────────────────────────────────────────────────────
 export function checkAlerts(state) {
+  const ruleConf = state.settings?.alerts?.rules || {};
   const rules = [
-    sprintGoalAtRisk,
-    scopeCreep,
-    stalledBurndown,
-    dueDateRisk,
-    unassignedWork,
-    reopenedTickets,
-    sentryTrendSpike,
-    velocityDrop,
-    supportSLABreach,
+    ['sprint_goal_at_risk', sprintGoalAtRisk],
+    ['scope_creep',         scopeCreep],
+    ['stalled_burndown',    stalledBurndown],
+    ['due_date_risk',       dueDateRisk],
+    ['unassigned_work',     unassignedWork],
+    ['reopened_tickets',    reopenedTickets],
+    ['sentry_trend_spike',  sentryTrendSpike],
+    ['velocity_drop',       velocityDrop],
+    ['support_sla_breach',  supportSLABreach],
   ];
-  return rules.reduce((acc, rule) => {
-    try { const a = rule(state); if (a) acc.push(a); }
-    catch (e) { console.warn(`[alerts] Rule ${rule.name} threw:`, e.message); }
+  return rules.reduce((acc, [id, fn]) => {
+    if (ruleConf[id]?.enabled === false) return acc;   // T-AS-1: skip disabled rules
+    try { const a = fn(state); if (a) acc.push(a); }
+    catch (e) { console.warn(`[alerts] Rule ${id} threw:`, e.message); }
     return acc;
   }, []);
 }

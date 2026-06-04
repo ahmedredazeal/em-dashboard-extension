@@ -118,6 +118,37 @@ async function migrateToV1_8_0(settings) {
 }
 
 /**
+ * Migrate to v2.3.0 — initialize alert rule settings with per-rule defaults.
+ * Existing users get all rules enabled with the original hardcoded thresholds,
+ * so behaviour is identical until they change something.
+ */
+async function migrateToV2_3_0_alertSettings(settings) {
+  settings.migrationsApplied = settings.migrationsApplied || {};
+  if (settings.migrationsApplied['v2_3_0_alert_settings']) return settings;
+
+  if (!settings.alerts?.rules) {
+    settings.alerts = settings.alerts || {};
+    settings.alerts.rules = {
+      sprint_goal_at_risk: { enabled: true, notifyDesktop: true },
+      scope_creep:         { enabled: true, notifyDesktop: true,  thresholdPct: 10 },
+      stalled_burndown:    { enabled: true, notifyDesktop: false, stalledDays:   2  },
+      due_date_risk:       { enabled: true, notifyDesktop: true  },
+      unassigned_work:     { enabled: true, notifyDesktop: false },
+      reopened_tickets:    { enabled: true, notifyDesktop: false },
+      sentry_trend_spike:  { enabled: true, notifyDesktop: true,  spikeDelta: 10, spikePct: 25 },
+      velocity_drop:       { enabled: true, notifyDesktop: false },
+      support_sla_breach:  { enabled: true, notifyDesktop: true  },
+    };
+    console.log('[migration] v2.3.0: alert settings initialised with defaults');
+    await chrome.storage.local.set({ settings });
+  }
+
+  settings.migrationsApplied['v2_3_0_alert_settings'] = true;
+  await chrome.storage.local.set({ settings });
+  return settings;
+}
+
+/**
  * Run all necessary migrations
  */
 export async function runMigrations() {
@@ -137,6 +168,7 @@ export async function runMigrations() {
   settings = await migrateToV1_1_0(settings);    // no-op (disabled)
   settings = await migrateToV1_4_4(settings);
   settings = await migrateToV1_8_0(settings);
+  settings = await migrateToV2_3_0_alertSettings(settings);
   
   return settings;
 }

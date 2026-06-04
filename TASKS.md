@@ -17,9 +17,9 @@ _Nothing currently in progress._
 | ~~5~~ | ~~T-P5-1~~ | Engineer sprint progress circle (pts, multi-status donut) | M | Always "me"-scoped; hidden if no assigned sprint stories; colors: Open=slate, In Progress=blue, QA=amber, Done=green; center = pts / ticket count hint |
 | ~~5~~ | ~~T-P5-2~~ | Engineer support board progress circle (count, QA Accepted = done) | M | Count-based donut; QA Accepted is "done" (Closed excluded from API fetch) |
 | ~~5~~ | ~~T-P5-3~~ | Hide both circles when no assignments | S | Check assigneeAccountId in sprint stories AND support board tickets |
-| Alert settings | T-AS-1 | Per-rule enable/disable toggle in Settings | M | `settings.alerts.rules[ruleId].enabled`; gate in `checkAlerts`; default all enabled |
-| Alert settings | T-AS-2 | Per-rule threshold config (scope creep %, stalled days, spike delta) | M | Input fields per rule in Settings alerts section; read in each rule |
-| Alert settings | T-AS-3 | Per-rule desktop notification override | S | `notifyDesktop: boolean` per rule; read in `notifyHighSeverity` |
+| ~~Alert settings~~ | ~~T-AS-1~~ | Per-rule enable/disable toggle in Settings | M | `settings.alerts.rules[ruleId].enabled`; gate in `checkAlerts`; default all enabled |
+| ~~Alert settings~~ | ~~T-AS-2~~ | Per-rule threshold config (scope creep %, stalled days, spike delta) | M | Input fields per rule in Settings alerts section; read in each rule |
+| ~~Alert settings~~ | ~~T-AS-3~~ | Per-rule desktop notification override | S | `notifyDesktop: boolean` per rule; read in `notifyHighSeverity` |
 | 6 | T-P6-1 | 2-second splash screen with logo + animation | — | Discuss style, timing, skip-on-reload when we reach this phase |
 
 ---
@@ -51,6 +51,7 @@ _Nothing currently in progress._
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: squadKey ReferenceError (broke all Jira fetching). |
 | v1.9.7–v1.9.8 | Section reorder, sprint filter row, Me/Squad on charts + extra boards. Fixed wireScopePills(contentEl) undefined. |
 | v1.9.9 | popup.html deduplication (Python scripts created 2× all screens). Merged auth+role-select screens. Hello Zealer greeting, 120px logo, square role cards, chart EM icon. |
+| v2.3.0 | Alert Settings: T-AS-1 (enable/disable), T-AS-2 (thresholds), T-AS-3 (per-rule desktop notif), migration, reset button. |
 | v2.2.0 | Rebrand to "Zealer Dashboard" everywhere user-facing. Toolbar icon circular badge fix (visible light+dark). |
 | v2.1.3 | Fix engineer Me filter showing squad data (never fall back to squad chart; accountId match; stale-cache/no-data states). byDate test added. |
 | v2.1.2 | Fix sprint progress % (mixed points/tickets unit bug). Use totalPoints denominator. Add pts done/to-go. |

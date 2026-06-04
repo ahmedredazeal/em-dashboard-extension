@@ -937,3 +937,69 @@ body.privacy-on [data-privacy-mask]::after {
   margin-right: 5px;
   vertical-align: middle;
 }
+
+/* ── Alert settings rows (settings.html) ────────────────────────────── */
+.alert-rule-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.05));
+  transition: opacity .2s;
+}
+.alert-rule-row:last-child { border-bottom: none; }
+.alert-rule-row.rule-disabled { opacity: 0.45; }
+
+/* pill toggle */
+.alert-toggle { flex: 0 0 auto; margin-top: 3px; cursor: pointer; }
+.alert-toggle input { display: none; }
+.alert-toggle-track {
+  display: block; width: 28px; height: 16px;
+  background: var(--border-strong, rgba(255,255,255,0.15));
+  border-radius: 8px; position: relative; transition: background .2s;
+}
+.alert-toggle input:checked + .alert-toggle-track { background: var(--primary, #6366f1); }
+.alert-toggle-track::after {
+  content: ''; position: absolute;
+  top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; transition: transform .2s;
+}
+.alert-toggle input:checked + .alert-toggle-track::after { transform: translateX(12px); }
+
+.alert-rule-info { flex: 1; min-width: 0; }
+.alert-rule-label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--text); margin-bottom: 2px;
+}
+.alert-rule-desc {
+  display: block; font-size: 11px;
+  color: var(--text-muted); line-height: 1.4;
+}
+
+.alert-rule-controls {
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0; margin-top: 1px;
+}
+.alert-threshold-label {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--text-muted); white-space: nowrap;
+}
+.alert-threshold-input {
+  width: 38px;
+  background: var(--surface-raised, #1f2937);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 4px; color: var(--text);
+  text-align: center; font-size: 11px; padding: 2px 3px;
+}
+.alert-threshold-input:focus { outline: 1px solid var(--primary, #6366f1); }
+.alert-unit { font-size: 10px; color: var(--text-muted); }
+
+.alert-notify-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 15px; opacity: 0.25; transition: opacity .15s;
+  padding: 2px 4px; border-radius: 4px;
+}
+.alert-notify-btn.active { opacity: 1; }
+.alert-notify-btn:hover:not(:disabled) { opacity: 0.8; }
+.alert-notify-btn:disabled { cursor: default; }
