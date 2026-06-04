@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.0.0 (2026-06-04) — Fix: theme-aware logo on welcome screen
+
+**Bug fix:** `renderRoleSelectScreen()` used a hardcoded `<img src="icons/cap-color.png">`
+which always displayed the navy cap regardless of theme. In dark mode the white cap never
+appeared. Replaced with the `theme-logo` dual-image span (`logo-light` / `logo-dark`) so
+the CSS theme-switching rules apply correctly.
+
+Also bumped to v2.0.0 to mark the completion of the dual-role architecture milestone
+(Phases 1–3 complete: welcome screen, Me/Squad scope filters, settings split, EM squad
+management, 9 alert rules, section reorder, popup.html deduplication).
+
+---
+
 ## v1.9.9 (2026-06-04) — Welcome screen redesign + HTML deduplication
 
 **Root cause fixed: duplicate screens in popup.html**

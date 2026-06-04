@@ -8,33 +8,61 @@
 </head>
 <body class="settings-body">
   <div class="settings-wrap">
-    <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Documentation</h1>
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:32px;">
-      Phase 1 (v1.0.0) — Foundation with Jira + Sentry integration, alert rules, and privacy mode.
+    <h1 style="font-size:20px;margin-bottom:6px;">EM Dashboard</h1>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:32px;">v2.0.0 — Engineering Manager + Engineer cockpit for Jira + Sentry</p>
+
+    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px;">Roles</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:8px;">
+      Choose your role on first launch (or in Settings → Your role).
     </p>
-    
-    <h2 style="font-size:15px;font-weight:600;margin:24px 0 12px;">Alert Rules (Phase 1)</h2>
-    <ul style="font-size:13px;line-height:1.8;">
-      <li><strong>velocity_drop</strong> — Velocity drops >15% for 2 consecutive sprints</li>
-      <li><strong>sprint_goal_at_risk</strong> — Mid-sprint burndown predicts goal miss</li>
-      <li><strong>sentry_spike_untriaged</strong> — Sentry issue >24h old, not triaged</li>
-      <li><strong>support_sla_breach</strong> — Support ticket aged past SLA</li>
+    <ul style="font-size:13px;line-height:1.8;margin-bottom:24px;">
+      <li><strong>Engineering Manager</strong> — full squad view with team filters. Burndown, team timesheet, and all sprint stories by default. Manage your squad member list from Settings.</li>
+      <li><strong>Engineer</strong> — personal view by default. A <strong>Me / Squad</strong> toggle appears on sprint tickets, time tracking, estimate charts, and support boards. "Me" is the default; "Squad" shows the full team view on demand.</li>
     </ul>
-    
-    <h2 style="font-size:15px;font-weight:600;margin:24px 0 12px;">Screens</h2>
-    <ul style="font-size:13px;line-height:1.8;">
-      <li><strong>Today</strong> — Alert inbox, sprint glance, fresh Sentry spikes</li>
-      <li><strong>Sprint Health</strong> — Velocity, goal hit rate, carry-over, stale tickets</li>
-      <li><strong>Reliability</strong> — Sentry 7-day trend, untriaged spikes, SLA adherence</li>
+
+    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px;">Alert Rules (9)</h2>
+    <table style="font-size:12px;border-collapse:collapse;width:100%;margin-bottom:24px;">
+      <thead><tr style="color:var(--text-muted);border-bottom:1px solid var(--border);">
+        <th style="text-align:left;padding:4px 8px 6px 0;">Rule</th>
+        <th style="text-align:left;padding:4px 8px 6px 0;">Fires when</th>
+        <th style="text-align:left;padding:4px 0 6px 0;">Severity</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:4px 8px 4px 0;"><code>sprint_goal_at_risk</code></td><td style="padding:4px 8px 4px 0;">Working-day burndown projects a shortfall vs committed baseline</td><td>high/med</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>scope_creep</code></td><td style="padding:4px 8px 4px 0;">Points added after kickoff exceed 10% of commitment</td><td>high/med</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>stalled_burndown</code></td><td style="padding:4px 8px 4px 0;">No points completed in the last 2+ working days</td><td>high/med</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>due_date_risk</code></td><td style="padding:4px 8px 4px 0;">Open pointed tickets due by sprint end</td><td>high/med</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>unassigned_work</code></td><td style="padding:4px 8px 4px 0;">Open pointed tickets have no assignee</td><td>high/med</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>reopened_tickets</code></td><td style="padding:4px 8px 4px 0;">A Done ticket moved back to open (rework)</td><td>medium</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>sentry_trend_spike</code></td><td style="padding:4px 8px 4px 0;">Day-over-day spike ≥10 issues or ≥25% in a Sentry view</td><td>high/med</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>velocity_drop</code></td><td style="padding:4px 8px 4px 0;">Velocity drops >15% for 2 consecutive sprints <em>(needs ≥3 sprints)</em></td><td>medium</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;"><code>support_sla_breach</code></td><td style="padding:4px 8px 4px 0;">Support ticket past SLA <em>(needs support board configured)</em></td><td>high</td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px;">Screens</h2>
+    <ul style="font-size:13px;line-height:1.8;margin-bottom:24px;">
+      <li><strong>Today</strong> — Alert inbox · Insights (Sentry trend, burndown, time logged, estimate vs actual) · Extra boards · Sentry Issues · Current Sprint</li>
+      <li><strong>Sprint Health</strong> — Velocity trend, goal hit rate, carry-over, stale tickets</li>
+      <li><strong>Reliability</strong> — Sentry 7-day trend, untriaged spikes, SLA adherence, security tickets</li>
     </ul>
-    
-    <h2 style="font-size:15px;font-weight:600;margin:24px 0 12px;">Privacy Mode</h2>
-    <p style="font-size:13px;line-height:1.6;margin-bottom:12px;">
-      Click the 🔒 icon in the app bar to toggle screen-share privacy mode. When ON, personal content (1:1 notes, people log, promotion evidence) is masked. Dashboards and metrics remain visible.
+
+    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px;">Settings</h2>
+    <ul style="font-size:13px;line-height:1.8;margin-bottom:24px;">
+      <li><strong>Your role</strong> — EM or Engineer. Controls which sections and filters are shown.</li>
+      <li><strong>Jira</strong> — base URL, email, API token. Squad project key + extra boards (format: <code>Name|BoardID</code>).</li>
+      <li><strong>Sentry</strong> — org slug, base URL, auth token. Add as many tracked views as you like.</li>
+      <li><strong>Squad members</strong> (EM only) — curate who appears in the team filter. Once saved, auto-discovery stops updating the list.</li>
+    </ul>
+
+    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px;">Privacy Mode</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:24px;">
+      Click <strong>🔒</strong> in the app bar to toggle screen-share privacy. When ON, personal content is masked while dashboards and metrics remain visible.
     </p>
-    
-    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);">
+
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:12px;">
       <a href="changelog.html" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">View Changelog →</a>
+      <a href="https://github.com/ahmedredazeal/em-dashboard-extension" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">GitHub →</a>
     </div>
   </div>
 </body>

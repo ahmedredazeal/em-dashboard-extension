@@ -3,168 +3,102 @@
 > **Read this before starting any work.**
 > Update this at the end of every session.
 
-## Current version: v1.3.4
-
-## Last session: Ahmed + Claude — 2026-05-21
-
-### Completed (v1.3.0 → v1.3.4)
-- ✅ T-20: Sprint analytics section — burndown chart + timesheet chart
-- ✅ Burndown: 3 series (ideal/estimate/actual), actual uses changelog + updated fallback
-- ✅ Timesheet: horizontal bar chart, per-issue worklog fetch for full team coverage
-- ✅ Sprint-change detection: banner prompts keep/delete on sprint rotation
-- ✅ Analytics above ticket list, collapsed by default
-- ✅ All doc/version tracking fixed (manifest, changelog.html, CHANGELOG.md)
-
-### Known state
-- Analytics section appears under Current Sprint → collapsed by default
-- Burndown shows actual line from changelog transitions (falls back to updated date)
-- Timesheet shows ALL team members who logged time in the sprint
-- Cache keyed by sprint name; sprint-change banner prompts keep/delete
-- Working days: settings.ui.workingDays default [0,1,2,3,4] = Sun-Thu (T-22 pending)
-
-### Next: T-21 + T-22 (Session 3)
-- T-21: sprint cache manager in Settings (multi-select + delete)
-- T-22: work week checkbox grid in Settings (Sun/Mon/Tue/Wed/Thu/Fri/Sat)
-
 ---
 
-## Current version: v1.2.9 (chart logic complete, not yet wired to UI)
+## Current version: v2.0.0
 
-## Last session: Ahmed + Claude — 2026-05-20
+## Last session: Ahmed + Claude — 2026-06-04
 
-### Completed this session (Phase 1+2)
-- ✅ src/changelog-parser.js — extract done-transition timestamps (isDoneStatus, transitionToDoneTimestamp, attachCloseTimestamps)
-- ✅ src/burndown.js — 3-series burndown: ideal (linear), estimate (by due dates), actual (from changelog)
-- ✅ src/timesheet.js — week1/week2 hours per member; extractWorklogs; sortTimesheetMembers; getUTCDay() for timezone safety
-- ✅ src/jira-api.js — getSprintStories accepts {withChangelog, withWorklogs}; getIssueWorklogs(key) added
-- ✅ pre-flight.sh — all 4 test suites run (119 total: parsers 32, integration 12, burndown 41, timesheet 34)
-- ✅ docs/research-charts.md — full API research + decisions documented
-- ✅ tests/burndown.test.js — 41 tests
-- ✅ tests/timesheet.test.js — 34 tests
+### Completed this session (v1.8.7 → v2.0.0)
 
-### Next session (Phase 3 — T-20)
+| Version | Summary |
+|---|---|
+| v1.8.7 | Burndown day-bucketing fixed (calendar-date, not 24h ms window). 63 tests pass, tz-safe. |
+| v1.9.0 | Committed-baseline burndown (sprint-start estimate reconstruction). Colored segments. |
+| v1.9.1 | Phase 2 alerts: 9 rules all grounded in real data. `countWorkingDays`, `committedBurnPrediction`, `sentryDayOverDaySpike` metrics. |
+| v1.9.2 | Phase 1 role foundation: welcome screen with role cards, `settings.role`, `state.viewScope`, `getCurrentUser()` added to JiraClient. |
+| v1.9.3 | Phase 2 scope filters: Me/Squad toggle on tickets, timesheet, estimate vs actual. `wireScopePills`, `buildScopeToggleHtml`. |
+| v1.9.4 | Phase 3 settings split: EM-only sections hidden for engineer. Squad member management (curated list, stops auto-discovery). `role`+`viewScope` preserved across saves. |
+| v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: `squadKey` deleted by Phase 1 edit breaking all Jira fetches. |
+| v1.9.7–v1.9.8 | UX: section reorder (Sentry → Insights → Extra boards → Current Sprint), Me/Squad filter on charts and extra boards, sprint filter row, welcome SVG icons. Bug: `wireScopePills(contentEl)` was undefined (should be `content`). |
+| v1.9.9 | Root cause of "scaled-up header": Python reorder scripts created duplicate copies of ALL screen divs. Rebuilt `popup.html` atomically. Merged auth+role-select into one welcome screen. `Hello, Zealer! 👋`, 120px logo, square role cards, ascending-bars EM icon. |
+| v2.0.0 | Fix: welcome screen used hardcoded `cap-color.png` (navy always). Restored `theme-logo` dual-image span so dark mode shows white cap. |
 
-Branch: feature/claude-t20-charts-svg
+### Current state
 
-Create:
-- src/sprint-cache.js  (cache burndown+timesheet by sprint name)
-- src/chart-svg.js     (SVG renderer: renderBurndownChart, renderTimesheetChart)
+- Role-select + auth screens merged into one welcome screen (`screen-role-select`)
+- `screen-auth` still exists in HTML as a fallback but is never routed to
+- `popup.html` has exactly one copy of each screen (no more duplicates)
+- All 9 test suites pass (~100+ tests)
+- Engineer me/squad scope filter works on: tickets, timesheet, estimate, extra boards
+- EM squad member management: curated list locks out background auto-discovery
 
-Modify:
-- background.js        (call getSprintStories with withChangelog+withWorklogs, compute+save)
-- popup.html           (collapsible sprint-analytics-section, expanded by default)
-- popup.js             (read cache, inject SVG charts)
+### What's next (planned phases)
 
-Key reminders:
-- getUTCDay() NOT getDay() for all day-of-week logic
-- Charts placed in collapsed area under Current Sprint, EXPANDED by default
-- Cache keyed by sprint name, prompt on sprint change (keep/delete)
-- Default working days: [0,1,2,3,4] = Sun-Thu
-
----
-
----
-
-## Current version: v1.1.9
-
-## Last session: Ahmed + Claude — 2026-05-16
-
-### ⚠️ Workflow note
-
-All work from v1.0.0 → v1.1.9 was shipped by pushing directly to `main` without GitHub Issues, branches, or PRs. This violates CONTRIBUTING.md.
-
-**Retroactive fix:**
-- `scripts/create-issues.sh` — run this once from your machine to create all 21 retroactive issues
-- Going forward: every piece of work MUST start with a GitHub Issue and a feature branch
-
-**From v1.2.0 onwards the workflow will be:**
-```
-create issue → branch feature/claude-issue-N → work → PR → review → merge
-```
-
-### What was completed this session
-
-- ✅ Fixed Sentry loading/empty state overlap
-- ✅ All Sentry view sections collapsed by default
-- ✅ Sprint burndown early-sprint logic fixed (no false "at risk" on Day 1)
-- ✅ Sprint shows expected velocity: `X pt/day needed`
-- ✅ Set up collaboration infrastructure (this file, CONTRIBUTING.md, AI_PROMPT.md)
-- ✅ GitHub Pages enabled — index.html, docs.html, changelog.html now hosted
-- ✅ Version bumped to v1.1.4
-
-### Current state of the app
-
-| Feature | Status | Notes |
+| Phase | Status | Description |
 |---|---|---|
-| Sprint at a glance | ✅ Working | Shows tickets, assignees, story points |
-| Sprint burndown prediction | ✅ Working | Ignores Day 1-2, shows expected velocity |
-| Sentry multi-view sections | ✅ Working | Collapsed by default, per-view counts |
-| Sentry project IDs | ⚠️ Manual | User must paste project IDs from view URLs |
-| Settings auto-reload | ✅ Working | Popup refreshes on save |
-| Alerts | ✅ Working | Section hidden when no alerts |
-| Extra boards | 🚧 Scaffolded | Fetched in background, not yet displayed in UI |
-| Board Manager UI | 📋 Planned | v1.2.0 — drag-and-drop multi-board |
-| Leapsome integration | 📋 Planned | v2.0 |
-
-### Known issues / TODOs
-
-- [ ] Extra boards (if configured) not yet rendered in the dashboard UI
-- [ ] Sentry project IDs require manual copy from view URL — could auto-fetch from view config
-- [ ] Sprint story points show 0 for some Jira instances (story points field varies)
-- [ ] No loading state on initial boot (only on refresh)
+| 5 | 📋 Planned | Engineer progress circles: sprint donut (pts, multi-status) + support donut (count, QA Accepted = done). Hidden if no assignments. Always "me"-scoped. |
+| 6 | 📋 Discuss | Splash screen (2s, logo + animation). Discuss style when reached. |
+| Alert settings | 📋 Planned | Per-rule enable/disable + threshold config in Settings page. |
 
 ---
 
-## Active GitHub Issues
-
-> Update this when you pick up or close an issue
-
-| Issue | Status | Assigned to |
-|---|---|---|
-| None open yet | — | — |
-
----
-
-## What's next (v1.2.0)
-
-Priority order:
-1. **Board Manager UI** — multiple boards, drag-to-reorder, custom names per board
-2. **Display extra boards** — additional sections in dashboard for configured extra boards
-3. **Auto-fetch Sentry project IDs** from saved view config (so user doesn't have to copy them)
-4. **Sprint story points debug** — better fallback if board config returns wrong field
-
----
-
-## Architecture notes (for new contributors)
+## Architecture notes
 
 ### Data flow
 ```
-chrome.runtime.onInstalled → setupAlarm()
-                          ↓
-chrome.alarms (30min)  → checkDashboard()
-                          → fetchJiraData()  → storage.set(currentSprint, sprintHistory)
-                          → fetchSentryData() → storage.set(sentryIssues, sentryViews)
-popup.js (on open)     → refreshDashboard() → sendMessage('refresh-dashboard')
-                          → loadData()        → reads from storage
-                          → renderTodayScreen()
-settings.js (on save)  → sendMessage('settings-updated') → popup reloads
+chrome.alarms (5 min) → saveAndNotify()
+  → fetchJiraData(settings)
+      → client.getCurrentUser()       → state.currentUser {accountId, displayName}
+      → const squadKey = settings.squad?.key   ← CRITICAL: must come AFTER getCurrentUser
+      → fetchSprintStories()
+      → attachCloseTimestamps()       → normalizedStories with closedAt, closedDay
+      → estimateAtSprintStart()       → committedPoints reconstruction
+      → computeBurndownSeries()       → burndown with committed baseline
+      → return { currentSprint, sprintHistory, supportTickets, extraBoardsData, currentUser }
+  → fetchSentryData(settings)         → sentryViews [{viewId, label, count}]
+  → recordTrendSample()               → chrome.storage.sync per view
+  → state.sentryTrendSamples = {}     → last 7 days per view (for spike rule)
+  → state.settings = settings
+  → checkAlerts(state)                → 9 rules, each try/catched
+  → mergeAlerts()                     → chrome.storage.local
 ```
 
 ### Key files
-- `background.js` — service worker, alarms, data fetching, alert rules
-- `popup.js` — side panel UI, screen routing, rendering
-- `settings.js` — credentials form, save/load logic
-- `src/jira-api.js` — Jira REST v3 + Agile v1.0 client
-- `src/sentry-api.js` — Sentry Issues API client
-- `src/metrics.js` — sprint velocity, burndown prediction
-- `src/alerts.js` — alert rule definitions
-- `src/migrations.js` — data model migrations between versions
+| File | Purpose |
+|---|---|
+| `background.js` | Service worker. Data fetching, alert engine, caching. Note: `squadKey` must be declared AFTER `getCurrentUser()` block. |
+| `popup.js` | Side panel UI. `renderTodayScreen`, `renderInsights`, `renderRoleSelectScreen`, `wireScopePills`, `renderExtraBoards`. |
+| `settings.html/js` | Role toggle, credentials, squad config, squad member management. `applyRoleToSettings(role)` hides/shows `.em-only`. |
+| `src/jira-api.js` | Jira REST v3 + Agile v1.0. `getCurrentUser()` added. |
+| `src/metrics.js` | `committedBurnPrediction()`, `countWorkingDays()`, `sentryDayOverDaySpike()`. |
+| `src/alerts.js` | 9 rules. `checkAlerts(state)` wraps each in try/catch. |
+| `src/burndown.js` | `computeBurndownSeries()` using committed-baseline from changelog. |
+| `src/changelog-parser.js` | `estimateAtSprintStart()`, `wasAddedAfterSprintStart()`, `attachCloseTimestamps()`. |
 
-### Critical API notes
-- **Jira boards/sprints**: use `/rest/agile/1.0/` NOT `/rest/api/3/` (returns 404)
-- **Jira search**: use POST `/rest/api/3/search/jql` (GET `/search` is deprecated)
-- **Sentry views**: always pass `project` IDs explicitly — `view=` param doesn't filter by project
-- **Sentry query**: `is:unresolved&sort=date&statsPeriod=7d`
+### Settings schema (relevant keys)
+```js
+settings = {
+  role:      'em' | 'engineer',       // set on first launch
+  viewScope: 'me' | 'squad',          // persisted scope toggle for engineers
+  jira:      { baseUrl, email, token },
+  sentry:    { baseUrl, org, token },
+  squad:     { key, name, extraBoards: [{name, boardId}] },
+  ui:        { theme, privacyMode, workingDays },
+  analytics: {
+    discoveredMembers:    string[],   // auto-discovered OR curated by EM
+    squadMembersCurated:  boolean,    // true = background won't auto-update list
+    monitoredMembers:     string[],   // active DDL filter selection (EM mode)
+  }
+}
+```
+
+### Known traps / lesson-learned
+1. **`squadKey` placement** — must be declared AFTER the `getCurrentUser()` try/catch in `fetchJiraData`. Moving the function opening without including `const squadKey` causes ReferenceError on every Jira fetch.
+2. **`wireScopePills` variable name** — `renderInsights()` uses `const content = ...` (not `contentEl`). Calling `wireScopePills(contentEl)` passes `undefined` → silent no-op.
+3. **popup.html reorder scripts** — Python str_replace and block-reorder scripts can create duplicate screen divs if the slice boundaries aren't exact. Always verify with `h.count('id="screen-X"')` == 1 after any reorder.
+4. **`theme-logo` vs single `<img>`** — Always use `<span class="theme-logo"><img class="logo-light"><img class="logo-dark"></span>` pattern. Single `<img src="cap-color.png">` always shows navy regardless of theme.
+5. **Calendar-day bucketing** — Sprint startDate is a UTC datetime (e.g. 13:41Z). Always use `setHours(0,0,0,0)` to normalize to local calendar day before computing day indices.
 
 ---
 
@@ -174,14 +108,14 @@ settings.js (on save)  → sendMessage('settings-updated') → popup reloads
 git clone https://github.com/ahmedredazeal/em-dashboard-extension
 cd em-dashboard-extension
 git pull
-# Read HANDOFF.md (this file)
-# Pick an issue from GitHub Issues
-git checkout -b feature/your-name-issue-N
+# Read HANDOFF.md (this file) + CHANGELOG.md
+# Pick a phase from the "What's next" table above
+bash pre-flight.sh            # verify all green before starting
 # Make changes
-bash pre-flight.sh
-# Bump version in manifest.json
-git add -A && git commit -m "type(scope): description"
+bash pre-flight.sh            # must stay green
+# Bump manifest.json version
+# Update CHANGELOG.md + changelog.html
+# Update HANDOFF.md (this file)
+git add -A && git commit -m "feat(v#.#.#): description"
 git push
-# Open PR on GitHub
-# Update HANDOFF.md before ending session
 ```
