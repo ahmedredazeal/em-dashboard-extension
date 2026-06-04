@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.4.0 (2026-06-04) — Phase 6: Launch splash screen
+
+A branded splash plays once per browser session when the side panel first opens.
+
+**Palette:** Navy `#1A215E` background, white cap icon, white `#FFFFFF` text.
+**Type:** "Zealer" in Nohemi SemiBold, "Dashboard" in DM Sans Medium.
+
+**Animation timeline (~2.9s):**
+1. ~0.55s — steady navy background
+2. cap icon scales/fades in at centre
+3. concentric water ripples emanate from the cap (~1.2s)
+4. "Zealer Dashboard" title fades up and holds (~1s)
+5. splash fades out, revealing the dashboard
+
+**Fonts:** DM Sans is bundled (`fonts/DMSans-*.woff2`, SIL OFL). Nohemi is a
+commercial font and is NOT bundled — drop a licensed `fonts/Nohemi-SemiBold.woff2`
+into the fonts folder to enable it; until then "Zealer" falls back to DM Sans 500
+/ a system geometric sans. See `fonts/README.md`.
+
+Shown once per session via `chrome.storage.session`. Respects
+`prefers-reduced-motion` (ripples disabled, instant reveal).
+
+---
+
 ## v2.3.0 (2026-06-04) — Alert Settings (T-AS-1/2/3)
 
 A new **Alert rules** section in Settings gives per-rule control over all

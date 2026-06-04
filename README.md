@@ -57,6 +57,10 @@ Alerts → Insights → Extra boards → Sentry Issues → Current Sprint
 
 ---
 
+### Launch splash
+
+A branded splash (navy, cap icon, water-ripple animation, then the wordmark) plays once per browser session on first open. DM Sans is bundled; to render "Zealer" in Nohemi, add a licensed `fonts/Nohemi-SemiBold.woff2` (see `fonts/README.md`).
+
 ## Installation
 
 1. Clone the repo: `git clone https://github.com/ahmedredazeal/em-dashboard-extension`

@@ -30,9 +30,40 @@ let state = {
 /**
  * Boot sequence
  */
+/**
+ * Phase 6 splash. Shows once per browser session.
+ * Timeline: 0.55s navy → cap in → ripples (~1.2s) → title in → hold → fade out (~2.9s total).
+ */
+async function maybeRunSplash() {
+  const splash = document.getElementById('splash-screen');
+  if (!splash) return;
+
+  let alreadyShown = false;
+  try {
+    const r = await chrome.storage.session.get('splashShown');
+    alreadyShown = !!r.splashShown;
+  } catch { /* session storage unavailable — treat as not shown */ }
+
+  if (alreadyShown) {
+    splash.remove();
+    return;
+  }
+
+  try { await chrome.storage.session.set({ splashShown: true }); } catch { /* noop */ }
+
+  // Let the animation play, then fade out and remove
+  setTimeout(() => {
+    splash.classList.add('splash-hide');
+    setTimeout(() => splash.remove(), 500);
+  }, 2900);
+}
+
 async function boot() {
   console.log('[popup] Booting Zealer Dashboard...');
-  
+
+  // Phase 6: launch splash — show once per browser session, then fade out
+  maybeRunSplash();
+
   // Load and apply theme
   await loadAndApplyTheme();
   

@@ -1003,3 +1003,110 @@ body.privacy-on [data-privacy-mask]::after {
 .alert-notify-btn.active { opacity: 1; }
 .alert-notify-btn:hover:not(:disabled) { opacity: 0.8; }
 .alert-notify-btn:disabled { cursor: default; }
+
+/* ── Fonts ───────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal; font-weight: 400;
+  src: url('fonts/DMSans-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal; font-weight: 500;
+  src: url('fonts/DMSans-Medium.woff2') format('woff2');
+  font-display: swap;
+}
+/* Nohemi is commercial — drop fonts/Nohemi-SemiBold.woff2 in to enable it.
+   Falls back to DM Sans 500 / system geometric sans until then. */
+@font-face {
+  font-family: 'Nohemi';
+  font-style: normal; font-weight: 600;
+  src: local('Nohemi SemiBold'), local('Nohemi'),
+       url('fonts/Nohemi-SemiBold.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* ── Phase 6: Splash screen ──────────────────────────────────────────── */
+#splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #1A215E;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  transition: opacity 0.45s ease;
+}
+#splash-screen.splash-hide { opacity: 0; pointer-events: none; }
+
+.splash-stage {
+  position: relative;
+  width: 96px; height: 96px;
+  display: flex; align-items: center; justify-content: center;
+}
+.splash-cap {
+  width: 96px; height: 96px;
+  position: relative; z-index: 2;
+  opacity: 0; transform: scale(0.6);
+  animation: splashCapIn 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.55s forwards;
+}
+@keyframes splashCapIn {
+  0%   { opacity: 0; transform: scale(0.55); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Water ripples emanating from the cap centre */
+.splash-ripple {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 88px; height: 88px;
+  margin: -44px 0 0 -44px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.25);
+  z-index: 1;
+  animation: splashRipple 1.7s ease-out infinite;
+}
+.splash-ripple:nth-child(1) { animation-delay: 0.60s; }
+.splash-ripple:nth-child(2) { animation-delay: 0.95s; }
+.splash-ripple:nth-child(3) { animation-delay: 1.30s; }
+.splash-ripple:nth-child(4) { animation-delay: 1.65s; }
+@keyframes splashRipple {
+  0%   { opacity: 0.55; transform: scale(0.25); border-width: 2.5px; }
+  80%  { opacity: 0.08; }
+  100% { opacity: 0;    transform: scale(2.8);  border-width: 0.5px; }
+}
+
+.splash-title {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: splashTitleIn 0.6s ease-out 1.85s forwards;
+  font-size: 26px;
+  line-height: 1;
+  white-space: nowrap;
+}
+@keyframes splashTitleIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+.splash-zealer {
+  font-family: 'Nohemi', 'DM Sans', system-ui, sans-serif;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: 0.2px;
+}
+.splash-dashboard {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 500;
+  color: #FFFFFF;
+  margin-left: 7px;
+  letter-spacing: 0.2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-cap, .splash-ripple, .splash-title { animation-duration: 0.01s; }
+  .splash-ripple { display: none; }
+}
