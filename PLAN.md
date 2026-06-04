@@ -1,4 +1,4 @@
-# EM Dashboard — Chrome Extension Plan
+# Zealer Dashboard — Chrome Extension Plan
 
 > **Status:** Approved decisions baked in — final review before Phase 1 starts
 > **Repo:** https://github.com/ahmedredazeal/em-dashboard-extension
@@ -20,7 +20,7 @@ A Chrome side-panel extension that helps an Engineering Manager:
 
 ## 2. Name & repo
 
-- **Name:** EM Dashboard
+- **Name:** Zealer Dashboard
 - **Repo:** `github.com/ahmedredazeal/em-dashboard-extension`
 - Once the first push lands, GitHub Pages will host `docs.html` and `changelog.html` for clickable in-app links (matches Sprint Planner's pattern).
 
@@ -108,7 +108,7 @@ Owns the alarm + the toolbar badge + the notification dispatch. The popup never 
 Two-row sticky header (per `GUIDELINES.md` §4):
 
 ```
-App bar:      [icon] EM Dashboard v1.0.0                    🔒  ⚙   ?
+App bar:      [icon] Zealer Dashboard v1.0.0                    🔒  ⚙   ?
 Context bar:  ←  [SQUAD]  Squad Name  ·  Sprint 47  Day 4/10   ↻   ⎙
                                                             └─ privacy mode toggle (new)
 ```
@@ -267,7 +267,7 @@ Pre-flight before every release — same checklist Sprint Planner uses:
 
 ## 10. Lessons applied from Sprint Planner
 
-| Lesson | How EM Dashboard handles it from day one |
+| Lesson | How Zealer Dashboard handles it from day one |
 |---|---|
 | Stale `getElementById` refs caused multiple hotfix releases | Element audit script in `package.json` from v1.0.0 |
 | Inline scripts/handlers tripped CSP repeatedly | Pre-commit grep for `onclick=`, inline `<script>`, `javascript:` URLs |

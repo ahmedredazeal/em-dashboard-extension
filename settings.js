@@ -532,7 +532,7 @@ function getTrackedViewIds() {
 
         // Validate shape (same format as the export produces)
         if (typeof payload.viewId !== 'string' || !Array.isArray(payload.samples)) {
-          throw new Error('Invalid format — use a file exported by EM Dashboard (⬇ button on the trend chart).');
+          throw new Error('Invalid format — use a file exported by Zealer Dashboard (⬇ button on the trend chart).');
         }
         if (payload.samples.length === 0) {
           importStatus.textContent = 'File contains 0 samples — nothing to import.';

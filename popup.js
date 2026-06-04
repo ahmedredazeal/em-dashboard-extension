@@ -1,6 +1,6 @@
 /**
  * popup.js
- * Main app controller for EM Dashboard side panel
+ * Main app controller for Zealer Dashboard side panel
  * ES module with imports from src/
  */
 
@@ -31,7 +31,7 @@ let state = {
  * Boot sequence
  */
 async function boot() {
-  console.log('[popup] Booting EM Dashboard...');
+  console.log('[popup] Booting Zealer Dashboard...');
   
   // Load and apply theme
   await loadAndApplyTheme();
@@ -523,7 +523,7 @@ function renderRoleSelectScreen() {
   body.innerHTML = `
     <div style="text-align:center;padding:28px 0 22px;">
       <span class="theme-logo welcome-logo-wrap">
-        <img class="logo-light" src="icons/cap-color.png" alt="EM Dashboard">
+        <img class="logo-light" src="icons/cap-color.png" alt="Zealer Dashboard">
         <img class="logo-dark"  src="icons/cap-white.png" alt="">
       </span>
       <h2 style="font-size:19px;font-weight:700;margin:0 0 8px;">Hello, Zealer! 👋</h2>

@@ -1,4 +1,4 @@
-# EM Dashboard — Developer Documentation
+# Zealer Dashboard — Developer Documentation
 
 ## Phase 1 Architecture
 

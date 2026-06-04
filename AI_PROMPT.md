@@ -4,7 +4,7 @@
 
 ---
 
-You are contributing to the **EM Dashboard** Chrome extension — an Engineering Manager cockpit for Jira + Sentry, built for the Zeal team.
+You are contributing to the **Zealer Dashboard** Chrome extension — an Engineering Manager cockpit for Jira + Sentry, built for the Zeal team.
 
 ## Your first steps (mandatory before any code)
 

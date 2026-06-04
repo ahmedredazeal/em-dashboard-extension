@@ -1,6 +1,6 @@
 /**
  * background.js
- * Service worker for EM Dashboard
+ * Service worker for Zealer Dashboard
  * Data is fetched on panel open (not on a background timer).
  * This service worker handles: data fetching, alert rules, toolbar badge, notifications.
  */
@@ -24,7 +24,7 @@ runMigrations().catch(err => console.warn('[background] Migration failed:', err.
  * Initialize on extension install/update
  */
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('[background] EM Dashboard installed/updated');
+  console.log('[background] Zealer Dashboard installed/updated');
   
   // Configure side panel to open on action click
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -39,7 +39,7 @@ chrome.runtime.onInstalled.addListener(async () => {
  * Configure side panel on startup (when Chrome restarts)
  */
 chrome.runtime.onStartup.addListener(async () => {
-  console.log('[background] EM Dashboard starting up');
+  console.log('[background] Zealer Dashboard starting up');
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   // Clear any stale alarms from old versions
   await chrome.alarms.clearAll();
@@ -686,7 +686,7 @@ async function notifyHighSeverity(newAlerts, settings) {
       await chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: 'EM Dashboard Alert',
+        title: 'Zealer Dashboard Alert',
         message: alert.message,
         priority: 2
       });

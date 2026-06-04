@@ -1,4 +1,4 @@
-# Contributing to EM Dashboard
+# Contributing to Zealer Dashboard
 
 This project uses AI-assisted development. Both human contributors and Claude sessions must follow this guide to avoid conflicts, duplicated work, and broken releases.
 

@@ -1,4 +1,4 @@
-# EM Dashboard — Chrome Extension
+# Zealer Dashboard — Chrome Extension
 
 Engineering Manager + Engineer cockpit for Jira + Sentry. Sprint health, reliability, time tracking and alert rules in a Chrome side panel. Dual-role architecture serves both EMs and individual engineers from a single extension.
 
@@ -59,7 +59,7 @@ Alerts → Insights → Extra boards → Sentry Issues → Current Sprint
 2. Open Chrome → `chrome://extensions`
 3. Enable **Developer mode** (top-right toggle)
 4. Click **Load unpacked** → select the `em-dashboard-extension` folder
-5. The EM Dashboard icon appears in your toolbar or side panel
+5. The Zealer Dashboard icon appears in your toolbar or side panel
 
 ## First-time setup
 

@@ -152,7 +152,7 @@ async function render() {
   // ── Header ────────────────────────────────────────────────────────────
   const titleText = isMulti ? 'Sentry Issue Trends — All Tracked Views' : `${series[0].label} · Issue Trend`;
   document.getElementById('exp-title').textContent = titleText;
-  document.title = `EM Dashboard — ${isMulti ? 'Multi-View' : series[0].label} Trend Export`;
+  document.title = `Zealer Dashboard — ${isMulti ? 'Multi-View' : series[0].label} Trend Export`;
   document.getElementById('exp-badge').textContent = `Exported ${new Date(exportedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })}`;
 
   if (isMulti) {

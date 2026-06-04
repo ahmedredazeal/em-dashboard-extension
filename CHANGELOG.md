@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.2.0 (2026-06-04) — Rebrand to "Zealer Dashboard" + toolbar icon fix
+
+**Renamed** from "EM Dashboard" to **Zealer Dashboard** everywhere user-facing:
+manifest name/title/description, app-bar, page titles, welcome screen,
+desktop notification titles, and all documentation. The tool serves both
+EMs and engineers now, so the name and description are role-neutral.
+(Internal identifiers — repo/folder name, `.em-only` CSS class, the
+`role === "em"` value, file names — intentionally unchanged.)
+
+**Toolbar icon fix.** The previous toolbar icon was a near-white cap on a
+transparent background, so it disappeared on light-mode toolbars. Chrome
+MV3 service workers can't reliably detect the browser theme to swap icons,
+so the icon is now a **circular royal-blue badge** with the white cap
+inside — visible on both light and dark toolbars. Regenerated icon16/32/48/128
+and added an explicit `action.default_icon` to the manifest.
+
+---
+
 ## v2.1.3 (2026-06-04) — Fix: engineer "Me" filter no longer shows squad data
 
 Two problems caused the Time Logged and Estimate vs Actual charts to keep

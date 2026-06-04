@@ -1,4 +1,4 @@
-# EM Dashboard — Test Checklist
+# Zealer Dashboard — Test Checklist
 
 Run this checklist before every release. All items must pass.
 
@@ -24,7 +24,7 @@ Run `./pre-flight.sh` to validate:
    - [ ] `chrome://extensions` → Developer mode ON → Load unpacked
    - [ ] Extension loads without errors in red text
    - [ ] Click "Errors" button → 0 errors shown
-   - [ ] Click "service worker" link → console shows `[background] EM Dashboard installed/updated`
+   - [ ] Click "service worker" link → console shows `[background] Zealer Dashboard installed/updated`
 
 2. **Initial icon click**
    - [ ] Click toolbar icon → side panel opens (no errors)
@@ -67,7 +67,7 @@ Run `./pre-flight.sh` to validate:
 1. **Today screen loads**
    - [ ] Side panel reopens automatically
    - [ ] Shows "Today" screen (not auth)
-   - [ ] App bar shows: icon, "EM Dashboard", version, 🔒, ⚙, ?
+   - [ ] App bar shows: icon, "Zealer Dashboard", version, 🔒, ⚙, ?
    - [ ] Context bar shows: squad key badge, project name, sprint name, ↻
    - [ ] Alert inbox renders (empty or with alerts)
    - [ ] Sprint glance card shows sprint name
@@ -91,7 +91,7 @@ Run `./pre-flight.sh` to validate:
 ## Background Service Worker Test
 
 1. **Service worker active**
-   - [ ] `chrome://extensions` → EM Dashboard → click "service worker"
+   - [ ] `chrome://extensions` → Zealer Dashboard → click "service worker"
    - [ ] Console shows boot messages
    - [ ] No red errors
 

@@ -33,7 +33,7 @@ assignees: ''
 - [ ] Other: ___
 
 ## Console errors
-<!-- chrome://extensions → EM Dashboard → "service worker" → paste any errors here -->
+<!-- chrome://extensions → Zealer Dashboard → "service worker" → paste any errors here -->
 ```
 paste here
 ```
