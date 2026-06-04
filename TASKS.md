@@ -51,6 +51,7 @@ _Nothing currently in progress._
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: squadKey ReferenceError (broke all Jira fetching). |
 | v1.9.7–v1.9.8 | Section reorder, sprint filter row, Me/Squad on charts + extra boards. Fixed wireScopePills(contentEl) undefined. |
 | v1.9.9 | popup.html deduplication (Python scripts created 2× all screens). Merged auth+role-select screens. Hello Zealer greeting, 120px logo, square role cards, chart EM icon. |
+| v2.4.1 | Splash polish: correct white logo, cap +20%, title -40%, Dashboard regular weight. |
 | v2.4.0 | Phase 6: launch splash screen (ripple animation, once per session, bundled DM Sans, Nohemi slot). |
 | v2.3.0 | Alert Settings: T-AS-1 (enable/disable), T-AS-2 (thresholds), T-AS-3 (per-rule desktop notif), migration, reset button. |
 | v2.2.0 | Rebrand to "Zealer Dashboard" everywhere user-facing. Toolbar icon circular badge fix (visible light+dark). |

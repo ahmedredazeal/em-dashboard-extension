@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.4.1 (2026-06-04) — Splash polish: correct logo, sizing, weights
+
+- **Correct logo.** The splash was using `cap-white.png`, which is actually a
+  navy wing on a white cap — its wing vanished against the navy background.
+  Generated `cap-splash-white.png` (all-white cap from the real `cap-color.png`
+  logo, with the wing + brim swoosh as navy negative-space cutouts) so the full
+  brand mark reads cleanly on `#1A215E`.
+- **Cap +20%** — 96 px → 115 px (ripple base scaled to match).
+- **Title −40%** — 26 px → 16 px.
+- **"Dashboard" now regular weight** (400) while "Zealer" stays semibold (600).
+
+---
+
 ## v2.4.0 (2026-06-04) — Phase 6: Launch splash screen
 
 A branded splash plays once per browser session when the side panel first opens.

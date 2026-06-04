@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.4.0
+## Current version: v2.4.1
 
 ## Last session: Ahmed + Claude — 2026-06-04
 
@@ -22,6 +22,7 @@
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: `squadKey` deleted by Phase 1 edit breaking all Jira fetches. |
 | v1.9.7–v1.9.8 | UX: section reorder (Sentry → Insights → Extra boards → Current Sprint), Me/Squad filter on charts and extra boards, sprint filter row, welcome SVG icons. Bug: `wireScopePills(contentEl)` was undefined (should be `content`). |
 | v1.9.9 | Root cause of "scaled-up header": Python reorder scripts created duplicate copies of ALL screen divs. Rebuilt `popup.html` atomically. Merged auth+role-select into one welcome screen. `Hello, Zealer! 👋`, 120px logo, square role cards, ascending-bars EM icon. |
+| v2.4.1 | Splash polish: correct all-white logo (cap-splash-white.png generated from cap-color.png with wing/swoosh cutouts), cap +20% (115px), title -40% (16px), Dashboard regular weight. |
 | v2.4.0 | Phase 6: launch splash (navy, ripple, cap, title) once per session via chrome.storage.session. DM Sans bundled; Nohemi slot in fonts/. maybeRunSplash() in boot(). |
 | v2.3.0 | Alert Settings: per-rule enable/disable, configurable thresholds (scope_creep %, stalled_burndown days, sentry_spike delta/%), per-rule desktop notif (🔔), reset-to-defaults, migration. |
 | v2.2.0 | Rebrand to "Zealer Dashboard" (all user-facing strings + docs; internal IDs unchanged). Toolbar icon → circular blue badge, visible both light/dark. action.default_icon added. |
