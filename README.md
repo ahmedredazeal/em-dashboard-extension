@@ -17,6 +17,7 @@ First launch prompts you to choose your role. Role is persisted and can be chang
 | Time tracking | Full squad, engineers DDL filter | Me / Squad toggle, "Me" default |
 | Estimate vs Actual | Full squad | Me / Squad toggle |
 | Extra boards (support) | Full squad | Me / Squad toggle |
+| **Progress circles** | Not shown | Two personal donuts: sprint (pts by status) + support (ticket count); hidden if no assignments |
 | Burndown chart | Team — unchanged | Team — unchanged |
 | Sprint progress | Team — unchanged | Team — unchanged |
 | Sentry trend | Configured views — unchanged | Configured views — unchanged |

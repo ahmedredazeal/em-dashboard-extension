@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.1.0 (2026-06-04) — Phase 5: Engineer progress circles
+
+Two personal progress donuts appear at the top of the Today screen in
+engineer mode whenever the signed-in engineer has assigned work.
+Both are always "me"-scoped regardless of the Me/Squad toggle.
+
+**Sprint donut**
+- Metric: story points
+- Segments coloured by status category:
+  Done (green) · In Progress (blue) · Open (slate)
+- Centre: `{donePts}/{totalPts}` pts + ticket count hint
+- Hidden when the engineer has no assigned sprint stories
+
+**Support donut**
+- Metric: ticket count across all configured support boards
+- Same three-colour segments; "done" = `statusCategory === "done"`
+- Centre: `{done}/{total}` tickets
+- Hidden when the engineer has no assigned support tickets
+
+**Implementation:**
+- `buildDonut({ segments, centerMain, centerSub })` — pure SVG donut
+  via `stroke-dasharray` on `<circle>` elements, no external deps.
+- `renderEngineerProgressCircles()` — called first in `renderTodayScreen`;
+  creates/hides `#engineer-progress-row` based on assignment presence.
+- Legend (Done / In Progress / Open colour key) sits to the right of
+  the donuts inside the same card row.
+- Docs rule added to `AI_PROMPT.md` and memory: updating README,
+  HANDOFF, TASKS, docs.html, CHANGELOG is mandatory before every commit.
+
+---
+
 ## v2.0.2 (2026-06-04) — Move sentry trend chart below burndown
 
 The sentry trend card (`#sentry-trend-card`) now renders inside

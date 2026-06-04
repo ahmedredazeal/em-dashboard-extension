@@ -972,7 +972,160 @@ function renderInsights() {
 /**
  * Render TODAY screen
  */
+// ── Phase 5: Engineer progress circles ───────────────────────────────
+
+/**
+ * Build an SVG donut chart.
+ * @param {Array<{value, color}>} segments
+ * @param {string} centerMain   - large centre label
+ * @param {string} centerSub    - small label below centre
+ * @param {number} size         - overall SVG size in px
+ * @param {number} strokeW      - ring stroke width in px
+ */
+function buildDonut({ segments, centerMain, centerSub, size = 80, strokeW = 14 }) {
+  const r    = (size - strokeW) / 2;
+  const circ = 2 * Math.PI * r;
+  const cx   = size / 2;
+  const cy   = size / 2;
+  const total = segments.reduce((s, g) => s + g.value, 0);
+  if (total === 0) return '';
+
+  // Start at 12 o'clock
+  const startOff = circ / 4;
+  let accumulated = 0;
+
+  const track = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+    stroke="var(--surface-raised,#1f2937)" stroke-width="${strokeW}"/>`;
+
+  const arcs = segments.map(seg => {
+    const dash   = (seg.value / total) * circ;
+    const gap    = circ - dash;
+    const offset = startOff - accumulated;
+    accumulated += dash;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="${seg.color}" stroke-width="${strokeW}"
+      stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
+      stroke-dashoffset="${offset.toFixed(2)}"
+      style="transform-origin:center;transition:stroke-dasharray .3s ease;"/>`;
+  });
+
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    ${track}
+    ${arcs.join('')}
+    <text x="${cx}" y="${cy - 1}" text-anchor="middle" dominant-baseline="middle"
+      style="font-size:12px;font-weight:700;fill:var(--text);">${centerMain}</text>
+    <text x="${cx}" y="${cy + 12}" text-anchor="middle"
+      style="font-size:9px;fill:var(--text-muted);">${centerSub}</text>
+  </svg>`;
+}
+
+/**
+ * Render the two personal progress circles for engineer mode.
+ * Always uses "me" scope regardless of state.viewScope.
+ * Hidden entirely when the engineer has no assignments in a given category.
+ */
+function renderEngineerProgressCircles() {
+  const row = document.getElementById('engineer-progress-row');
+  if (!row) return;
+
+  if (state.settings?.role !== 'engineer' || !state.currentUser?.accountId) {
+    row.style.display = 'none';
+    return;
+  }
+
+  const accountId = state.currentUser.accountId;
+
+  // Sprint: filter to current user's stories
+  const myStories = (state.currentSprint?.stories || [])
+    .filter(s => s.assigneeAccountId === accountId);
+  const sprintPts = myStories.reduce((s, t) => s + (t.points || 0), 0);
+
+  // Support: all support boards → flatten to current user's tickets
+  const mySupport = (state.extraBoardsData || [])
+    .filter(b => (b.boardLabel || '').toLowerCase().includes('support'))
+    .flatMap(b => (b.stories || []).filter(s => s.assigneeAccountId === accountId));
+  const supportTotal = mySupport.length;
+
+  if (sprintPts === 0 && supportTotal === 0) {
+    row.style.display = 'none';
+    return;
+  }
+
+  // Colour palette (matches existing status pills)
+  const C_DONE   = '#34d399';   // green
+  const C_PROG   = '#60a5fa';   // blue
+  const C_OPEN   = 'var(--text-lighter, #475569)';  // slate
+
+  // ── Sprint donut ──────────────────────────────────────────────────
+  let sprintDonutHtml = '';
+  if (sprintPts > 0) {
+    const donePts = myStories
+      .filter(s => s.statusCategory === 'done')
+      .reduce((s, t) => s + (t.points || 0), 0);
+    const progPts = myStories
+      .filter(s => s.statusCategory === 'indeterminate')
+      .reduce((s, t) => s + (t.points || 0), 0);
+    const openPts = myStories
+      .filter(s => s.statusCategory === 'new')
+      .reduce((s, t) => s + (t.points || 0), 0);
+
+    const segs = [
+      { value: donePts, color: C_DONE },
+      { value: progPts, color: C_PROG },
+      { value: openPts, color: C_OPEN },
+    ].filter(s => s.value > 0);
+
+    sprintDonutHtml = buildDonut({
+      segments:   segs,
+      centerMain: `${donePts}/${sprintPts}`,
+      centerSub:  `${myStories.length} ticket${myStories.length !== 1 ? 's' : ''}`,
+    });
+  }
+
+  // ── Support donut ─────────────────────────────────────────────────
+  let supportDonutHtml = '';
+  if (supportTotal > 0) {
+    const suppDone = mySupport.filter(s => s.statusCategory === 'done').length;
+    const suppProg = mySupport.filter(s => s.statusCategory === 'indeterminate').length;
+    const suppOpen = mySupport.filter(s => s.statusCategory === 'new').length;
+
+    const segs = [
+      { value: suppDone, color: C_DONE },
+      { value: suppProg, color: C_PROG },
+      { value: suppOpen, color: C_OPEN },
+    ].filter(s => s.value > 0);
+
+    supportDonutHtml = buildDonut({
+      segments:   segs,
+      centerMain: `${suppDone}/${supportTotal}`,
+      centerSub:  'support',
+    });
+  }
+
+  // ── Render ────────────────────────────────────────────────────────
+  const makeCard = (donutSvg, label) => `
+    <div class="progress-circle-card">
+      ${donutSvg}
+      <span class="progress-circle-label">${label}</span>
+    </div>`;
+
+  row.style.display = '';
+  row.innerHTML = `
+    <div class="progress-circles-row">
+      ${sprintPts   > 0 ? makeCard(sprintDonutHtml,  'Sprint') : ''}
+      ${supportTotal > 0 ? makeCard(supportDonutHtml, 'Support') : ''}
+      <div class="progress-circles-legend">
+        <span class="pcl-dot" style="background:${C_DONE}"></span>Done
+        <span class="pcl-dot" style="background:${C_PROG}"></span>In Progress
+        <span class="pcl-dot" style="background:${C_OPEN}"></span>Open
+      </div>
+    </div>`;
+}
+
 function renderTodayScreen() {
+  // Phase 5: personal progress circles (engineer mode only, always "me"-scoped)
+  renderEngineerProgressCircles();
+
   // Alert section — only show if there are unacknowledged alerts
   const alertSection = document.getElementById('alert-section');
   const inbox = document.getElementById('alert-inbox');

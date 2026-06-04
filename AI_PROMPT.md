@@ -16,6 +16,18 @@ You are contributing to the **EM Dashboard** Chrome extension — an Engineering
 **Do not write a single line of code before doing steps 1–4.**
 **No task in TASKS.md = stop and ask what to work on.**
 
+## ⚠️ MANDATORY: docs update before every commit
+
+Before the final `git commit` of **any** task — no exceptions:
+
+- `README.md` — update features list and architecture if changed
+- `HANDOFF.md` — update session state, current version, what's next
+- `TASKS.md` — move completed tasks to Done, update backlog
+- `docs.html` — update in-app help if user-visible behaviour changed
+- `CHANGELOG.md` + `changelog.html` — add version entry
+
+If pre-flight fails because the version is missing from changelog, it's because this step was skipped. Fix the docs, then push.
+
 ## Repo
 
 `https://github.com/ahmedredazeal/em-dashboard-extension`

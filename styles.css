@@ -895,3 +895,45 @@ body.privacy-on [data-privacy-mask]::after {
   text-align: center;
   line-height: 1.3;
 }
+
+/* ── Phase 5: Engineer progress circles ─────────────────────────────── */
+.progress-circles-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px 10px;
+  background: var(--surface, #11131c);
+  border: 1px solid var(--border, rgba(255,255,255,0.05));
+  border-radius: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.progress-circle-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.progress-circle-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.progress-circles-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.pcl-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
