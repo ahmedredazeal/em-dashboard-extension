@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.9.9 (2026-06-04) — Welcome screen redesign + HTML deduplication
+
+**Root cause fixed: duplicate screens in popup.html**
+Three rounds of Python reorder scripts had progressively duplicated ALL screen
+divs (auth, role-select, today, sprint-health, reliability) and ultimately
+produced two full copies of the entire screen-container. This made the
+"scaled-up header" appear below any active screen — the duplicate auth screen
+and its theme-logo-72 caps were always partially visible. Rebuilt popup.html
+atomically with exactly one copy of each screen.
+
+**Unified welcome screen**
+Both the "no role set" and "no credentials" cases now route to a single
+\ screen instead of two different screens:
+- When no role is set: shows role cards with "What's your role?" label above.
+- When role is set but no credentials: shows greeting + "Go to Settings →"
+  without role cards.
+- The "Built at Zeal" footer removed from screen-auth (was bleeding through).
+
+**Visual changes:**
+- Greeting: "Hello, Zealer! 👋" replaces "How are you using this?"
+- Logo: 120 px (3× previous) via .welcome-logo img tag (no theme-logo class).
+- EM icon: ascending bar chart SVG (analytics/management feel).
+- Engineer icon: code brackets </> (unchanged, already clean).
+- Role cards: square (aspect-ratio 1:1), icon centred above title,
+  max-width 160 px, centred in row.
+
+---
+
 ## v1.9.8 (2026-06-04) — Fix section order, scope filter on charts/boards
 
 **Section order (Today screen — correct this time):**

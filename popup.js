@@ -54,17 +54,12 @@ async function boot() {
   
   // First launch: show role-selection screen if no role has been chosen yet.
   // This comes BEFORE the credentials check so new users pick their role first.
-  if (!state.settings.role) {
+  // Also used when credentials are missing — the unified welcome screen handles both.
+  if (!state.settings.role || !state.settings.jira?.token || !state.settings.sentry?.token) {
     showScreen('role-select');
     return;
   }
 
-  // Check if credentials are configured
-  if (!state.settings.jira?.token || !state.settings.sentry?.token) {
-    showScreen('auth');
-    return;
-  }
-  
   // Load cached data first for instant render
   await loadData();
   
@@ -492,40 +487,54 @@ function renderCurrentScreen() {
 }
 
 /**
- * Render the first-launch role-selection screen.
- * Shown once when settings.role is not yet set.
+ * Unified welcome screen — handles both:
+ *   a) First launch (no role set): shows role cards so the user can pick.
+ *   b) Credentials missing (role already set): shows greeting + Go to Settings only.
  */
 function renderRoleSelectScreen() {
   const body = document.getElementById('role-select-body');
   if (!body) return;
 
-  const sel = state.pendingRole || '';
+  const hasRole   = !!state.settings?.role;
+  const sel       = state.pendingRole || (hasRole ? state.settings.role : '');
+  const hasCreds  = !!(state.settings?.jira?.token && state.settings?.sentry?.token);
+
   const roleCards = [
     {
       role: 'em',
-      svg: `<svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zM.458 18C1.548 15.21 4.542 13 8 13s6.452 2.21 7.542 5H.458zm16.943 0A9.99 9.99 0 0120 18v1H17v-1c0-.35-.012-.698-.036-1.044A7.956 7.956 0 0117.4 18z"/>
+      svg: `<svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
       </svg>`,
       title: 'Engineering Manager'
     },
     {
       role: 'engineer',
-      svg: `<svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      svg: `<svg width="36" height="36" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
       </svg>`,
       title: 'Engineer'
     }
   ];
 
+  const showRoleCards = !hasRole;  // only show cards when role not yet chosen
+  const btnEnabled    = hasRole || !!sel;
+  const btnLabel      = hasCreds ? 'Continue →' : 'Go to Settings →';
+
   body.innerHTML = `
-    <div style="text-align:center;padding:24px 0 20px;">
-      <span class="theme-logo theme-logo-40" style="margin-bottom:14px;display:inline-block;">
-        <img class="logo-light" src="icons/cap-color.png" alt="EM Dashboard" style="width:40px;height:40px;">
-        <img class="logo-dark"  src="icons/cap-white.png" alt="" style="width:40px;height:40px;">
-      </span>
-      <h2 style="font-size:16px;font-weight:600;margin:0 0 6px;">How are you using this?</h2>
-      <p style="font-size:12px;color:var(--text-muted);margin:0;">Sets your default view — change it anytime in Settings.</p>
+    <div style="text-align:center;padding:28px 0 22px;">
+      <img class="welcome-logo" src="icons/cap-color.png" alt="EM Dashboard">
+      <h2 style="font-size:19px;font-weight:700;margin:0 0 8px;">Hello, Zealer! 👋</h2>
+      <p style="font-size:12px;color:var(--text-muted);margin:0;">
+        ${showRoleCards
+          ? 'Sets your default view — change it anytime in Settings.'
+          : 'Connect your Jira and Sentry to get started.'}
+      </p>
     </div>
+
+    ${showRoleCards ? `
+    <p style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;text-align:center;margin-bottom:10px;">
+      What's your role?
+    </p>
     <div class="role-cards">
       ${roleCards.map(c => `
         <button class="role-card ${sel === c.role ? 'selected' : ''}" data-role="${c.role}">
@@ -533,66 +542,42 @@ function renderRoleSelectScreen() {
           <span class="role-card-title">${c.title}</span>
         </button>
       `).join('')}
-    </div>
+    </div>` : ''}
+
     <button id="role-continue-btn" class="btn-primary"
-      style="width:100%;margin-top:16px;opacity:${sel ? '1' : '0.45'};pointer-events:${sel ? 'auto' : 'none'};">
-      ${state.settings?.jira?.token ? 'Continue →' : 'Go to Settings →'}
+      style="width:100%;margin-top:18px;opacity:${btnEnabled ? '1' : '0.4'};pointer-events:${btnEnabled ? 'auto' : 'none'};">
+      ${btnLabel}
     </button>
   `;
 
-  // Role card selection
-  body.querySelectorAll('.role-card').forEach(card => {
-    card.addEventListener('click', () => {
-      state.pendingRole = card.dataset.role;
-      renderRoleSelectScreen();
+  // Role card selection (only when cards are visible)
+  if (showRoleCards) {
+    body.querySelectorAll('.role-card').forEach(card => {
+      card.addEventListener('click', () => {
+        state.pendingRole = card.dataset.role;
+        renderRoleSelectScreen();
+      });
     });
-  });
+  }
 
-  // Continue / Go to Settings
+  // Continue / Go to Settings button
   document.getElementById('role-continue-btn')?.addEventListener('click', async () => {
-    if (!state.pendingRole) return;
-    state.settings        = state.settings || {};
-    state.settings.role   = state.pendingRole;
-    // Persist the default viewScope so settings saves never collapse it to 'squad'
-    state.settings.viewScope = state.pendingRole === 'engineer' ? 'me' : 'squad';
-    state.viewScope          = state.settings.viewScope;
+    const chosenRole = sel || state.settings?.role;
+    if (!chosenRole && showRoleCards) return;  // must pick a role first
+
+    state.settings             = state.settings || {};
+    if (chosenRole) state.settings.role = chosenRole;
+    state.settings.viewScope   = chosenRole === 'engineer' ? 'me' : 'squad';
+    state.viewScope            = state.settings.viewScope;
     await chrome.storage.local.set({ settings: state.settings });
 
-    if (state.settings?.jira?.token && state.settings?.sentry?.token) {
-      // Credentials already set — go straight to the dashboard
+    if (hasCreds) {
       await loadData();
       showScreen('today');
       refreshDashboard();
     } else {
-      // New user — open settings to complete setup
       chrome.runtime.openOptionsPage();
     }
-  });
-}
-
-
-/** Render the Me / Squad scope toggle (engineer mode only). */
-function buildScopeToggleHtml() {
-  const me    = state.viewScope === 'me';
-  const squad = !me;
-  return `<span class="view-scope-row" style="display:inline-flex;gap:4px;vertical-align:middle;">
-    <button class="scope-pill${me    ? ' active' : ''}" data-scope="me">Me</button>
-    <button class="scope-pill${squad ? ' active' : ''}" data-scope="squad">Squad</button>
-  </span>`;
-}
-
-/** Wire Me/Squad scope pill clicks. Each click persists the scope and re-renders. */
-function wireScopePills(container) {
-  if (!container) return;
-  container.querySelectorAll('.scope-pill').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      state.viewScope          = btn.dataset.scope;
-      state.settings           = state.settings || {};
-      state.settings.viewScope = state.viewScope;
-      await chrome.storage.local.set({ settings: state.settings });
-      renderCurrentScreen();  // re-renders story list
-      renderInsights();       // re-renders time logged + estimate charts
-    });
   });
 }
 
