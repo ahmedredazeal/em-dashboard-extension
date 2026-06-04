@@ -832,6 +832,7 @@ function renderInsights() {
       </div>
       <div style="${chartWrapStyle}">${supportBoardHtml}</div>
     </div>
+    <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
     ${sharedControlBar}
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">
@@ -848,6 +849,8 @@ function renderInsights() {
   wireBurndownHover();
   // Engineer me/squad toggle wiring — variable is 'content', not 'contentEl'
   if (state.settings?.role === 'engineer') wireScopePills(content);
+  // Re-populate sentry trend card now that it lives inside insights-content
+  renderSentryTrend().catch(e => console.warn('[insights] Sentry trend re-render:', e.message));
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');

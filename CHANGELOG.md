@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.0.2 (2026-06-04) — Move sentry trend chart below burndown
+
+The sentry trend card (`#sentry-trend-card`) now renders inside
+`insights-content` between the burndown/support-breakdown row (row 1)
+and the filter control bar (Me/Squad or engineers DDL), so the order is:
+
+  Sprint progress bar
+  Burndown chart | Support board summary
+  **Sentry trend chart**            ← moved here
+  [Filter row: scope toggle / DDL]
+  Time logged | Estimate vs Actual
+
+Implementation: removed the static `sentry-trend-card` placeholder from
+`insights-body` in popup.html; the placeholder is now injected as part of
+`content.innerHTML` in `renderInsights()`, and `renderSentryTrend()` is
+called (fire-and-forget) at the end of `renderInsights()` to populate it.
+
+---
+
 ## v2.0.1 (2026-06-04) — Fix: restore deleted buildScopeToggleHtml + wireScopePills
 
 The Python body-removal script in v1.9.9 (which cleaned up the duplicate
