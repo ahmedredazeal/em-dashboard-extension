@@ -585,6 +585,31 @@ function renderRoleSelectScreen() {
 }
 
 
+/** Render the Me / Squad scope toggle (engineer mode only). */
+function buildScopeToggleHtml() {
+  const me    = state.viewScope === 'me';
+  const squad = !me;
+  return `<span class="view-scope-row" style="display:inline-flex;gap:4px;vertical-align:middle;">
+    <button class="scope-pill${me    ? ' active' : ''}" data-scope="me">Me</button>
+    <button class="scope-pill${squad ? ' active' : ''}" data-scope="squad">Squad</button>
+  </span>`;
+}
+
+/** Wire Me/Squad scope pill clicks. Each click persists the scope and re-renders. */
+function wireScopePills(container) {
+  if (!container) return;
+  container.querySelectorAll('.scope-pill').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      state.viewScope          = btn.dataset.scope;
+      state.settings           = state.settings || {};
+      state.settings.viewScope = state.viewScope;
+      await chrome.storage.local.set({ settings: state.settings });
+      renderCurrentScreen();  // re-renders story list
+      renderInsights();       // re-renders time logged + estimate charts
+    });
+  });
+}
+
 /**
  * Called from renderTodayScreen after the sprint section renders.
  */

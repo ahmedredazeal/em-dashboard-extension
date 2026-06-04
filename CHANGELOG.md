@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.0.1 (2026-06-04) — Fix: restore deleted buildScopeToggleHtml + wireScopePills
+
+The Python body-removal script in v1.9.9 (which cleaned up the duplicate
+`renderRoleSelectScreen` body) accidentally deleted `buildScopeToggleHtml()`
+and `wireScopePills()` — they fell between the old function body end and the
+`renderInsights` comment that served as the removal boundary.
+
+Result: `ReferenceError: buildScopeToggleHtml is not defined` whenever the
+dashboard tried to render in engineer mode (called from `renderExtraBoards`).
+
+Both helpers re-added at module level between `renderRoleSelectScreen` and
+`renderInsights`.
+
+---
+
 ## v2.0.0 (2026-06-04) — Fix: theme-aware logo on welcome screen
 
 **Bug fix:** `renderRoleSelectScreen()` used a hardcoded `<img src="icons/cap-color.png">`
