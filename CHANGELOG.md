@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.4.1 (2026-06-04) — Splash polish: correct logo, sizing, weight
+
+Follow-up tweaks to the launch splash:
+
+- **Correct icon.** The splash was using `cap-white.png`, whose wing emblem is
+  painted navy — invisible against the navy splash background. Generated
+  `cap-splash-white.png` from the full colour logo: the cap body is white and
+  the wing + brim swoosh render as navy negative-space cutouts, so the complete
+  logo stays readable on `#1A215E`.
+- **Cap +20%** — 96px → 115px (ripples scaled to match).
+- **Title −40%** — 26px → 16px.
+- **"Dashboard" is now regular weight** (400) while "Zealer" stays semibold (600).
+
+---
+
 ## v2.4.1 (2026-06-04) — Splash polish: correct logo, sizing, weights
 
 - **Correct logo.** The splash was using `cap-white.png`, which is actually a
