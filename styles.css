@@ -829,3 +829,19 @@ body.privacy-on [data-privacy-mask]::after {
   transition: color 0.1s;
 }
 .member-remove:hover { color: var(--status-off-track, #f87171); }
+
+/* ── Sprint section filter row ───────────────────────────────────────── */
+.scope-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+}
+
+/* ── Role card (no description — icon + title only) ─────────────────── */
+.role-card { gap: 8px; padding: 14px 12px; }
+.role-card-icon { display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.role-card.selected .role-card-icon { color: var(--primary, #6366f1); }
+.role-card-desc { display: none; } /* hidden — kept in DOM for backwards compat */

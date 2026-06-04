@@ -104,6 +104,24 @@
           <div id="alert-inbox"></div>
         </div>
 
+        <!-- SENTRY ISSUES — closed by default -->
+        <div class="section" id="sentry-section">
+          <div id="sentry-section-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
+            <span>Sentry Issues</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="section-loading-pill" id="sentry-loading-pill">Refreshing</span>
+              <span id="sentry-total" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
+              <span id="sentry-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
+            </div>
+          </div>
+          <div id="sentry-section-body" style="display:none;margin-top:8px;">
+            <div id="sentry-spikes"></div>
+            <div id="sentry-empty" class="hidden" style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">
+              No recent Sentry issues
+            </div>
+          </div>
+        </div>
+
         <!-- INSIGHTS — open by default, flat cards, no inner toggles -->
         <div class="section" id="insights-section">
           <div id="insights-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
@@ -119,7 +137,10 @@
           </div>
         </div>
 
-        <!-- CURRENT SPRINT — closed by default -->
+        <!-- Extra boards (Support etc) rendered dynamically — already start collapsed -->
+        <div id="extra-boards-container"></div>
+
+        <!-- CURRENT SPRINT — last in order, closed by default -->
         <div class="section" id="current-sprint-section">
           <div id="sprint-section-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
             <span id="current-sprint-title">Current Sprint</span>
@@ -145,26 +166,6 @@
           </div>
         </div>
 
-        <!-- Extra boards (Support etc) rendered dynamically — already start collapsed -->
-        <div id="extra-boards-container"></div>
-
-        <!-- SENTRY ISSUES — closed by default -->
-        <div class="section" id="sentry-section">
-          <div id="sentry-section-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
-            <span>Sentry Issues</span>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="section-loading-pill" id="sentry-loading-pill">Refreshing</span>
-              <span id="sentry-total" style="font-size:11px;font-weight:600;color:var(--text-muted);"></span>
-              <span id="sentry-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
-            </div>
-          </div>
-          <div id="sentry-section-body" style="display:none;margin-top:8px;">
-            <div id="sentry-spikes"></div>
-            <div id="sentry-empty" class="hidden" style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">
-              No recent Sentry issues
-            </div>
-          </div>
-        </div>
 
       </div>
     </div>

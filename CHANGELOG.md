@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.9.7 (2026-06-04) — UX: section reorder, filter row, scope fix, welcome icons
+
+**Section order (Today screen):**
+Sentry Issues → Insights (burndown / time / estimate) → Extra boards → Current Sprint.
+Sentry moved first since filters don't apply to it. Current Sprint moved last.
+
+**Me / Squad scope toggle — charts now update:**
+`wireScopePills` previously only called `renderCurrentScreen()` (story list), missing
+`renderInsights()` (time logged + estimate charts). Both are now called on every
+scope change so the two charts update immediately.
+
+**Sprint filter row:**
+Replaced the inline scope toggle inside the ticket-count label with a full-width
+header row at the top of the sprint section body: sprint name + date range on the
+left, Me / Squad pills on the right — matching the Insights section header style.
+
+**Welcome screen icons:**
+Replaced 👔 / 💻 emoji with clean mono-colour SVG icons (people group for EM,
+code brackets for Engineer). Removed the description text below each card — title
+and icon only, cleaner layout.
+
+**Test fix:**
+`alerts.test.js` "first 2 days → early" used a hardcoded June 1 start date that
+became stale. Replaced with today-relative date so the test is always valid.
+
+---
+
 ## v1.9.6 (2026-06-04) — Code review: 6 bugs fixed (v1.8.7–v1.9.5 audit)
 
 Full audit of all changes since v1.8.7. Six bugs identified and fixed:

@@ -41,8 +41,16 @@ const spBase = {
 };
 test('no committedPoints → no-data', () =>
   assertEqual(committedBurnPrediction({ startDate: '2026-06-01', endDate: '2026-06-07' }).risk, 'no-data'));
-test('first 2 days → early (no alarm)', () =>
-  assertEqual(committedBurnPrediction({ ...spBase, completedPoints: 0 }, [1,2,3,4,5]).risk, 'early'));
+test('first 2 days → early (no alarm)', () => {
+  // Sprint starting today has 0 working days elapsed — always within early threshold
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const endStr   = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const r = committedBurnPrediction({
+    committedPoints: 40, completedPoints: 0,
+    startDate: `${todayStr}T12:00:00`, endDate: `${endStr}T12:00:00`
+  }, [1,2,3,4,5]);
+  assertEqual(r.risk, 'early');
+});
 const spGood = { ...spBase, completedPoints: 30 };  // 30/40 done — well on track
 test('on track → risk none', () => {
   const r = committedBurnPrediction(spGood, [1,2,3,4,5]);

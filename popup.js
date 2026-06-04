@@ -487,15 +487,17 @@ function renderRoleSelectScreen() {
   const roleCards = [
     {
       role: 'em',
-      icon: '👔',
-      title: 'Engineering Manager',
-      desc: 'Full squad view — burndown, team timesheet, sprint health and alerts for everyone.'
+      svg: `<svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zM.458 18C1.548 15.21 4.542 13 8 13s6.452 2.21 7.542 5H.458zm16.943 0A9.99 9.99 0 0120 18v1H17v-1c0-.35-.012-.698-.036-1.044A7.956 7.956 0 0117.4 18z"/>
+      </svg>`,
+      title: 'Engineering Manager'
     },
     {
       role: 'engineer',
-      icon: '💻',
-      title: 'Engineer',
-      desc: 'Your assignments by default. Switch to squad view when you need the big picture.'
+      svg: `<svg width="32" height="32" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+      </svg>`,
+      title: 'Engineer'
     }
   ];
 
@@ -511,9 +513,8 @@ function renderRoleSelectScreen() {
     <div class="role-cards">
       ${roleCards.map(c => `
         <button class="role-card ${sel === c.role ? 'selected' : ''}" data-role="${c.role}">
-          <span class="role-card-icon">${c.icon}</span>
+          <span class="role-card-icon">${c.svg}</span>
           <span class="role-card-title">${c.title}</span>
-          <span class="role-card-desc">${c.desc}</span>
         </button>
       `).join('')}
     </div>
@@ -573,7 +574,8 @@ function wireScopePills(container) {
       state.settings           = state.settings || {};
       state.settings.viewScope = state.viewScope;
       await chrome.storage.local.set({ settings: state.settings });
-      renderCurrentScreen();
+      renderCurrentScreen();  // re-renders story list
+      renderInsights();       // re-renders time logged + estimate charts
     });
   });
 }
@@ -990,16 +992,12 @@ function renderTodayScreen() {
       ? stories.filter(s => s.assigneeAccountId === state.currentUser.accountId)
       : stories;
 
-    // Section title + count (with scope toggle for engineers)
+    // Section title + count (clean — no inline toggle; filter row goes in section body)
     if (sprintTitleEl) sprintTitleEl.textContent = `Current Sprint (${sp.name})`;
     if (sprintTotalEl) {
-      const countText = isEngineerMe
+      sprintTotalEl.textContent = isEngineerMe
         ? `${displayStories.length}/${stories.length} TICKETS`
         : `${displayStories.length} TICKETS`;
-      sprintTotalEl.innerHTML = isEngineer
-        ? `${countText} ${buildScopeToggleHtml()}`
-        : countText;
-      wireScopePills(sprintTotalEl);
     }
     const prediction = metrics.sprintBurndownPrediction(sp);
     const onTrack = prediction.onTrack;
@@ -1040,6 +1038,27 @@ function renderTodayScreen() {
       listEl.innerHTML = displayStories.map(s => renderTicketRow(s, jiraBase)).join('');
       glanceBody.appendChild(listEl);
       wireTicketClicks(listEl);
+    }
+
+    // Full-width filter row above the story list (engineer mode only)
+    const sprintBody = document.getElementById('sprint-section-body');
+    const existingFilterRow = document.getElementById('sprint-filter-row');
+    if (existingFilterRow) existingFilterRow.remove();
+    if (isEngineer && sprintBody) {
+      const fmtDate = iso => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateRange = (sp.startDate && sp.endDate)
+        ? `${fmtDate(sp.startDate)} – ${fmtDate(sp.endDate)}`
+        : sp.name;
+      const filterRow = document.createElement('div');
+      filterRow.id = 'sprint-filter-row';
+      filterRow.className = 'scope-filter-row';
+      filterRow.innerHTML = `
+        <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
+          ${escapeHtml(sp.name)} · ${escapeHtml(dateRange)}
+        </span>
+        ${buildScopeToggleHtml()}`;
+      sprintBody.prepend(filterRow);
+      wireScopePills(filterRow);
     }
   } else {
     if (sprintTitleEl) sprintTitleEl.textContent = 'Current Sprint';
