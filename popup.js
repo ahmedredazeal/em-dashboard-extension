@@ -394,10 +394,16 @@ function renderExtraBoards() {
     }
 
     const isSupport = board.boardLabel.toLowerCase().includes('support');
-    const stories   = board.stories || [];  // for support boards these are already API-filtered to exclude closed
-    const isKanban  = board.boardType === 'kanban';
-    // Support boards: API already excluded closed tickets — no client-side filter needed
-    const displayStories = stories;
+    const allStories = board.stories || [];
+    const isKanban   = board.boardType === 'kanban';
+    // Apply me/squad scope filter in engineer me-mode
+    const isEngineerMe = state.settings?.role === 'engineer'
+                      && state.viewScope === 'me'
+                      && !!state.currentUser?.accountId;
+    const displayStories = isEngineerMe
+      ? allStories.filter(s => s.assigneeAccountId === state.currentUser.accountId)
+      : allStories;
+    const stories = displayStories; // keep legacy name for template below
     const progress  = board.totalPoints > 0
       ? `${board.completedPoints}/${board.totalPoints}pt`
       : `${board.totalStories} issues`;
@@ -411,11 +417,18 @@ function renderExtraBoards() {
           <span>${escapeHtml(board.boardLabel)}</span>
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="section-loading-pill" id="board-loading-${idx}">Refreshing</span>
-            <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + ' OPEN' : board.totalStories + ' TOTAL'}</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + (isEngineerMe ? ' MINE' : ' OPEN') : board.totalStories + ' TOTAL'}</span>
             <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
           </div>
         </div>
         <div id="${sectionId}-section-body" style="display:none;margin-top:8px;">
+          ${state.settings?.role === 'engineer' ? `
+          <div class="scope-filter-row board-filter-row" id="${sectionId}-filter-row">
+            <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
+              ${escapeHtml(board.boardLabel)}${board.sprintName ? ' · ' + escapeHtml(board.sprintName) : ''}
+            </span>
+            ${buildScopeToggleHtml()}
+          </div>` : ''}
           <div style="padding:10px;background:var(--surface-raised);border-radius:8px;margin-bottom:6px;">
             <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
             <div style="margin-top:3px;">${collapsedBoardSummary(displayStories, isSupport)}</div>
@@ -443,6 +456,9 @@ function renderExtraBoards() {
       });
     }
     if (ticketBody) wireTicketClicks(ticketBody);
+    // Wire Me/Squad scope pills inside this board's filter row
+    const filterRow = document.getElementById(`${sectionId}-filter-row`);
+    if (filterRow) wireScopePills(filterRow);
   });
 }
 
@@ -817,8 +833,8 @@ function renderInsights() {
     </div>`;
 
   wireBurndownHover();
-  // Engineer me/squad toggle wiring
-  if (state.settings?.role === 'engineer') wireScopePills(contentEl);
+  // Engineer me/squad toggle wiring — variable is 'content', not 'contentEl'
+  if (state.settings?.role === 'engineer') wireScopePills(content);
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');

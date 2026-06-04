@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.9.8 (2026-06-04) — Fix section order, scope filter on charts/boards
+
+**Section order (Today screen — correct this time):**
+Alerts → Insights → Extra boards → Sentry Issues → Current Sprint.
+Previous attempt (v1.9.7) accidentally put Sentry Issues first and created a
+duplicate sentry-section. Rebuilt the entire screen-today body atomically.
+
+**Sentry trend chart position:**
+The sentry trend card now appears at the TOP of the Insights body (before
+insights-content), so it renders above the burndown, time logged, and
+estimate charts — no scope filter applies to it.
+
+**Me/Squad scope filter now works on Time Logged + Estimate charts:**
+Root cause: `wireScopePills(contentEl)` in renderInsights used `contentEl`
+but the variable is named `content`. Undefined container → silent no-op.
+Fixed to `wireScopePills(content)`.
+
+**Me/Squad filter on extra boards (HRM Support etc.):**
+- renderExtraBoards now applies the isEngineerMe scope filter to each
+  board's story list.
+- A full-width filter row (board name left, Me/Squad pills right) is
+  rendered at the top of each board's section body in engineer mode.
+- Scope pills in each board section are wired via wireScopePills.
+- Ticket count badge shows "X MINE" vs "X OPEN" to reflect filtered state.
+
+---
+
 ## v1.9.7 (2026-06-04) — UX: section reorder, filter row, scope fix, welcome icons
 
 **Section order (Today screen):**
