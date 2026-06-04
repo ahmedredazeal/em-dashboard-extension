@@ -17,6 +17,14 @@
     <h1 style="font-size:20px;margin-bottom:24px;">EM Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.1.2</div>
+      <div class="cl-desc">
+        <strong>Fix: sprint progress % now matches Jira.</strong>
+        buildSprintProgressBar was dividing story points by ticket count (mixed units) after overwriting point-based variables with counts. Fixed: all values stay in points; denominator uses live totalPoints. Added "x pts done · y pts to go" absolute count line.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v2.1.1</div>
       <div class="cl-desc">
         <strong>Engineer me-mode: personal time-series charts.</strong>

@@ -1,5 +1,33 @@
 # Changelog
 
+## v2.1.2 (2026-06-04) — Fix: sprint progress % matches Jira + "pts done / to go"
+
+**Root cause:** `buildSprintProgressBar` had a subtle mixed-unit bug.
+After correctly computing `donePts`, `inProgPts`, and `total` in story
+**points**, three lines immediately overwrote them with **ticket counts**:
+
+```js
+// BUG (removed):
+inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').length;
+openPts   = stories.length - donePts - inProgPts;  // pts - count = nonsense
+total     = stories.length;                          // denominator became ticket count
+```
+
+This caused `donePct = donePts / stories.length` — dividing story **points**
+by the number of **tickets** — yielding a completely wrong percentage
+(e.g. 58% on screen vs 33% in Jira for the same sprint).
+
+**Fix:**
+- Removed the three overwriting lines; all variables stay in story-point units.
+- Changed denominator from `committedPts` → `totalPoints` (live sprint total)
+  so the % now matches Jira's point-based view exactly.
+- Added **"x pts done · y pts to go"** line below the progress bar with
+  absolute counts, matching the Jira burndown widget.
+
+`buildMiniProgressBar` (the smaller collapsed-header bar) was already correct.
+
+---
+
 ## v2.1.1 (2026-06-04) — Engineer me-mode: personal time-series charts
 
 **Time Logged and Estimate vs Actual charts now show personal time-series

@@ -1860,32 +1860,47 @@ function buildFocusSplitCard(issueTypeSplit) {
 // Falls back to ticket count if no points exist at all.
 function buildSprintProgressBar(stories) {
   if (!stories || stories.length === 0) return '';
-  
+
   const totalPoints = stories.reduce((s, t) => s + (t.points || 0), 0);
-  // Use the committed baseline as the denominator (matches Jira burndown total).
-  const committedPts = state.currentSprint?.committedPoints || totalPoints;
-  const usePoints   = committedPts > 0;
-  
+  const usePoints   = totalPoints > 0;
+
   let donePts, inProgPts, openPts, total;
   if (usePoints) {
-    donePts   = stories.filter(s => s.statusCategory === 'done').reduce((sum,s) => sum + (s.points||0), 0);
-    inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').reduce((sum,s) => sum + (s.points||0), 0);
-    openPts   = committedPts - donePts - inProgPts;
-    total     = committedPts;
+    // All three variables stay in the same unit (story points)
+    donePts   = stories.filter(s => s.statusCategory === 'done')
+                       .reduce((sum, s) => sum + (s.points || 0), 0);
+    inProgPts = stories.filter(s => s.statusCategory === 'indeterminate')
+                       .reduce((sum, s) => sum + (s.points || 0), 0);
+    // Use the live totalPoints as the denominator so the % matches Jira
+    total     = totalPoints;
+    openPts   = total - donePts - inProgPts;
+  } else {
+    // Fallback: ticket counts when no sprint has story-point estimates
+    donePts   = stories.filter(s => s.statusCategory === 'done').length;
     inProgPts = stories.filter(s => s.statusCategory === 'indeterminate').length;
-    openPts   = stories.length - donePts - inProgPts;
     total     = stories.length;
+    openPts   = total - donePts - inProgPts;
   }
-  
-  const donePct  = total > 0 ? Math.round(donePts  / total * 100) : 0;
-  const ipPct    = total > 0 ? Math.round(inProgPts / total * 100) : 0;
-  const openPct  = Math.max(0, 100 - donePct - ipPct);
-  const unit = usePoints ? 'pt' : 'tickets';
-  
+
+  const donePct = total > 0 ? Math.round(donePts  / total * 100) : 0;
+  const ipPct   = total > 0 ? Math.round(inProgPts / total * 100) : 0;
+  const openPct = Math.max(0, 100 - donePct - ipPct);
+  const unit    = usePoints ? 'pt' : 'tickets';
+
+  // "x pts done · y pts to go" — absolute counts the user can verify against Jira
+  const toGoPts   = total - donePts;
+  const ptSummary = usePoints
+    ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+        <span style="font-weight:600;color:var(--text);">${donePts} pts done</span>
+        &nbsp;·&nbsp;
+        <span style="font-weight:600;color:var(--text);">${toGoPts} pts to go</span>
+      </div>`
+    : '';
+
   const doneBar = donePct > 0 ? `<div style="width:${donePct}%;background:#22c55e;border-radius:3px;min-width:2px;"></div>` : '';
   const ipBar   = ipPct   > 0 ? `<div style="width:${ipPct}%;background:#3b82f6;border-radius:3px;min-width:2px;"></div>` : '';
   const openBar = openPct > 0 ? `<div style="flex:1;background:rgba(148,163,184,0.15);border-radius:3px;min-width:2px;"></div>` : '';
-  
+
   return `
     <div style="padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
@@ -1900,6 +1915,7 @@ function buildSprintProgressBar(stories) {
         <span style="font-size:11px;"><span style="font-weight:700;color:#3b82f6;">${ipPct}%</span> <span style="color:var(--text-muted);">In progress</span></span>
         <span style="font-size:11px;"><span style="font-weight:700;color:var(--text-muted);">${openPct}%</span> <span style="color:var(--text-muted);">Not started</span></span>
       </div>
+      ${ptSummary}
     </div>`;
 }
 
