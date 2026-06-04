@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.1.2
+## Current version: v2.1.3
 
 ## Last session: Ahmed + Claude — 2026-06-04
 
@@ -22,6 +22,7 @@
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: `squadKey` deleted by Phase 1 edit breaking all Jira fetches. |
 | v1.9.7–v1.9.8 | UX: section reorder (Sentry → Insights → Extra boards → Current Sprint), Me/Squad filter on charts and extra boards, sprint filter row, welcome SVG icons. Bug: `wireScopePills(contentEl)` was undefined (should be `content`). |
 | v1.9.9 | Root cause of "scaled-up header": Python reorder scripts created duplicate copies of ALL screen divs. Rebuilt `popup.html` atomically. Merged auth+role-select into one welcome screen. `Hello, Zealer! 👋`, 120px logo, square role cards, ascending-bars EM icon. |
+| v2.1.3 | Fix: engineer Me filter no longer shows squad data (never falls back to squad chart; accountId matching; stale-cache + no-data states). |
 | v2.1.2 | Fix: sprint progress % bug (points ÷ ticket-count → now points ÷ totalPoints). Adds "x pts done · y pts to go". |
 | v2.1.1 | Engineer me-mode personal charts: daily/monthly bars for Time Logged + Estimate vs Actual. byDate added to aggregateWorklogs. buildPersonalBarsSVG + helpers. |
 | v2.1.0 | Phase 5: engineer progress circles (sprint donut + support donut). `buildDonut()` SVG helper. `renderEngineerProgressCircles()` first in `renderTodayScreen`. Docs update rule added to `AI_PROMPT.md` + memory. |
@@ -101,7 +102,8 @@ settings = {
 2. **`wireScopePills` variable name** — `renderInsights()` uses `const content = ...` (not `contentEl`). Calling `wireScopePills(contentEl)` passes `undefined` → silent no-op.
 3. **popup.html reorder scripts** — Python str_replace and block-reorder scripts can create duplicate screen divs if the slice boundaries aren't exact. Always verify with `h.count('id="screen-X"')` == 1 after any reorder.
 4. **`theme-logo` vs single `<img>`** — Always use `<span class="theme-logo"><img class="logo-light"><img class="logo-dark"></span>` pattern. Single `<img src="cap-color.png">` always shows navy regardless of theme.
-5. **Calendar-day bucketing** — Sprint startDate is a UTC datetime (e.g. 13:41Z). Always use `setHours(0,0,0,0)` to normalize to local calendar day before computing day indices.
+5. **Engineer me-mode charts** — must NEVER fall through to the squad chart builder. If `myMember.byDate` is missing (stale cache aggregated before v2.1.1), show a refresh hint, not `buildTimesheetSVG(timesheetMembers)`. Match the current user by `accountId`, not `displayName`.
+6. **Calendar-day bucketing** — Sprint startDate is a UTC datetime (e.g. 13:41Z). Always use `setHours(0,0,0,0)` to normalize to local calendar day before computing day indices.
 
 ---
 

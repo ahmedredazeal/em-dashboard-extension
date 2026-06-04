@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.1.3 (2026-06-04) — Fix: engineer "Me" filter no longer shows squad data
+
+Two problems caused the Time Logged and Estimate vs Actual charts to keep
+showing the full team even with the Me scope selected:
+
+1. **Stale cache fall-through.** When the cached timesheet was aggregated
+   before v2.1.1 (no `byDate` field), the condition
+   `isEngineerMe && myMember?.byDate` was false, so the code fell through to
+   the squad chart (`buildTimesheetSVG(timesheetMembers)`) which renders ALL
+   members. Restructured: in me-mode the squad chart is **never** rendered.
+   - `byDate` present → personal daily/monthly bar chart (as designed)
+   - `byDate` missing (stale cache) → "You logged Xh — click ↻ to load the
+     daily breakdown" (single line, not the whole team)
+   - no member match → "No time logged by you in this period."
+
+2. **Fragile member matching.** `filteredTs` matched the current user by
+   `displayName` only. Now matches by `accountId` first (reliable across name
+   formatting differences), falling back to `displayName`.
+
+After clicking ↻ once, the background re-aggregates with `byDate` and the
+full personal time-series chart appears.
+
+Added a unit test asserting `aggregateWorklogs` emits the `byDate` breakdown.
+
+---
+
 ## v2.1.2 (2026-06-04) — Fix: sprint progress % matches Jira + "pts done / to go"
 
 **Root cause:** `buildSprintProgressBar` had a subtle mixed-unit bug.

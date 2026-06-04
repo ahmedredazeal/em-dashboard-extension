@@ -802,8 +802,12 @@ function renderInsights() {
     if (state.settings?.role === 'engineer') {
       if (state.viewScope === 'me') {
         // Guard: if currentUser hasn't loaded yet, show all rather than an empty timesheet
-        if (!state.currentUser?.displayName) return ts;
-        return ts.filter(m => m.name === state.currentUser.displayName);
+        if (!state.currentUser?.accountId && !state.currentUser?.displayName) return ts;
+        // Match by accountId first (reliable), fall back to displayName
+        return ts.filter(m =>
+          (state.currentUser.accountId && m.accountId === state.currentUser.accountId) ||
+          (state.currentUser.displayName && m.name === state.currentUser.displayName)
+        );
       }
       return ts; // squad = full team, no DDL filter in engineer mode
     }
@@ -880,22 +884,35 @@ function renderInsights() {
   
   let timesheetHtml = '';
   // ── Engineer me-mode: personal time-series chart ─────────────────────
+  // accountId-based; only requires currentUser to be loaded.
   const isEngineerMe = state.settings?.role === 'engineer'
                     && state.viewScope === 'me'
-                    && !!state.currentUser?.displayName;
+                    && !!state.currentUser
+                    && !!(state.currentUser.accountId || state.currentUser.displayName);
   const myMember = isEngineerMe ? (filteredTs[0] || null) : null;
 
-  if (isEngineerMe && myMember?.byDate) {
-    // Build per-period entries for the personal charts
-    const isSprint   = (currentMode === 'sprint');
-    const periods    = isSprint
-      ? personalSprintPeriods(myMember.byDate, modeStart, modeEnd,
-          myMember.estimated > 0 ? +(myMember.estimated / Math.max(1,
-            personalSprintPeriods(myMember.byDate, modeStart, modeEnd, 0).length
-          )).toFixed(1) : 0)
-      : personalQuarterPeriods(myMember.byDate, modeStart, modeEnd, myMember.estimated);
-
-    timesheetHtml = buildPersonalBarsSVG(periods, { showEstimate: false });
+  if (isEngineerMe) {
+    // In me-mode we NEVER show the squad chart. Three sub-cases:
+    if (currentMode !== 'sprint' && timesheetMembers === null) {
+      timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+        Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
+    } else if (myMember?.byDate) {
+      const periods = (currentMode === 'sprint')
+        ? personalSprintPeriods(myMember.byDate, modeStart, modeEnd,
+            myMember.estimated > 0 ? +(myMember.estimated / Math.max(1,
+              personalSprintPeriods(myMember.byDate, modeStart, modeEnd, 0).length
+            )).toFixed(1) : 0)
+        : personalQuarterPeriods(myMember.byDate, modeStart, modeEnd, myMember.estimated);
+      timesheetHtml = buildPersonalBarsSVG(periods, { showEstimate: false });
+    } else if (myMember) {
+      // Stale cache aggregated before byDate existed — show total + refresh hint
+      timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+        You logged <strong style="color:var(--text);">${myMember.total}h</strong> this period.
+        <br><span style="font-size:11px;">Click ↻ to load the daily breakdown.</span></div>`;
+    } else {
+      timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+        No time logged by you in this period.</div>`;
+    }
   } else if (isLegacyFormat) {
     timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
       Data format updated — click ↻ to refresh and load cross-squad time data.</div>`;
@@ -964,24 +981,42 @@ function renderInsights() {
   const teamForEstimate = quarterPending ? [] : (timesheetMembers || filteredTs);
   let estimateVsActualHtml = '';
 
-  if (isEngineerMe && myMember?.byDate) {
-    // Personal grouped bars: estimate (light) + actual (primary) per day/month
-    const isSprint = (currentMode === 'sprint');
-    const hasEst   = (myMember.estimated || 0) > 0;
-    const periods  = isSprint
-      ? personalSprintPeriods(myMember.byDate, modeStart, modeEnd,
-          hasEst ? +(myMember.estimated / Math.max(1,
-            personalSprintPeriods(myMember.byDate, modeStart, modeEnd, 0).length
-          )).toFixed(1) : 0)
-      : personalQuarterPeriods(myMember.byDate, modeStart, modeEnd, myMember.estimated);
-    const svg = buildPersonalBarsSVG(periods, { showEstimate: hasEst });
-    estimateVsActualHtml = buildPersonalChartCard(
-      'ESTIMATE VS ACTUAL',
-      modeRange,
-      svg + (hasEst
-        ? ''
-        : '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">No estimates set on your assigned tickets.</div>')
-    );
+  if (isEngineerMe) {
+    // Me-mode: personal grouped bars only; never squad data.
+    if (currentMode !== 'sprint' && timesheetMembers === null) {
+      estimateVsActualHtml = `
+        <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
+          <div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
+        </div>`;
+    } else if (myMember?.byDate) {
+      const hasEst  = (myMember.estimated || 0) > 0;
+      const periods = (currentMode === 'sprint')
+        ? personalSprintPeriods(myMember.byDate, modeStart, modeEnd,
+            hasEst ? +(myMember.estimated / Math.max(1,
+              personalSprintPeriods(myMember.byDate, modeStart, modeEnd, 0).length
+            )).toFixed(1) : 0)
+        : personalQuarterPeriods(myMember.byDate, modeStart, modeEnd, myMember.estimated);
+      const svg = buildPersonalBarsSVG(periods, { showEstimate: hasEst });
+      estimateVsActualHtml = buildPersonalChartCard(
+        'ESTIMATE VS ACTUAL',
+        modeRange,
+        svg + (hasEst
+          ? ''
+          : '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">No estimates set on your assigned tickets.</div>')
+      );
+    } else if (myMember) {
+      estimateVsActualHtml = buildPersonalChartCard(
+        'ESTIMATE VS ACTUAL',
+        modeRange,
+        `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+          You logged <strong style="color:var(--text);">${myMember.total}h</strong> vs
+          <strong style="color:var(--text);">${myMember.estimated || 0}h</strong> estimated.
+          <br><span style="font-size:11px;">Click ↻ to load the period breakdown.</span></div>`
+      );
+    }
+    // else: no member → leave estimateVsActualHtml empty (card omitted)
   } else if (quarterPending) {
     estimateVsActualHtml = `
       <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">

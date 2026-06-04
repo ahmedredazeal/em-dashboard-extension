@@ -114,6 +114,14 @@ test('byProject breakdown', () => {
   assert(ali.byProject['HRM'] === 10, `HRM: ${ali.byProject['HRM']}`);
   assert(ali.byProject['POS'] === 5,  `POS: ${ali.byProject['POS']}`);
 });
+test('byDate breakdown (per-calendar-day hours)', () => {
+  const r = aggregateWorklogs(RAW);
+  const ali = r.find(m => m.name === 'Ali');
+  assert(ali.byDate['2026-05-01'] === 10, `Ali 05-01: ${ali.byDate['2026-05-01']}`);
+  assert(ali.byDate['2026-05-02'] === 5,  `Ali 05-02: ${ali.byDate['2026-05-02']}`);
+  const dana = r.find(m => m.name === 'Dana');
+  assert(dana.byDate['2026-05-01'] === 20, `Dana 05-01: ${dana.byDate['2026-05-01']}`);
+});
 test('estimateRatio computed', () => {
   const r = aggregateWorklogs(RAW);
   const ali = r.find(m => m.name === 'Ali');

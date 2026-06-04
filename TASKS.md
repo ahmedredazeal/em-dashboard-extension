@@ -51,6 +51,7 @@ _Nothing currently in progress._
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: squadKey ReferenceError (broke all Jira fetching). |
 | v1.9.7–v1.9.8 | Section reorder, sprint filter row, Me/Squad on charts + extra boards. Fixed wireScopePills(contentEl) undefined. |
 | v1.9.9 | popup.html deduplication (Python scripts created 2× all screens). Merged auth+role-select screens. Hello Zealer greeting, 120px logo, square role cards, chart EM icon. |
+| v2.1.3 | Fix engineer Me filter showing squad data (never fall back to squad chart; accountId match; stale-cache/no-data states). byDate test added. |
 | v2.1.2 | Fix sprint progress % (mixed points/tickets unit bug). Use totalPoints denominator. Add pts done/to-go. |
 | v2.1.1 | Engineer me-mode personal time-series charts (daily bars for sprint, monthly for quarterly; grouped estimate vs actual per period). byDate added to aggregateWorklogs. |
 | v2.1.0 | Phase 5: engineer progress circles (sprint donut + support donut, SVG stroke-dasharray, hidden when no assignments, always me-scoped) |
