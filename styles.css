@@ -846,13 +846,12 @@ body.privacy-on [data-privacy-mask]::after {
 .role-card.selected .role-card-icon { color: var(--primary, #6366f1); }
 .role-card-desc { display: none; } /* hidden — kept in DOM for backwards compat */
 
-/* ── Welcome screen logo (3× = 120px) ──────────────────────────────── */
-.welcome-logo {
+/* ── Welcome screen logo (3× = 120px, theme-aware) ──────────────────── */
+.welcome-logo-wrap {
   display: block;
   width: 120px;
   height: 120px;
   margin: 0 auto 16px;
-  object-fit: contain;
 }
 
 /* ── Role cards — square, icon + title centered ─────────────────────── */

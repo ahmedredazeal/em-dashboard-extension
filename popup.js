@@ -522,7 +522,10 @@ function renderRoleSelectScreen() {
 
   body.innerHTML = `
     <div style="text-align:center;padding:28px 0 22px;">
-      <img class="welcome-logo" src="icons/cap-color.png" alt="EM Dashboard">
+      <span class="theme-logo welcome-logo-wrap">
+        <img class="logo-light" src="icons/cap-color.png" alt="EM Dashboard">
+        <img class="logo-dark"  src="icons/cap-white.png" alt="">
+      </span>
       <h2 style="font-size:19px;font-weight:700;margin:0 0 8px;">Hello, Zealer! 👋</h2>
       <p style="font-size:12px;color:var(--text-muted);margin:0;">
         ${showRoleCards
