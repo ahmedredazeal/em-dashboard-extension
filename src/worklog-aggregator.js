@@ -132,6 +132,7 @@ export function aggregateWorklogs(rawWorklogs) {
         estimateSeconds: 0,
         byProjectSeconds: {},
         projectNames: {},
+        byDateSeconds: {},   // NEW: per-calendar-day seconds
       });
     }
     const acc = byAuthor.get(id);
@@ -141,6 +142,10 @@ export function aggregateWorklogs(rawWorklogs) {
     const pk = wl.projectKey || 'Unknown';
     acc.byProjectSeconds[pk] = (acc.byProjectSeconds[pk] || 0) + (wl.timeSpentSeconds || 0);
     if (wl.projectName) acc.projectNames[pk] = wl.projectName;
+
+    // Accumulate per calendar day
+    const dk = (wl.started || '').slice(0, 10);
+    if (dk) acc.byDateSeconds[dk] = (acc.byDateSeconds[dk] || 0) + (wl.timeSpentSeconds || 0);
   }
   
   const round1 = s => Math.round(s / 3600 * 10) / 10;
@@ -158,6 +163,9 @@ export function aggregateWorklogs(rawWorklogs) {
       estimateRatio: acc.estimateSeconds > 0
         ? Math.round(acc.totalSeconds / acc.estimateSeconds * 100) / 100
         : null,
+      byDate: Object.fromEntries(
+        Object.entries(acc.byDateSeconds).map(([d, s]) => [d, round1(s)])
+      ),
     }))
     .filter(m => m.total > 0)
     .sort((a, b) => b.total - a.total);

@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.1.1 (2026-06-04) — Engineer me-mode: personal time-series charts
+
+**Time Logged and Estimate vs Actual charts now show personal time-series
+data when the engineer scope filter is set to "Me".**
+
+Previously both charts showed the same full-squad horizontal bars regardless
+of the Me/Squad toggle. Now:
+
+**Time Logged (Me mode):**
+- Sprint: vertical bar per calendar day, X = day label, Y = hours logged
+- Quarterly: vertical bar per month, X = month name, Y = hours logged
+- Card header changes from "TIME LOGGED" to "MY TIME"
+
+**Estimate vs Actual (Me mode):**
+- Same X axis as Time Logged
+- Two grouped bars per period: estimate (slate, evenly distributed across
+  periods) + actual logged (primary colour)
+- If no estimates exist on assigned tickets, actual-only bars are shown
+  with an explanatory note
+
+**Data change:** `aggregateWorklogs()` now outputs `byDate: { 'YYYY-MM-DD': hours }`
+on each member. This flows through sprint analytics cache and quarterly worklog
+cache automatically. Existing cached data without `byDate` falls back gracefully
+to the existing squad chart.
+
+New helpers: `buildPersonalBarsSVG`, `personalSprintPeriods`, `personalQuarterPeriods`,
+`buildPersonalChartCard`.
+
+Squad mode and EM mode charts are completely unchanged.
+
+---
+
 ## v2.1.0 (2026-06-04) — Phase 5: Engineer progress circles
 
 Two personal progress donuts appear at the top of the Today screen in

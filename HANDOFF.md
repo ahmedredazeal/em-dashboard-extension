@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.1.0
+## Current version: v2.1.1
 
 ## Last session: Ahmed + Claude — 2026-06-04
 
@@ -22,6 +22,7 @@
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: `squadKey` deleted by Phase 1 edit breaking all Jira fetches. |
 | v1.9.7–v1.9.8 | UX: section reorder (Sentry → Insights → Extra boards → Current Sprint), Me/Squad filter on charts and extra boards, sprint filter row, welcome SVG icons. Bug: `wireScopePills(contentEl)` was undefined (should be `content`). |
 | v1.9.9 | Root cause of "scaled-up header": Python reorder scripts created duplicate copies of ALL screen divs. Rebuilt `popup.html` atomically. Merged auth+role-select into one welcome screen. `Hello, Zealer! 👋`, 120px logo, square role cards, ascending-bars EM icon. |
+| v2.1.1 | Engineer me-mode personal charts: daily/monthly bars for Time Logged + Estimate vs Actual. byDate added to aggregateWorklogs. buildPersonalBarsSVG + helpers. |
 | v2.1.0 | Phase 5: engineer progress circles (sprint donut + support donut). `buildDonut()` SVG helper. `renderEngineerProgressCircles()` first in `renderTodayScreen`. Docs update rule added to `AI_PROMPT.md` + memory. |
 | v2.0.0 | Fix: welcome screen used hardcoded `cap-color.png` (navy always). Restored `theme-logo` dual-image span so dark mode shows white cap. |
 
