@@ -55,7 +55,7 @@ async function maybeRunSplash() {
   setTimeout(() => {
     splash.classList.add('splash-hide');
     setTimeout(() => splash.remove(), 500);
-  }, 2900);
+  }, 2400);
 }
 
 async function boot() {

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.4.3 (2026-06-07) — Splash: drop ripples, gradient background
+
+- **Removed the water-ripple effect** — didn't land visually.
+- **Background is now a gradient** `linear-gradient(#787ed9 9.52%, #1d2c81)`
+  (black fallback) instead of flat navy.
+- **Tightened timing** now that the ripple window is gone: title fades in at
+  1.25s (was 1.85s) and the splash clears at ~2.4s, so the cap no longer sits
+  alone. Sequence: gradient → cap fades/scales in → title fades in → fade out.
+
+---
+
 ## v2.4.2 (2026-06-04) — Copy fix
 
 Welcome screen: "Sets your default view…" → "Set your default view…".

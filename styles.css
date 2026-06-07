@@ -1032,7 +1032,8 @@ body.privacy-on [data-privacy-mask]::after {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #1A215E;
+  background: #000;
+  background: linear-gradient(#787ed9 9.52%, #1d2c81);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1058,33 +1059,10 @@ body.privacy-on [data-privacy-mask]::after {
   100% { opacity: 1; transform: scale(1); }
 }
 
-/* Water ripples emanating from the cap centre */
-.splash-ripple {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 104px; height: 104px;
-  margin: -52px 0 0 -52px;
-  border: 2px solid rgba(255,255,255,0.5);
-  border-radius: 50%;
-  opacity: 0;
-  transform: scale(0.25);
-  z-index: 1;
-  animation: splashRipple 1.7s ease-out infinite;
-}
-.splash-ripple:nth-child(1) { animation-delay: 0.60s; }
-.splash-ripple:nth-child(2) { animation-delay: 0.95s; }
-.splash-ripple:nth-child(3) { animation-delay: 1.30s; }
-.splash-ripple:nth-child(4) { animation-delay: 1.65s; }
-@keyframes splashRipple {
-  0%   { opacity: 0.55; transform: scale(0.25); border-width: 2.5px; }
-  80%  { opacity: 0.08; }
-  100% { opacity: 0;    transform: scale(2.8);  border-width: 0.5px; }
-}
-
 .splash-title {
   opacity: 0;
   transform: translateY(10px);
-  animation: splashTitleIn 0.6s ease-out 1.85s forwards;
+  animation: splashTitleIn 0.6s ease-out 1.25s forwards;
   font-size: 16px;
   line-height: 1;
   white-space: nowrap;
@@ -1107,6 +1085,5 @@ body.privacy-on [data-privacy-mask]::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash-cap, .splash-ripple, .splash-title { animation-duration: 0.01s; }
-  .splash-ripple { display: none; }
+  .splash-cap, .splash-title { animation-duration: 0.01s; }
 }
