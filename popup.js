@@ -560,7 +560,7 @@ function renderRoleSelectScreen() {
       <h2 style="font-size:19px;font-weight:700;margin:0 0 8px;">Hello, Zealer! 👋</h2>
       <p style="font-size:12px;color:var(--text-muted);margin:0;">
         ${showRoleCards
-          ? 'Sets your default view — change it anytime in Settings.'
+          ? 'Set your default view — change it anytime in Settings.'
           : 'Connect your Jira and Sentry to get started.'}
       </p>
     </div>

@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4.2 (2026-06-04) — Copy fix
+
+Welcome screen: "Sets your default view…" → "Set your default view…".
+
+---
+
 ## v2.4.1 (2026-06-04) — Splash polish: correct logo, sizing, weight
 
 Follow-up tweaks to the launch splash:
