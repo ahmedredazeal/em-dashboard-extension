@@ -28,19 +28,23 @@ runMigrations().catch(err => console.warn('[background] Migration failed:', err.
 const USAGE_ENDPOINT = 'https://script.google.com/a/macros/getzeal.io/s/AKfycbwFBMFomoE-Ovkqspw7dgnKOt_f6jqabD9Lcc13i9djMsMENweQkybwUWQ0HslgKt98/exec';
 
 async function maybeLogUsage(currentUser, settings) {
-  if (!USAGE_ENDPOINT || !currentUser?.emailAddress) return;
+  if (!USAGE_ENDPOINT) return;
+  // Jira may hide emailAddress (profile privacy), so don't require it — log by
+  // accountId/displayName and include the email only when Jira returns it.
+  if (!currentUser?.accountId && !currentUser?.emailAddress) return;
   try {
     const { usageLogged } = await chrome.storage.local.get('usageLogged');
     if (usageLogged) return;   // once per user, ever
 
     const payload = {
-      email:       currentUser.emailAddress,
-      displayName: currentUser.displayName || '',
-      accountId:   currentUser.accountId   || '',
-      role:        settings?.role          || '',
+      email:       currentUser.emailAddress || '',
+      displayName: currentUser.displayName  || '',
+      accountId:   currentUser.accountId    || '',
+      role:        settings?.role           || '',
       version:     chrome.runtime.getManifest().version,
-      squad:       settings?.squad?.key    || '',
+      squad:       settings?.squad?.key     || '',
     };
+    console.log('[background] Logging usage ping:', payload.email || payload.accountId);
 
     // no-cors: request is sent and processed by Apps Script; opaque response
     // resolves the promise on a successful round-trip, so we only set the
@@ -631,6 +635,7 @@ async function fetchSentryData(settings) {
   const viewResults = []; // [{label, viewId, issues, count}]
   const allIssues = []; // flat merged list (for alert rules)
   
+  try {
   if (settings.sentry.views && settings.sentry.views.length > 0) {
     for (const view of settings.sentry.views) {
       // New shape only: {label, url}. Legacy entries should have been cleared
@@ -689,11 +694,21 @@ async function fetchSentryData(settings) {
       }
     }
   } else {
-    const issues = await client.getUnresolvedIssues(100);
-    viewResults.push({ label: 'Unresolved Issues', viewId: null, issues, count: issues.length });
-    allIssues.push(...issues);
+    try {
+      const issues = await client.getUnresolvedIssues(100);
+      viewResults.push({ label: 'Unresolved Issues', viewId: null, issues, count: issues.length });
+      allIssues.push(...issues);
+    } catch (error) {
+      console.error('[background] Sentry unresolved fetch failed:', error.message);
+      viewResults.push({ label: 'Unresolved Issues', viewId: null, issues: [], count: 0, error: error.message });
+    }
   }
-  
+  } catch (error) {
+    // Total safety net: a single bad project/view must never reject the whole
+    // Sentry fetch and blank the dashboard/trend chart. Return partial results.
+    console.error('[background] fetchSentryData unexpected error (returning partial):', error.message);
+  }
+
   return { viewResults, issues: allIssues };
 }
 

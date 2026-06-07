@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.5.1</div>
+      <div class="cl-desc"><strong>Fixes.</strong> Sentry fetch is now resilient — a view pointing at a missing project (404) no longer blanks the dashboard/trend chart; only that view shows an error. Usage logging now works even when Jira hides the user's email (gated on accountId; email still sent when available).</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v2.5.0</div>
       <div class="cl-desc"><strong>Usage logging.</strong> Sends a single once-per-user ping (Jira email, role, version, squad) to a Google Apps Script → private Sheet so the admin can see who's tried the tool. Fire-and-forget, never blocks the dashboard; no Google credentials in the extension.</div>
     </div>

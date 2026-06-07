@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.5.1 (2026-06-07) — Fixes: Sentry resilience + usage email
+
+**Sentry fetch no longer blanks the dashboard on a bad project.**
+A view whose URL points at a deleted/renamed project returned a 404
+("Project does not exist") that rejected the whole `fetchSentryData`, so
+`saveAndNotify('sentry')` never ran and the trend chart didn't render.
+Wrapped the `else` branch and the full function body in try/catch — the
+fetch now always returns partial results; a single bad view just shows an
+error while the others (and the trend chart) render normally.
+
+**Usage logging now works when Jira hides the email.**
+The once-per-user ping required `emailAddress`, but Jira can return it empty
+depending on profile privacy — so logging was skipped and no row was written.
+Now gated on `accountId` (always present); the email is still sent when Jira
+provides it. Added a console line on each ping for easier debugging.
+
+---
+
 ## v2.5.0 (2026-06-07) — Usage logging (once per user)
 
 The extension now sends a single anonymous-to-the-team usage ping the first
