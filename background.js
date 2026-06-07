@@ -20,6 +20,43 @@ import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } fr
 // Run data migrations on service worker init (idempotent — flagged per migration)
 runMigrations().catch(err => console.warn('[background] Migration failed:', err.message));
 
+// ── Usage logging (once per user) ────────────────────────────────────────
+// Posts a single row to a Google Apps Script web app the first time a user's
+// Jira identity is known. Fire-and-forget; never blocks or breaks the dashboard.
+// The script runs as the Sheet owner on Google's servers — no credentials live
+// in the extension, only this public POST URL.
+const USAGE_ENDPOINT = 'https://script.google.com/a/macros/getzeal.io/s/AKfycbwFBMFomoE-Ovkqspw7dgnKOt_f6jqabD9Lcc13i9djMsMENweQkybwUWQ0HslgKt98/exec';
+
+async function maybeLogUsage(currentUser, settings) {
+  if (!USAGE_ENDPOINT || !currentUser?.emailAddress) return;
+  try {
+    const { usageLogged } = await chrome.storage.local.get('usageLogged');
+    if (usageLogged) return;   // once per user, ever
+
+    const payload = {
+      email:       currentUser.emailAddress,
+      displayName: currentUser.displayName || '',
+      accountId:   currentUser.accountId   || '',
+      role:        settings?.role          || '',
+      version:     chrome.runtime.getManifest().version,
+      squad:       settings?.squad?.key    || '',
+    };
+
+    // no-cors: request is sent and processed by Apps Script; opaque response
+    // resolves the promise on a successful round-trip, so we only set the
+    // once-per-user flag after the ping actually goes out (no dupes, no misses).
+    fetch(USAGE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      mode: 'no-cors',
+      credentials: 'include',
+    })
+      .then(() => chrome.storage.local.set({ usageLogged: true }))
+      .catch(() => { /* network failed — retry on a future fetch */ });
+  } catch { /* never block the dashboard */ }
+}
+
 /**
  * Initialize on extension install/update
  */
@@ -98,6 +135,7 @@ async function checkDashboard() {
         if (data.currentUser) {
           state.currentUser = data.currentUser;
           await chrome.storage.local.set({ currentUser: data.currentUser });
+          maybeLogUsage(data.currentUser, settings);   // once-per-user usage ping
         }
         await saveAndNotify('jira');
       })

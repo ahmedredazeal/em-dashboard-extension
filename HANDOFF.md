@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.4.4
+## Current version: v2.5.0
 
 ## Last session: Ahmed + Claude — 2026-06-04
 
@@ -22,10 +22,12 @@
 | v1.9.5–v1.9.6 | Code review: 6 bugs fixed. Critical: `squadKey` deleted by Phase 1 edit breaking all Jira fetches. |
 | v1.9.7–v1.9.8 | UX: section reorder (Sentry → Insights → Extra boards → Current Sprint), Me/Squad filter on charts and extra boards, sprint filter row, welcome SVG icons. Bug: `wireScopePills(contentEl)` was undefined (should be `content`). |
 | v1.9.9 | Root cause of "scaled-up header": Python reorder scripts created duplicate copies of ALL screen divs. Rebuilt `popup.html` atomically. Merged auth+role-select into one welcome screen. `Hello, Zealer! 👋`, 120px logo, square role cards, ascending-bars EM icon. |
+| v2.5.0 | Usage logging: once-per-user ping to Google Apps Script → Sheet (maybeLogUsage in saveAndNotify; usageLogged flag; no-cors fire-and-forget). Added script.google.com host_permissions. |
 | v2.4.4 | Splash gradient → top-glow radial (radial-gradient(125% 75% at 50% 0%, #787ed9, #1d2c81 33%, #000 68%)) to match reference. |
 | v2.4.3 | Splash: removed ripple effect, background → gradient linear-gradient(#787ed9 9.52%, #1d2c81), tightened timing (title 1.25s, total ~2.4s). |
 | v2.4.2 | Copy fix: welcome screen "Set your default view" (was "Sets"). |
 | v2.4.1 | Splash polish: correct all-white logo (cap-splash-white.png generated from cap-color.png with wing/swoosh cutouts), cap +20% (115px), title -40% (16px), Dashboard regular weight. |
+| v2.5.0 | Usage logging: once-per-user ping to Google Apps Script → Sheet (maybeLogUsage in saveAndNotify; usageLogged flag; no-cors fire-and-forget). Added script.google.com host_permissions. |
 | v2.4.4 | Splash gradient → top-glow radial (radial-gradient(125% 75% at 50% 0%, #787ed9, #1d2c81 33%, #000 68%)) to match reference. |
 | v2.4.3 | Splash: removed ripple effect, background → gradient linear-gradient(#787ed9 9.52%, #1d2c81), tightened timing (title 1.25s, total ~2.4s). |
 | v2.4.2 | Copy fix: welcome screen "Set your default view" (was "Sets"). |

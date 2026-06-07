@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.5.0 (2026-06-07) — Usage logging (once per user)
+
+The extension now sends a single anonymous-to-the-team usage ping the first
+time a user's Jira identity is known, so the admin can see who has tried it.
+
+- **Endpoint:** a Google Apps Script web app that appends a row to a private
+  Google Sheet. The script runs as the Sheet owner on Google's servers — no
+  Google credentials live in the extension, only the public POST URL.
+- **Once per user, ever:** gated by a `usageLogged` flag in `chrome.storage.local`,
+  set only after the ping successfully goes out (no duplicates, no misses).
+- **Payload:** Jira email, display name, accountId, role, extension version, squad key.
+- **Safe by design:** fire-and-forget `fetch` wrapped in try/catch — a logging
+  failure can never block or break the dashboard. `mode: 'no-cors'` so the
+  request is processed without a CORS round-trip.
+- **Manifest:** added `script.google.com` + `script.googleusercontent.com` to
+  `host_permissions`.
+
+Hook: `maybeLogUsage(currentUser, settings)` fires in `saveAndNotify` right
+after the Jira `currentUser` is resolved.
+
+---
+
 ## v2.4.4 (2026-06-07) — Splash gradient match
 
 Replaced the flat top-to-bottom linear gradient with a **top-glow radial
