@@ -1033,7 +1033,7 @@ body.privacy-on [data-privacy-mask]::after {
   inset: 0;
   z-index: 9999;
   background: #000;
-  background: linear-gradient(#787ed9 9.52%, #1d2c81);
+  background: radial-gradient(125% 75% at 50% 0%, #787ed9 0%, #1d2c81 33%, #000 68%);
   display: flex;
   flex-direction: column;
   align-items: center;

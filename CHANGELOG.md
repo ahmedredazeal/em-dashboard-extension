@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.4.4 (2026-06-07) — Splash gradient match
+
+Replaced the flat top-to-bottom linear gradient with a **top-glow radial
+gradient** to match the requested reference: a periwinkle→navy glow
+concentrated at the top-centre that fades to pure black across the lower half.
+`radial-gradient(125% 75% at 50% 0%, #787ed9 0%, #1d2c81 33%, #000 68%)`.
+
+---
+
 ## v2.4.3 (2026-06-07) — Splash: drop ripples, gradient background
 
 - **Removed the water-ripple effect** — didn't land visually.
