@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.5.2</div>
+      <div class="cl-desc"><strong>Usage logging fix.</strong> Endpoint-aware once-per-user flag (self-unsticks; re-fires when the URL changes), anonymous POST, and verbose <code>[usage]</code> console logging for diagnosis. Rows require the Apps Script to be deployed with "Anyone" access.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.5.1</div>
       <div class="cl-desc"><strong>Fixes.</strong> Sentry fetch is now resilient — a view pointing at a missing project (404) no longer blanks the dashboard/trend chart; only that view shows an error. Usage logging now works even when Jira hides the user's email (gated on accountId; email still sent when available).</div>
     </div>

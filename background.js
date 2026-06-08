@@ -28,13 +28,21 @@ runMigrations().catch(err => console.warn('[background] Migration failed:', err.
 const USAGE_ENDPOINT = 'https://script.google.com/a/macros/getzeal.io/s/AKfycbwFBMFomoE-Ovkqspw7dgnKOt_f6jqabD9Lcc13i9djMsMENweQkybwUWQ0HslgKt98/exec';
 
 async function maybeLogUsage(currentUser, settings) {
-  if (!USAGE_ENDPOINT) return;
+  if (!USAGE_ENDPOINT) { console.log('[usage] no endpoint configured — skip'); return; }
   // Jira may hide emailAddress (profile privacy), so don't require it — log by
   // accountId/displayName and include the email only when Jira returns it.
-  if (!currentUser?.accountId && !currentUser?.emailAddress) return;
+  if (!currentUser?.accountId && !currentUser?.emailAddress) {
+    console.log('[usage] no Jira identity resolved yet — skip'); return;
+  }
   try {
-    const { usageLogged } = await chrome.storage.local.get('usageLogged');
-    if (usageLogged) return;   // once per user, ever
+    // Endpoint-aware flag: logs once per user PER endpoint. Changing
+    // USAGE_ENDPOINT (e.g. after redeploying the Apps Script) re-triggers a
+    // single log per user and supersedes the old boolean `usageLogged` flag,
+    // so nobody stays stuck against a previous/broken URL.
+    const { usageLoggedFor } = await chrome.storage.local.get('usageLoggedFor');
+    if (usageLoggedFor === USAGE_ENDPOINT) {
+      console.log('[usage] already logged for this endpoint — skip'); return;
+    }
 
     const payload = {
       email:       currentUser.emailAddress || '',
@@ -44,21 +52,26 @@ async function maybeLogUsage(currentUser, settings) {
       version:     chrome.runtime.getManifest().version,
       squad:       settings?.squad?.key     || '',
     };
-    console.log('[background] Logging usage ping:', payload.email || payload.accountId);
+    console.log('[usage] sending ping for', payload.email || payload.accountId, payload);
 
-    // no-cors: request is sent and processed by Apps Script; opaque response
-    // resolves the promise on a successful round-trip, so we only set the
-    // once-per-user flag after the ping actually goes out (no dupes, no misses).
+    // Anonymous POST (credentials omitted) to a PUBLIC Apps Script web app.
+    // no-cors so the opaque response resolves on a successful round-trip; we
+    // only set the once-per-endpoint flag after the request actually goes out.
     fetch(USAGE_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
       mode: 'no-cors',
-      credentials: 'include',
+      credentials: 'omit',
     })
-      .then(() => chrome.storage.local.set({ usageLogged: true }))
-      .catch(() => { /* network failed — retry on a future fetch */ });
-  } catch { /* never block the dashboard */ }
+      .then(() => {
+        console.log('[usage] ping sent ✓');
+        chrome.storage.local.set({ usageLoggedFor: USAGE_ENDPOINT });
+      })
+      .catch(err => console.warn('[usage] ping failed (will retry next fetch):', err?.message));
+  } catch (err) {
+    console.warn('[usage] unexpected error (ignored):', err?.message);
+  }
 }
 
 /**

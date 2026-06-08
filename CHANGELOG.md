@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.5.2 (2026-06-07) — Usage logging: self-unsticking + visible
+
+Two problems made the usage ping appear to do nothing:
+
+1. **Stuck once-per-user flag.** A `no-cors` request resolves even when Google
+   redirects it to a login page, so the old boolean `usageLogged` flag got set
+   to `true` after the very first (failed) attempt — and every later run
+   short-circuited *before* logging or retrying. Replaced it with an
+   **endpoint-aware** `usageLoggedFor` flag: logging fires once per user *per
+   endpoint URL*, so changing the URL (or this upgrade) re-triggers one attempt
+   and nobody stays stuck against a broken URL.
+2. **No visibility.** Added clear `[usage] …` console lines for every branch
+   (skip reasons, payload, send/fail) so it's obvious in the service-worker
+   console what happened.
+
+Also switched the ping to an **anonymous** POST (`credentials: 'omit'`), which
+is the correct mode for a public Apps Script web app.
+
+> Note: rows only appear if the Apps Script is deployed with **"Anyone"**
+> access. A `/a/macros/<domain>/` URL is domain-restricted and will silently
+> drop anonymous pings — redeploy as "Anyone" and update `USAGE_ENDPOINT`.
+
+---
+
 ## v2.5.1 (2026-06-07) — Fixes: Sentry resilience + usage email
 
 **Sentry fetch no longer blanks the dashboard on a bad project.**
