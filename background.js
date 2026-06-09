@@ -182,6 +182,10 @@ async function checkDashboard() {
           state.currentUser = data.currentUser;
           await chrome.storage.local.set({ currentUser: data.currentUser });
           maybeLogUsage(data.currentUser, settings);   // once-per-user usage ping
+        } else {
+          // Loud log: this was a silent skip path — if you see this, Jira's
+          // /myself call failed or returned nothing, so no usage ping fires.
+          console.warn('[usage] SKIPPED — fetchJiraData returned no currentUser (getCurrentUser failed?)');
         }
         await saveAndNotify('jira');
       })

@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.6.5 (2026-06-09) — Diagnostic: loud log when usage ping is skipped
+
+"No `[usage]` logs at all" turned out to mean `maybeLogUsage` was never invoked:
+when Jira's `/myself` call fails or returns nothing, the `if (data.currentUser)`
+guard skipped silently with no console output. Added a loud
+`[usage] SKIPPED — fetchJiraData returned no currentUser` warning on that path
+so the next test is conclusive.
+
+How to test: open the service-worker console FIRST (chrome://extensions →
+Zealer Dashboard → "service worker"), keep it open, then click ↻ in the panel.
+You should now always see exactly one of: `[background] Current user: …` +
+`[usage] sending ping…`, or the new `[usage] SKIPPED` warning, or
+`[background] getCurrentUser failed: <reason>`.
+
+---
+
 ## v2.6.4 (2026-06-09) — Fix: TDZ crash + Estimate vs Actual in demo
 
 **`modeStart` ReferenceError (TDZ) crash fixed.**
