@@ -1157,10 +1157,10 @@ function renderInsights() {
   const outerStyle2  = sideBySide ? 'display:flex;gap:8px;align-items:stretch;' : '';
   const chartWrap2   = sideBySide ? 'flex:1;min-width:0;display:flex;' : 'margin-bottom:8px;';
   
-  // ── Sprint Timeline (Gantt) ──────────────────────────────────────────────
-  const workingDays = state.settings?.ui?.workingDays || [0,1,2,3,4];
-  const ganttStories  = state.currentSprint?.stories || [];
-  const ganttSprint   = state.currentSprint
+  // ── Sprint Timeline (Gantt) — below the two time charts, same Me/Squad scope ──
+  const workingDays  = state.settings?.ui?.workingDays || [0,1,2,3,4];
+  const ganttStories = state.currentSprint?.stories || [];
+  const ganttSprint  = state.currentSprint
     ? { name: state.currentSprint.name,
         startDate: (state.currentSprint.startDate || '').slice(0,10),
         endDate:   (state.currentSprint.endDate   || '').slice(0,10) }
@@ -1169,17 +1169,23 @@ function renderInsights() {
 
   let ganttSectionHtml = '';
   if (ganttSprint?.startDate && ganttStories.length > 0) {
-    const ganttInner = buildGanttSVG(ganttStories, ganttSprint, workingDays, ganttAccountId,
+    const ganttInner   = buildGanttSVG(ganttStories, ganttSprint, workingDays, ganttAccountId,
       { filterMine: isEngineerMe, minWidth: '320px' });
-    const sprintRange = `${ganttSprint.startDate} → ${ganttSprint.endDate}`;
+    const sprintRange  = `${ganttSprint.startDate} → ${ganttSprint.endDate}`;
+    const ganttLabel   = isEngineerMe ? 'MY TIMELINE' : 'SPRINT TIMELINE';
     ganttSectionHtml = `
     <div style="margin-top:8px;padding:10px 12px;background:var(--surface,#11131c);
       border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">SPRINT TIMELINE</div>
-        <div style="font-size:10px;color:var(--text-muted);">${sprintRange}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        cursor:pointer;user-select:none;" id="gantt-toggle-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${ganttLabel}</div>
+          <div style="font-size:10px;color:var(--text-muted);">${sprintRange}</div>
+        </div>
+        <button id="gantt-toggle-btn" style="background:none;border:none;color:var(--text-muted);
+          cursor:pointer;font-size:11px;padding:2px 4px;line-height:1;" title="Toggle Gantt">▼</button>
       </div>
-      <div id="gantt-container" style="overflow-x:auto;">${ganttInner}</div>
+      <div id="gantt-container" style="overflow-x:auto;margin-top:8px;">${ganttInner}</div>
     </div>`;
   }
 
@@ -1196,7 +1202,6 @@ function renderInsights() {
       <div style="${chartWrapStyle}">${supportBoardHtml}</div>
     </div>
     <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
-    ${ganttSectionHtml}
     ${sharedControlBar}
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">
@@ -1208,13 +1213,26 @@ function renderInsights() {
         </div>
       </div>
       <div style="${chartWrap2}">${estimateVsActualHtml}</div>
-    </div>`;
+    </div>
+    ${ganttSectionHtml}`;
 
   wireBurndownHover();
   // Engineer me/squad toggle wiring — variable is 'content', not 'contentEl'
   if (state.settings?.role === 'engineer') wireScopePills(content);
   // Re-populate sentry trend card now that it lives inside insights-content
   renderSentryTrend().catch(e => console.warn('[insights] Sentry trend re-render:', e.message));
+
+  // Gantt collapse/expand toggle
+  const ganttHeader = document.getElementById('gantt-toggle-header');
+  const ganttBtn    = document.getElementById('gantt-toggle-btn');
+  const ganttCont   = document.getElementById('gantt-container');
+  if (ganttHeader && ganttCont) {
+    ganttHeader.addEventListener('click', () => {
+      const collapsed = ganttCont.style.display === 'none';
+      ganttCont.style.display = collapsed ? 'block' : 'none';
+      if (ganttBtn) ganttBtn.textContent = collapsed ? '▼' : '▲';
+    });
+  }
   
   // Wire quarter dropdown
   const modeSelect = document.getElementById('timesheet-mode-select');

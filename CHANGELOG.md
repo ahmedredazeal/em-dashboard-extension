@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.6.1 (2026-06-09) — Gantt: startDate fix + collapsible + below time charts
+
+- **startDate from `customfield_10015`** — Sprint Planner writes start dates to
+  this field. Parser now reads `customfield_10015` first, falls back to the
+  standard `fields.startDate`. Field added to the Jira sprint story fetch.
+- **Collapsible Gantt** — the card header (label + sprint date range) is now
+  a clickable toggle row with a ▲/▼ button. Click to collapse/expand. Default:
+  expanded.
+- **Moved below the two time charts** — the Gantt now sits after "Time Logged"
+  and "Estimate vs Actual", consistent with its role as a deeper-drill view.
+  It respects the same Me/Squad scope as the charts above it:
+  - EM or Engineer "Squad" → all sprint tickets
+  - Engineer "Me" → filtered to the engineer's own tickets ("MY TIMELINE")
+
+---
+
 ## v2.6.0 (2026-06-09) — Demo / Mock Data Mode + Sprint Timeline (Gantt)
 
 ### Demo / Mock Data Mode

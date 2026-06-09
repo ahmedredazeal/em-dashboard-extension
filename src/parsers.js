@@ -130,7 +130,7 @@ export function normalizeStory(issue, storyPointsField) {
     points: getStoryPoints(issue, fallbacks),
     type: fields.issuetype?.name || 'Story',
     dueDate:   fields.duedate    || null,
-    startDate: fields.startDate  || null,
+    startDate: fields.customfield_10015 || fields.startDate || null,
     rank:      fields.rank       || fields.customfield_10019 || null,
     labels: Array.isArray(fields.labels) ? fields.labels : []
   };
