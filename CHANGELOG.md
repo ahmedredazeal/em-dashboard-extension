@@ -1,5 +1,33 @@
 # Changelog
 
+## v2.5.4 (2026-06-09) — Cross-squad time + accountId-based engineer filter
+
+Time Logged and Estimate vs Actual now answer one consistent question in both
+charts: **engineer (all / selection / Me) × time (sprint / Qn) × ALL boards &
+projects** — keyed by accountId, labelled by display name.
+
+**Cross-squad totals (quarter).** The quarter view now reports each engineer's
+time across *every* project, not just the squad's board. Two-pass fetch:
+(1) project-scoped discovery finds who logged on the squad's board that period;
+(2) an author-scoped cross-project query pulls those people's total time
+everywhere (unioned with the known roster + ids from the popup). Estimate vs
+Actual rides along (each worklog carries its issue's original estimate), so it's
+cross-project too. The sprint timesheet was already cross-project for sprint
+assignees — both modes are now consistent.
+
+**accountId-based identity.** The member filter is now keyed on Jira accountId
+instead of display name (names can collide or change), while still showing
+display names in the UI. The discovered-member roster is stored as
+`{accountId, name}` and accumulates from sprint assignees, worklog authors, and
+quarter discovery. Selections saved before this change (by name) still match via
+a name fallback and migrate to accountIds the next time you hit Apply.
+
+Refactor: shared `_fetchWorklogIssues`; `mergeRoster` helper; `memberKey` /
+`isMonitored` / `normalizeMember` helpers in the popup; settings page handles the
+`{accountId, name}` roster shape.
+
+---
+
 ## v2.5.3 (2026-06-08) — Fix: quarter timesheet only showed current-sprint loggers
 
 The Time Logged and Estimate-vs-Actual charts, when set to a **quarter** (Q1–Q4),

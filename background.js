@@ -100,6 +100,33 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 /**
+ * Merge {accountId, name} roster entries. Normalizes legacy string entries,
+ * dedupes by accountId (preferred) then by name, and collapses a legacy
+ * name-only entry once a matching accountId is discovered. Returns objects.
+ */
+function mergeRoster(existing, additions) {
+  const norm = d => (typeof d === 'string')
+    ? { accountId: null, name: d }
+    : { accountId: d.accountId || null, name: d.name || '' };
+  const byId = new Map();   // accountId -> {accountId,name}
+  const byName = new Map(); // name -> {accountId:null,name} (only when no accountId)
+  const put = (r0) => {
+    const r = norm(r0);
+    if (!r.accountId && !r.name) return;
+    if (r.accountId) {
+      const prev = byId.get(r.accountId);
+      byId.set(r.accountId, { accountId: r.accountId, name: r.name || prev?.name || '' });
+      if (r.name) byName.delete(r.name); // collapse legacy name-only duplicate
+    } else if (![...byId.values()].some(e => e.name === r.name)) {
+      byName.set(r.name, r);
+    }
+  };
+  for (const r of (existing || []))  put(r);
+  for (const r of (additions || [])) put(r);
+  return [...byId.values(), ...byName.values()];
+}
+
+/**
  * Main dashboard check routine
  * Fetches data from Jira + Sentry, runs alert rules, updates badge
  */
@@ -439,20 +466,16 @@ async function fetchJiraData(settings) {
       const timesheet = timesheetRaw.sort((a, b) => b.total - a.total);
       const issueTypeSplit = aggregateByIssueType(allWorklogs);
       
-      // Persist discovered member names so settings page can show checkboxes.
-      // Discover from BOTH worklog authors AND sprint assignees — so the filter
-      // shows everyone with a ticket this sprint (the full team), not only the
-      // few who have logged time. This also repopulates the full list quickly
-      // if chrome.storage.local was reset (e.g. extension reloaded from a new
-      // folder), instead of collapsing to just the current time-loggers.
-      const assigneeNames = (normalizedStories || [])
-        .map(s => s.assignee)
-        .filter(Boolean);
-      const discoveredNames = [...new Set([
-        ...timesheet.map(m => m.name),
-        ...assigneeNames
-      ])];
-      if (discoveredNames.length > 0) {
+      // Persist a discovered-member ROSTER ({accountId, name}) so the filter can
+      // key on accountId (stable) while showing display names. Discover from BOTH
+      // worklog authors AND sprint assignees so the filter shows the whole team,
+      // not only those who have logged time.
+      const rosterAdditions = [
+        ...timesheet.map(m => ({ accountId: m.accountId, name: m.name })),
+        ...(normalizedStories || []).map(s => ({ accountId: s.assigneeAccountId, name: s.assignee })),
+      ].filter(r => r.accountId || r.name);
+
+      if (rosterAdditions.length > 0) {
         const settingsResult = await chrome.storage.local.get(['settings']);
         const currentSettings = settingsResult.settings || {};
         // When an EM has manually curated the squad list, respect that choice
@@ -460,16 +483,16 @@ async function fetchJiraData(settings) {
         if (currentSettings.analytics?.squadMembersCurated) {
           console.log('[background] Squad members curated by EM — skipping auto-discovery update');
         } else {
-          const existingNames = currentSettings.analytics?.discoveredMembers || [];
-          const merged = [...new Set([...existingNames, ...discoveredNames])];
-          if (merged.length !== existingNames.length) {
+          const existing = currentSettings.analytics?.discoveredMembers || [];
+          const merged = mergeRoster(existing, rosterAdditions);
+          if (JSON.stringify(merged) !== JSON.stringify(existing.map(d => typeof d === 'string' ? { accountId: null, name: d } : d))) {
             await chrome.storage.local.set({
               settings: {
                 ...currentSettings,
                 analytics: { ...currentSettings.analytics, discoveredMembers: merged }
               }
             });
-            console.log(`[background] Discovered ${merged.length} team members for timesheet`);
+            console.log(`[background] Discovered ${merged.length} team members (roster) for timesheet`);
           }
         }
       }
@@ -785,19 +808,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           settings.jira.email,
           settings.jira.token
         );
-        // Scope the quarter by the SQUAD PROJECT (all authors), NOT by the
-        // current-sprint author list — otherwise engineers who logged time in
-        // the quarter but not the active sprint never appear. `accountIds` is
-        // still received for backward compat but intentionally not used here.
+        // Time logged & estimate-vs-actual must reflect each engineer's work
+        // ACROSS ALL squads/projects, filtered only by the period. Two passes:
+        //   1) project-scoped discovery → who logged on the squad's board this
+        //      period (accountId + name);
+        //   2) author-scoped cross-project query for those people (+ the known
+        //      roster + ids passed from the popup) → their total time everywhere.
         const squadKey = settings.squad?.key;
-        const issues = await client.getProjectWorklogs(squadKey, startDate, endDate);
-        const rawWorklogs = extractWorklogsFromIssues(issues, [], startDate, endDate);
+
+        let discovered = [];
+        try {
+          const discoveryIssues = await client.getProjectWorklogs(squadKey, startDate, endDate);
+          discovered = extractWorklogsFromIssues(discoveryIssues, [], startDate, endDate)
+            .map(w => ({ accountId: w.authorId, name: w.authorName }))
+            .filter(r => r.accountId);
+        } catch (e) {
+          console.warn('[background] Quarter discovery pass failed (continuing):', e.message);
+        }
+
+        const rosterIds = (settings.analytics?.discoveredMembers || [])
+          .map(m => (typeof m === 'string' ? null : m.accountId)).filter(Boolean);
+        const allIds = [...new Set([
+          ...(accountIds || []),
+          ...rosterIds,
+          ...discovered.map(d => d.accountId),
+        ])];
+
+        const issues = allIds.length > 0
+          ? await client.getTeamWorklogs(allIds, startDate, endDate)
+          : await client.getProjectWorklogs(squadKey, startDate, endDate);
+        // Filter to roster authors (Jira returns full worklog lists per issue,
+        // which can include non-roster authors who touched the same ticket).
+        const rawWorklogs = extractWorklogsFromIssues(issues, allIds, startDate, endDate);
         const members = aggregateWorklogs(rawWorklogs);
         const issueTypeSplit = aggregateByIssueType(rawWorklogs);
         const payload = { fetchedAt: new Date().toISOString(), members, issueTypeSplit, startDate, endDate };
         await chrome.storage.local.set({ [cacheKey]: payload });
         chrome.runtime.sendMessage({ type: 'quarter-worklogs-ready', cacheKey }).catch(() => {});
-        console.log(`[background] Quarter ${q} ${year} (project ${squadKey}): ${members.length} members cached`);
+        console.log(`[background] Quarter ${q} ${year}: ${members.length} members across all projects (ids=${allIds.length})`);
+
+        // Fold newly discovered people into the roster so the filter lists them too.
+        try {
+          if (discovered.length > 0) {
+            const sr = await chrome.storage.local.get(['settings']);
+            const cs = sr.settings || {};
+            if (!cs.analytics?.squadMembersCurated) {
+              const existing = cs.analytics?.discoveredMembers || [];
+              const merged = mergeRoster(existing, discovered);
+              if (JSON.stringify(merged) !== JSON.stringify(existing.map(d => typeof d === 'string' ? { accountId: null, name: d } : d))) {
+                await chrome.storage.local.set({
+                  settings: { ...cs, analytics: { ...cs.analytics, discoveredMembers: merged } }
+                });
+              }
+            }
+          }
+        } catch (e) { /* roster update is best-effort */ }
       } catch (e) {
         console.error('[background] Quarter worklog fetch failed:', e.message);
         chrome.runtime.sendMessage({ type: 'quarter-worklogs-error', cacheKey, error: e.message }).catch(() => {});

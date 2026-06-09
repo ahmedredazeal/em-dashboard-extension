@@ -366,7 +366,9 @@ function getTrackedViewIds() {
   });
 
   // ── Squad members (EM mode) ─────────────────────────────────────────
-  let squadMembers = [...(settings.analytics?.discoveredMembers || [])];
+  let squadMembers = (settings.analytics?.discoveredMembers || [])
+    .map(d => typeof d === 'string' ? { accountId: null, name: d } : { accountId: d.accountId || null, name: d.name || '' })
+    .filter(m => m.name);
 
   function renderMemberTags() {
     const container = document.getElementById('squad-member-tags');
@@ -375,13 +377,13 @@ function getTrackedViewIds() {
       container.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">No members yet — save a sprint to auto-populate, or add manually below.</p>';
       return;
     }
-    container.innerHTML = squadMembers.map(name =>
-      `<span class="member-tag">${escapeAttr(name)
-      }<button class="member-remove" data-name="${escapeAttr(name)}" type="button" title="Remove">×</button></span>`
+    container.innerHTML = squadMembers.map(m =>
+      `<span class="member-tag">${escapeAttr(m.name)
+      }<button class="member-remove" data-name="${escapeAttr(m.name)}" type="button" title="Remove">×</button></span>`
     ).join('');
     container.querySelectorAll('.member-remove').forEach(btn => {
       btn.addEventListener('click', () => {
-        squadMembers = squadMembers.filter(n => n !== btn.dataset.name);
+        squadMembers = squadMembers.filter(m => m.name !== btn.dataset.name);
         renderMemberTags();
       });
     });
@@ -391,8 +393,8 @@ function getTrackedViewIds() {
   function addMember() {
     const input = document.getElementById('add-member-input');
     const name  = input?.value.trim();
-    if (!name || squadMembers.includes(name)) { if (input) input.value = ''; return; }
-    squadMembers.push(name);
+    if (!name || squadMembers.some(m => m.name === name)) { if (input) input.value = ''; return; }
+    squadMembers.push({ accountId: null, name });
     renderMemberTags();
     if (input) input.value = '';
   }

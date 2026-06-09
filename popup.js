@@ -10,6 +10,32 @@ import { getTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
 import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.js';
 
+/**
+ * Stable identity key for a timesheet member: accountId when available,
+ * otherwise a "name:"-prefixed display name (legacy / unresolved entries).
+ */
+function memberKey(m) {
+  return (m && m.accountId) ? m.accountId : ('name:' + ((m && m.name) || ''));
+}
+
+/**
+ * Is this member included by the current selection?
+ * `monitored` is a list of keys (accountIds and/or "name:"-prefixed names).
+ * null/empty = no filter (show all). Matches by accountId first, then falls
+ * back to display name so selections saved before the accountId switch still work.
+ */
+function isMonitored(m, monitored) {
+  if (!monitored || monitored.length === 0) return true;
+  return (m.accountId && monitored.includes(m.accountId)) ||
+         (m.name && monitored.includes(m.name)) ||
+         (m.name && monitored.includes('name:' + m.name));
+}
+
+/** Normalize a discoveredMembers entry (legacy string OR {accountId,name}) to an object. */
+function normalizeMember(d) {
+  return (typeof d === 'string') ? { accountId: null, name: d } : { accountId: d.accountId || null, name: d.name || '' };
+}
+
 // Current state
 let state = {
   currentScreen: null,
@@ -842,9 +868,12 @@ function renderInsights() {
       }
       return ts; // squad = full team, no DDL filter in engineer mode
     }
-    return monitored?.length > 0 ? ts.filter(m => monitored.includes(m.name)) : ts;
+    return monitored?.length > 0 ? ts.filter(m => isMonitored(m, monitored)) : ts;
   })();
-  const discoveredMembers = state.settings?.analytics?.discoveredMembers || ts.map(m => m.name);
+  const discoveredMembers = (state.settings?.analytics?.discoveredMembers
+      || ts.map(m => ({ accountId: m.accountId, name: m.name })))
+    .map(normalizeMember)
+    .filter(d => d.name || d.accountId);
   
   // Quarter dropdown (Sprint + available quarters in current year)
   const now = new Date();
@@ -881,13 +910,14 @@ function renderInsights() {
           <span id="member-filter-select-all" style="color:var(--primary,#6366f1);cursor:pointer;">All</span>
         </div>
         <div id="member-filter-list" style="display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;">
-          ${discoveredMembers.map(name => {
-            const checked = !monitored || monitored.length === 0 || monitored.includes(name);
+          ${discoveredMembers.map(mem => {
+            const key = memberKey(mem);
+            const checked = !monitored || monitored.length === 0 || isMonitored(mem, monitored);
             return `<label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;">
-              <input type="checkbox" class="member-filter-cb" data-name="${escapeHtml(name)}"
+              <input type="checkbox" class="member-filter-cb" data-key="${escapeHtml(key)}"
                 ${checked ? 'checked' : ''}
                 style="accent-color:var(--primary,#6366f1);width:13px;height:13px;"/>
-              ${escapeHtml(name)}
+              ${escapeHtml(mem.name)}
             </label>`;
           }).join('')}
         </div>
@@ -910,7 +940,7 @@ function renderInsights() {
   const timesheetMembers = rawTimesheetMembers === null
     ? null   // still loading
     : (monitored?.length > 0
-        ? rawTimesheetMembers.filter(m => monitored.includes(m.name))
+        ? rawTimesheetMembers.filter(m => isMonitored(m, monitored))
         : rawTimesheetMembers);
   
   let timesheetHtml = '';
@@ -1121,7 +1151,7 @@ function renderInsights() {
         // Lazy fetch from background
         const qDef = currentQuarters(now.getFullYear(), now.getMonth() + 1).find(q => q.label === newMode);
         if (qDef) {
-          const accountIds = [...new Set((analytics.timesheet || []).map(m => m.accountId).filter(Boolean))];
+          const accountIds = [...new Set([...(analytics.timesheet || []).map(m => m.accountId), ...discoveredMembers.map(m => m.accountId)].filter(Boolean))];
           const cacheKey = `worklogCache:${qDef.year}:${newMode}`;
           chrome.runtime.sendMessage({
             type: 'fetch-quarter-worklogs',
@@ -1140,7 +1170,7 @@ function renderInsights() {
     if (qMode === 'sprint') return;
     const qDef = currentQuarters(now.getFullYear(), now.getMonth() + 1).find(q => q.label === qMode);
     if (!qDef) return;
-    const accountIds = [...new Set((analytics.timesheet || []).map(m => m.accountId).filter(Boolean))];
+    const accountIds = [...new Set([...(analytics.timesheet || []).map(m => m.accountId), ...discoveredMembers.map(m => m.accountId)].filter(Boolean))];
     const cacheKey = `worklogCache:${qDef.year}:${qMode}`;
     if (!state.quarterWorklogCache) state.quarterWorklogCache = {};
     delete state.quarterWorklogCache[qMode]; // clear so loader shows
@@ -1187,7 +1217,7 @@ function renderInsights() {
     document.getElementById('member-filter-apply')?.addEventListener('click', async (e) => {
       e.stopPropagation();
       const selected = Array.from(document.querySelectorAll('.member-filter-cb:checked'))
-        .map(cb => cb.dataset.name);
+        .map(cb => cb.dataset.key);
       const totalCbs = document.querySelectorAll('.member-filter-cb').length;
 
       // null = "show all" — store null rather than a full-length array so the
