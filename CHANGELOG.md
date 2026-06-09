@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.6.4 (2026-06-09) — Fix: TDZ crash + Estimate vs Actual in demo
+
+**`modeStart` ReferenceError (TDZ) crash fixed.**
+`modeStart`/`modeEnd` were declared at line ~1085 of `renderInsights()` but
+used at line ~1034 inside the `isEngineerMe` block. A previous refactor
+(gantt section insertion) silently moved the date declarations below their
+first use, causing a Temporal Dead Zone crash that broke the whole insights
+panel. Moved the entire date block (`rawStart`, `rawEnd`, `sprintStart/End`,
+`fmtDate`, `modeStart/End`, `modeRange`, `sprintOnlyRange`) to before
+`isEngineerMe`, which is the correct declaration order.
+
+**Estimate vs Actual now renders in demo mode.**
+Mock timesheet members were missing the `estimated` field (total hours
+estimated for the sprint). Added realistic estimated values to each
+member — Estimate vs Actual now renders for both Squad and Me modes.
+
+---
+
 ## v2.6.3 (2026-06-09) — Demo mode complete + circles placement + usage logging
 
 ### Demo mode — remaining gaps fixed

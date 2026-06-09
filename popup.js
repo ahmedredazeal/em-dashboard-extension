@@ -1015,6 +1015,34 @@ function renderInsights() {
         ? rawTimesheetMembers.filter(m => isMonitored(m, monitored))
         : rawTimesheetMembers);
   
+  // ── Dates — must be declared before isEngineerMe uses modeStart/modeEnd ──
+  const rawStart = state.currentSprint?.startDate || state.sprintAnalytics?.startDate || '';
+  const rawEnd   = state.currentSprint?.endDate   || state.sprintAnalytics?.endDate   || '';
+  const sprintStart = rawStart.slice(0, 10);
+  const sprintEnd   = rawEnd.slice(0, 10);
+
+  const fmtDate = d => {
+    if (!d) return '';
+    const ymd = d.slice(0, 10);
+    const [,m, day] = ymd.split('-');
+    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1];
+    return `${+day} ${mon}`;
+  };
+
+  // Date range changes with mode: sprint uses sprint dates, quarters use quarter dates
+  let modeStart = sprintStart, modeEnd = sprintEnd;
+  if (currentMode !== 'sprint') {
+    const qDef = quarters.find(q => q.label === currentMode);
+    if (qDef) { modeStart = qDef.start; modeEnd = qDef.end; }
+    else if (state.quarterWorklogCache?.[currentMode]) {
+      const qc = state.quarterWorklogCache[currentMode];
+      modeStart = (qc.startDate || '').slice(0, 10);
+      modeEnd   = (qc.endDate   || '').slice(0, 10);
+    }
+  }
+  const modeRange  = modeStart && modeEnd ? `${fmtDate(modeStart)} – ${fmtDate(modeEnd)}` : '';
+  const sprintOnlyRange = sprintStart && sprintEnd ? `${fmtDate(sprintStart)} – ${fmtDate(sprintEnd)}` : '';
+
   let timesheetHtml = '';
   // ── Engineer me-mode: personal time-series chart ─────────────────────
   // accountId-based; only requires currentUser to be loaded.
@@ -1067,33 +1095,7 @@ function renderInsights() {
        </div>`
     : '';
   
-  // ── Dates ─────────────────────────────────────────────────────────────
-  const rawStart = state.currentSprint?.startDate || state.sprintAnalytics?.startDate || '';
-  const rawEnd   = state.currentSprint?.endDate   || state.sprintAnalytics?.endDate   || '';
-  const sprintStart = rawStart.slice(0, 10);
-  const sprintEnd   = rawEnd.slice(0, 10);
-  
-  const fmtDate = d => {
-    if (!d) return '';
-    const ymd = d.slice(0, 10);
-    const [,m, day] = ymd.split('-');
-    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1];
-    return `${+day} ${mon}`;
-  };
-  
-  // Date range changes with mode: sprint uses sprint dates, quarters use quarter dates
-  let modeStart = sprintStart, modeEnd = sprintEnd;
-  if (currentMode !== 'sprint') {
-    const qDef = quarters.find(q => q.label === currentMode);
-    if (qDef) { modeStart = qDef.start; modeEnd = qDef.end; }
-    else if (state.quarterWorklogCache?.[currentMode]) {
-      const qc = state.quarterWorklogCache[currentMode];
-      modeStart = (qc.startDate || '').slice(0, 10);
-      modeEnd   = (qc.endDate   || '').slice(0, 10);
-    }
-  }
-  const modeRange  = modeStart && modeEnd ? `${fmtDate(modeStart)} – ${fmtDate(modeEnd)}` : '';
-  const sprintOnlyRange = sprintStart && sprintEnd ? `${fmtDate(sprintStart)} – ${fmtDate(sprintEnd)}` : '';
+  // ── Dates (declared above, before isEngineerMe) ───────────────────────
   // Helper: subtitle div for a given range string
   const dateSubtitle = (range) => range
     ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${range}</div>` : '';

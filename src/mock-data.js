@@ -87,13 +87,13 @@ const MOCK_BURNDOWN = {
   })),
 };
 
-// Timesheet members (sprint)
+// Timesheet members (sprint) — `estimated` = total hours estimated for the sprint
 const MOCK_TIMESHEET = [
-  { accountId:'mock-acc-ahmed', name:'Ahmed Reda',    total:18, byProject:{DEMO:18}, byDate:{[d(-6)]:3,[d(-5)]:4,[d(-4)]:3,[d(-3)]:4,[d(-2)]:2,[d(-1)]:2}, tickets:['DEMO-1','DEMO-4','DEMO-7'] },
-  { accountId:'mock-acc-sara',  name:'Sara Hassan',   total:24, byProject:{DEMO:24}, byDate:{[d(-8)]:4,[d(-7)]:5,[d(-6)]:4,[d(-5)]:4,[d(-4)]:4,[d(-3)]:3}, tickets:['DEMO-2','DEMO-5']         },
-  { accountId:'mock-acc-omar',  name:'Omar Farouk',   total:10, byProject:{DEMO:10}, byDate:{[d(-7)]:3,[d(-6)]:4,[d(-5)]:3},                                 tickets:['DEMO-3','DEMO-9']         },
-  { accountId:'mock-acc-nour',  name:'Nour Khalil',   total:8,  byProject:{DEMO:8},  byDate:{[d(-7)]:2,[d(-6)]:3,[d(-5)]:3},                                 tickets:['DEMO-6','DEMO-10']        },
-  { accountId:'mock-acc-layla', name:'Layla Mostafa', total:4,  byProject:{DEMO:4},  byDate:{[d(-3)]:2,[d(-2)]:2},                                            tickets:['DEMO-8','DEMO-11']        },
+  { accountId:'mock-acc-ahmed', name:'Ahmed Reda',    total:18, estimated:20, byProject:{DEMO:18}, byDate:{[d(-6)]:3,[d(-5)]:4,[d(-4)]:3,[d(-3)]:4,[d(-2)]:2,[d(-1)]:2}, tickets:['DEMO-1','DEMO-4','DEMO-7'] },
+  { accountId:'mock-acc-sara',  name:'Sara Hassan',   total:24, estimated:22, byProject:{DEMO:24}, byDate:{[d(-8)]:4,[d(-7)]:5,[d(-6)]:4,[d(-5)]:4,[d(-4)]:4,[d(-3)]:3}, tickets:['DEMO-2','DEMO-5']         },
+  { accountId:'mock-acc-omar',  name:'Omar Farouk',   total:10, estimated:14, byProject:{DEMO:10}, byDate:{[d(-7)]:3,[d(-6)]:4,[d(-5)]:3},                                 tickets:['DEMO-3','DEMO-9']         },
+  { accountId:'mock-acc-nour',  name:'Nour Khalil',   total:8,  estimated:10, byProject:{DEMO:8},  byDate:{[d(-7)]:2,[d(-6)]:3,[d(-5)]:3},                                 tickets:['DEMO-6','DEMO-10']        },
+  { accountId:'mock-acc-layla', name:'Layla Mostafa', total:4,  estimated:8,  byProject:{DEMO:4},  byDate:{[d(-3)]:2,[d(-2)]:2},                                            tickets:['DEMO-8','DEMO-11']        },
 ];
 
 const MOCK_SPRINT = {
