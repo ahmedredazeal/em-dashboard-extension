@@ -39,11 +39,11 @@ function gc(name) {
 
 // ── Priority colours ───────────────────────────────────────────────────────
 function priorityBg(p) {
-  const m = { highest:'#FEE2E2',critical:'#FEE2E2',high:'#FEF3C7',medium:'#FEF9C3',low:'#DBEAFE',lowest:'#F3F4F6' };
+  const m = { urgent:'#FEE2E2',highest:'#FEE2E2',critical:'#FEE2E2',high:'#FEF3C7',medium:'#FEF9C3',low:'#DBEAFE',lowest:'#F3F4F6' };
   return m[(p||'medium').toLowerCase()] || '#FEF9C3';
 }
 function priorityFg(p) {
-  const m = { highest:'#991B1B',critical:'#991B1B',high:'#92400E',medium:'#854D0E',low:'#1E40AF',lowest:'#374151' };
+  const m = { urgent:'#991B1B',highest:'#991B1B',critical:'#991B1B',high:'#92400E',medium:'#854D0E',low:'#1E40AF',lowest:'#374151' };
   return m[(p||'medium').toLowerCase()] || '#854D0E';
 }
 
@@ -88,7 +88,7 @@ export function dayColIndex(dateISO, workingDayList) {
 export function fmtDay(iso) { return fmtDate(iso); }
 
 // ── Story partitioning ─────────────────────────────────────────────────────
-const PORD = { highest:0, critical:0, high:1, medium:2, low:3, lowest:4 };
+const PORD = { urgent:0, highest:0, critical:0, high:1, medium:2, low:3, lowest:4 };
 const priIdx = p => PORD[(p||'medium').toLowerCase()] ?? 2;
 
 /**

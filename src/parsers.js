@@ -114,7 +114,7 @@ export function normalizeStory(issue, storyPointsField) {
   const priority = fields.priority?.name || 'Medium';
   
   // Log unexpected priority names so we can add them to the mapping
-  const knownPriorities = ['highest','critical','high','medium','low','lowest'];
+  const knownPriorities = ['urgent','highest','critical','high','medium','low','lowest'];
   if (priority !== 'Medium' && !knownPriorities.includes(priority.toLowerCase())) {
     console.log(`[parsers] Unknown priority: "${priority}" on ${issue.key}`);
   }

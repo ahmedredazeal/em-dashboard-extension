@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.6.7 (2026-06-10) — Support "Urgent" priority recognized
+
+The Support board (HRMSP) uses an **Urgent** priority that wasn't in the
+priority maps, producing a console warning per ticket and causing those
+tickets to fall back to medium styling and mid-list Gantt sorting.
+
+- `parsers.js`: `urgent` added to known priorities (warning gone).
+- `gantt.js`: `urgent` added to the sort order (top tier, same as
+  highest/critical) and to the badge colours (red, same as highest).
+
+Usage-logging status: extension side confirmed fully working (ping fires with
+complete payload). The Google Form endpoint is blocked by an org-wide
+Workspace policy that forces domain restriction (the "Restrict to users"
+toggle is hidden in form settings). Next step is a non-Google-restricted
+endpoint — n8n webhook, personal-account form, or admin policy change.
+
+---
+
 ## v2.6.6 (2026-06-10) — Usage logging via Google Form (anonymous, works)
 
 The workspace-restricted Apps Script endpoint silently rejected anonymous
