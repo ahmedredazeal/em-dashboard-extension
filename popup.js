@@ -70,6 +70,28 @@ let state = {
 async function injectMockState() {
   const mock = generateMockState(state.settings);
   Object.assign(state, mock);
+
+  // Clear real-settings member filter so mock members aren't filtered out,
+  // and populate discoveredMembers with the mock team for the filter UI.
+  state.settings = {
+    ...state.settings,
+    analytics: {
+      ...(state.settings?.analytics || {}),
+      monitoredMembers:  null,   // don't filter — show all mock members
+      discoveredMembers: MOCK_CURRENT_USER
+        ? [
+            { accountId:'mock-acc-ahmed', name:'Ahmed Reda'    },
+            { accountId:'mock-acc-sara',  name:'Sara Hassan'   },
+            { accountId:'mock-acc-omar',  name:'Omar Farouk'   },
+            { accountId:'mock-acc-nour',  name:'Nour Khalil'   },
+            { accountId:'mock-acc-layla', name:'Layla Mostafa' },
+          ]
+        : [],
+    },
+  };
+  // Default to squad view so the team timesheet renders (not just "me")
+  if (!state.viewScope) state.viewScope = 'squad';
+
   // Compute alerts on the mock sprint so the alert inbox is populated
   try {
     const { checkAlerts } = await import('./src/alerts.js');
@@ -1203,6 +1225,7 @@ function renderInsights() {
       <div style="${chartWrapStyle}">${supportBoardHtml}</div>
     </div>
     <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
+    <div id="engineer-progress-row" style="display:none;margin-top:6px;"></div>
     ${sharedControlBar}
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">
@@ -1222,6 +1245,9 @@ function renderInsights() {
   if (state.settings?.role === 'engineer') wireScopePills(content);
   // Re-populate sentry trend card now that it lives inside insights-content
   renderSentryTrend().catch(e => console.warn('[insights] Sentry trend re-render:', e.message));
+  // Engineer progress circles: div is now inside insights-content so must be
+  // populated AFTER innerHTML is set (not before, as in the old renderTodayScreen call).
+  renderEngineerProgressCircles();
 
   // Gantt collapse/expand toggle
   const ganttHeader = document.getElementById('gantt-toggle-header');
@@ -1506,9 +1532,6 @@ function renderEngineerProgressCircles() {
 }
 
 function renderTodayScreen() {
-  // Phase 5: personal progress circles (engineer mode only, always "me"-scoped)
-  renderEngineerProgressCircles();
-
   // Alert section — only show if there are unacknowledged alerts
   const alertSection = document.getElementById('alert-section');
   const inbox = document.getElementById('alert-inbox');

@@ -1,5 +1,39 @@
 # Changelog
 
+## v2.6.3 (2026-06-09) — Demo mode complete + circles placement + usage logging
+
+### Demo mode — remaining gaps fixed
+- **Support Board now renders.** Added `extraBoardsData` with a mock "Support Board"
+  (9 tickets across Open/In Progress/Code Review/QA Testing/QA Rejected, 3 assigned
+  to Ahmed Reda "me"). The support board chart renders alongside the burndown.
+- **Time Logged / Estimate vs Actual now render.** The real-settings
+  `monitoredMembers` filter was removing all mock accountIds → empty timesheet.
+  `injectMockState()` now clears `monitoredMembers` and populates
+  `discoveredMembers` with the mock team, and sets `viewScope = 'squad'` so
+  the full team chart shows.
+- **Support tickets assigned to "me"** — SUP-1, SUP-3, SUP-7 assigned to
+  `mock-acc-ahmed`.
+
+### Engineer progress circles — moved to correct position
+The sprint + support donut circles were rendering below the Gantt (at the very
+bottom) because `renderEngineerProgressCircles()` was called at the TOP of
+`renderTodayScreen()`, before `renderInsights()` populated `#insights-content`.
+
+The `#engineer-progress-row` div is now part of the `renderInsights` HTML
+template (between `#sentry-trend-card` and the filters row), and
+`renderEngineerProgressCircles()` is called at the END of `renderInsights()`
+after the template is set — so the div is always in the DOM when populated.
+Removed the premature call from `renderTodayScreen()`.
+
+### Usage logging — credential fix
+Switched `credentials: 'omit'` → `credentials: 'include'`. Since the Apps
+Script endpoint is scoped to "Anyone within getzeal.io", org members' existing
+Google browser sessions authenticate the request — no credentials stored in the
+extension. Added `?v=3` to the endpoint to bust the cached `usageLoggedFor`
+flag so every user retries once with the correct credentials.
+
+---
+
 ## v2.6.2 (2026-06-09) — Fix: demo mode 3 bugs
 
 Three bugs introduced in v2.6.0 with the Demo / Mock Data Mode feature:

@@ -25,7 +25,7 @@ runMigrations().catch(err => console.warn('[background] Migration failed:', err.
 // Jira identity is known. Fire-and-forget; never blocks or breaks the dashboard.
 // The script runs as the Sheet owner on Google's servers — no credentials live
 // in the extension, only this public POST URL.
-const USAGE_ENDPOINT = 'https://script.google.com/a/macros/getzeal.io/s/AKfycbwFBMFomoE-Ovkqspw7dgnKOt_f6jqabD9Lcc13i9djMsMENweQkybwUWQ0HslgKt98/exec';
+const USAGE_ENDPOINT = 'https://script.google.com/a/macros/getzeal.io/s/AKfycbwFBMFomoE-Ovkqspw7dgnKOt_f6jqabD9Lcc13i9djMsMENweQkybwUWQ0HslgKt98/exec?v=3';
 
 async function maybeLogUsage(currentUser, settings) {
   if (!USAGE_ENDPOINT) { console.log('[usage] no endpoint configured — skip'); return; }
@@ -54,15 +54,15 @@ async function maybeLogUsage(currentUser, settings) {
     };
     console.log('[usage] sending ping for', payload.email || payload.accountId, payload);
 
-    // Anonymous POST (credentials omitted) to a PUBLIC Apps Script web app.
-    // no-cors so the opaque response resolves on a successful round-trip; we
-    // only set the once-per-endpoint flag after the request actually goes out.
+    // Use credentials:include so the team member's Google session cookie is sent.
+    // Since the endpoint is scoped to "Anyone within getzeal.io", the org member's
+    // browser session authenticates the request — no credentials stored in the extension.
     fetch(USAGE_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
       mode: 'no-cors',
-      credentials: 'omit',
+      credentials: 'include',
     })
       .then(() => {
         console.log('[usage] ping sent ✓');
