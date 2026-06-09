@@ -135,23 +135,18 @@ const MOCK_SENTRY_VIEWS = [
   { viewId:'demo-sentry-002', label:'Demo BE Issues', issues:[], count:23,  error:null },
 ];
 
+// Trend samples in the REAL shape getTrendSamples returns: [{day:"YYYY-MM-DD", count:N}].
+// 14 days each; the first view spikes in the last few days so the
+// sentry_trend_spike alert has something to chew on.
 const MOCK_SENTRY_TREND_SAMPLES = {
-  'demo-sentry-001': [
-    { date: d(-6), count: 98  },
-    { date: d(-5), count: 101 },
-    { date: d(-4), count: 97  },
-    { date: d(-3), count: 112 },
-    { date: d(-2), count: 138 },
-    { date: d(-1), count: 142 },
-  ],
-  'demo-sentry-002': [
-    { date: d(-6), count: 21 },
-    { date: d(-5), count: 22 },
-    { date: d(-4), count: 23 },
-    { date: d(-3), count: 22 },
-    { date: d(-2), count: 23 },
-    { date: d(-1), count: 23 },
-  ],
+  'demo-sentry-001': Array.from({ length: 14 }, (_, i) => ({
+    day: d(-13 + i),
+    count: 96 + (i % 4) * 3 + (i >= 11 ? 32 : 0),   // ~96-105, jumps to ~140 at the end
+  })),
+  'demo-sentry-002': Array.from({ length: 14 }, (_, i) => ({
+    day: d(-13 + i),
+    count: 20 + (i % 3),                              // steady 20-22
+  })),
 };
 
 export const MOCK_CURRENT_USER = {

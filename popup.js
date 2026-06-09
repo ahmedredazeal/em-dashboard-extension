@@ -2275,6 +2275,17 @@ function _viewIdFromUrl(url) {
  * stable color (by position in the views list), label, and last-30-day samples.
  */
 async function getTrackedSeries() {
+  // Demo mode: serve the mock samples directly (real samples live in
+  // chrome.storage.sync and accumulate over days — none exist for demo views).
+  if (state.mockMode && state.sentryTrendSamples) {
+    return Object.entries(state.sentryTrendSamples).map(([viewId, samples], i) => ({
+      viewId,
+      label: state.sentryViews?.find(v => v.viewId === viewId)?.label || `View ${viewId}`,
+      color: colorForIndex(i),
+      samples: (samples || []).slice(-30),
+    }));
+  }
+
   const sentry = state.settings?.sentry || {};
   const trackedIds = Array.isArray(sentry.trackedViewIds)
     ? sentry.trackedViewIds

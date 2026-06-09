@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.6.8 (2026-06-10) — Usage endpoint → personal form + demo Sentry trend
+
+**Usage logging now points at a personal-account Google Form.**
+The Workspace policy forces domain restriction on org-owned forms, so the
+form was recreated from a personal account (no restriction — anonymous
+responses accepted by default), linked to a Sheet shared with the work
+account. `USAGE_ENDPOINT` + all six `entry.*` IDs swapped. The
+endpoint-aware flag auto-retries once per user against the new URL.
+
+**Demo mode: Sentry trend now renders.**
+Two bugs: (1) the trend chart reads from `getTrackedSeries()` →
+`chrome.storage.sync` samples accumulated over days — it never looked at
+the mock state, and (2) the mock samples used `{date, count}` instead of
+the real `{day, count}` shape. Added a demo short-circuit in
+`getTrackedSeries()` that serves `state.sentryTrendSamples` directly, and
+rebuilt the mock samples: 14 days per view in the correct shape, with an
+end-of-window spike on "Demo Issues" so the trend-spike alert has data.
+
+---
+
 ## v2.6.7 (2026-06-10) — Support "Urgent" priority recognized
 
 The Support board (HRMSP) uses an **Urgent** priority that wasn't in the

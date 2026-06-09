@@ -26,15 +26,15 @@ runMigrations().catch(err => console.warn('[background] Migration failed:', err.
 // land there automatically. Anonymous POST (the form owner unchecked the
 // getzeal.io restriction) — no credentials live in the extension.
 // Fire-and-forget; never blocks or breaks the dashboard.
-const USAGE_ENDPOINT = 'https://docs.google.com/forms/d/e/1FAIpQLSdVt-oAdORDwqLdGSMXfmKef9kczRaDXl3XWwFEemQk4F0X_Q/formResponse';
+const USAGE_ENDPOINT = 'https://docs.google.com/forms/d/e/1FAIpQLSc4bCDINiVqQRabmV50oBSdAJtJUGWZ77oRC6B_TA_pnQibrg/formResponse';
 // Form entry IDs (from the pre-filled link), one per question:
 const USAGE_FORM_FIELDS = {
-  email:       'entry.2101583835',
-  displayName: 'entry.122275861',
-  accountId:   'entry.1890037040',
-  role:        'entry.1019207398',
-  version:     'entry.985870676',
-  squad:       'entry.429506624',
+  email:       'entry.470977998',
+  displayName: 'entry.841881450',
+  accountId:   'entry.1216429686',
+  role:        'entry.459638448',
+  version:     'entry.1522469348',
+  squad:       'entry.846714421',
 };
 
 async function maybeLogUsage(currentUser, settings) {
