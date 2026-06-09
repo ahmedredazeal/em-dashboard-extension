@@ -1087,3 +1087,10 @@ body.privacy-on [data-privacy-mask]::after {
 @media (prefers-reduced-motion: reduce) {
   .splash-cap, .splash-title { animation-duration: 0.01s; }
 }
+
+/* ── Demo mode: grey out settings body when active ────────────────────── */
+#settings-main-body.demo-active {
+  opacity: 0.4;
+  pointer-events: none;
+  user-select: none;
+}

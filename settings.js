@@ -734,5 +734,28 @@ function getTrackedViewIds() {
       document.documentElement.setAttribute('data-theme', radio.value);
     });
   });
-  
+
+  // ── Demo / Mock Data Mode toggle (session-scoped) ─────────────────────
+  const demoToggle = document.getElementById('demo-mode-toggle');
+  const demoNote   = document.getElementById('demo-mode-active-note');
+  const settingsBody = document.getElementById('settings-main-body');
+
+  function applyDemoUI(on) {
+    if (demoToggle) demoToggle.checked = on;
+    if (demoNote)   demoNote.style.display = on ? 'block' : 'none';
+    if (settingsBody) settingsBody.classList.toggle('demo-active', on);
+  }
+
+  // Read session state and initialise toggle
+  try {
+    const sess = await chrome.storage.session.get('mockModeEnabled');
+    applyDemoUI(!!sess.mockModeEnabled);
+  } catch { /* session storage unavailable */ }
+
+  demoToggle?.addEventListener('change', async () => {
+    const on = demoToggle.checked;
+    try { await chrome.storage.session.set({ mockModeEnabled: on }); } catch { /* noop */ }
+    applyDemoUI(on);
+  });
+
 })();

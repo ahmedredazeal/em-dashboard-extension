@@ -30,6 +30,31 @@
       <p class="hint" id="role-hint" style="margin-top:8px;font-size:11px;"></p>
     </div>
 
+    <!-- Demo / Mock Data Mode -->
+    <div class="settings-section" id="demo-mode-section" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:12px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <h2 style="margin:0 0 2px;font-size:13px;">🎭 Demo / Mock Data Mode</h2>
+          <p class="hint" style="margin:0;font-size:11px;line-height:1.4;">
+            Fills all charts with realistic mock data. No API calls are made.
+            Useful for demos and exploring the app before entering real credentials.
+            Resets automatically when you close and reopen the browser.
+          </p>
+        </div>
+        <label class="toggle-switch" style="flex-shrink:0;">
+          <input type="checkbox" id="demo-mode-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="demo-mode-active-note" style="display:none;margin-top:8px;padding:6px 10px;
+        background:rgba(245,158,11,0.12);border-radius:6px;font-size:11px;color:#d97706;font-weight:600;">
+        Demo mode active — all settings below are paused. Toggle off to use real data.
+      </div>
+    </div>
+
+    <!-- Settings body — disabled overlay when demo mode is on -->
+    <div id="settings-main-body">
+
     <!-- Jira Connection -->
     <div class="settings-section">
       <h2>Jira connection</h2>
@@ -272,6 +297,7 @@
     </div>
   </div>
 
+    </div><!-- /#settings-main-body -->
   <script src="settings.js" type="module"></script>
 </body>
 </html>

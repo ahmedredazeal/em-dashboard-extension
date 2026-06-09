@@ -136,8 +136,10 @@ async function checkDashboard() {
     const result = await chrome.storage.local.get(['settings']);
     const settings = result.settings;
     
-    if (!settings?.jira?.token || !settings?.sentry?.token) {
-      console.log('[background] Credentials not configured, skipping check');
+    // Jira credentials are the minimum requirement to start loading data.
+    // Sentry is optional — missing Sentry just means the reliability section stays empty.
+    if (!settings?.jira?.token || !settings?.jira?.email || !settings?.jira?.baseUrl) {
+      console.log('[background] Jira credentials not configured, skipping check');
       return;
     }
     

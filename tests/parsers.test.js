@@ -191,6 +191,8 @@ test('full Jira issue shape', () => {
     points: 5,
     type: 'Story',
     dueDate: '2026-06-01',
+    startDate: null,
+    rank: null,
     labels: []
   });
 });

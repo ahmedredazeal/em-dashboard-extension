@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.5.7 (2026-06-09) — Fix: Jira credentials enough to load dashboard
+
+Removed the requirement for Sentry credentials before the dashboard loads.
+Only Jira (baseUrl + email + token) is now needed to start. Sentry is optional
+— missing Sentry just leaves the reliability section empty.
+
+Affected: `background.js` credential guard + `popup.js` welcome-screen gate.
+
+---
+
 ## v2.5.6 (2026-06-09) — Engineer progress circles moved inside Insights
 
 The sprint + support donut charts (engineer mode) were sitting above and outside

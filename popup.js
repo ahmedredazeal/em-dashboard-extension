@@ -9,6 +9,8 @@ import * as metrics from './src/metrics.js';
 import { getTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
 import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.js';
+import { buildGanttSVG } from './src/gantt.js';
+import { generateMockState, MOCK_CURRENT_USER } from './src/mock-data.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -49,6 +51,7 @@ let state = {
   extraBoardsData: [],
   sprintAnalytics: null,
   isLoading: false,
+  mockMode: false,           // true when demo/mock mode is active (session-only)
   timesheetMode: 'sprint',   // 'sprint' | 'Q1' | 'Q2' | 'Q3' | 'Q4'
   quarterWorklogCache: {},   // { Q1: {members, issueTypeSplit, fetchedAt, startDate, endDate} }
 };
@@ -60,6 +63,24 @@ let state = {
  * Phase 6 splash. Shows once per browser session.
  * Timeline: 0.55s navy → cap in → ripples (~1.2s) → title in → hold → fade out (~2.9s total).
  */
+/**
+ * Demo / Mock Mode — inject mock state and render without any API calls.
+ * Activated by a session-scoped toggle in Settings. Resets on browser restart.
+ */
+async function injectMockState() {
+  const mock = generateMockState(state.settings);
+  Object.assign(state, mock);
+  // Compute alerts on the mock sprint so the alert inbox is populated
+  try {
+    const { checkAlerts } = await import('./src/alerts.js');
+    state.alerts = checkAlerts(state).filter(Boolean);
+  } catch { state.alerts = []; }
+  // Show the demo banner
+  const banner = document.getElementById('mock-mode-banner');
+  if (banner) banner.style.display = 'flex';
+  renderTodayScreen();
+}
+
 async function maybeRunSplash() {
   const splash = document.getElementById('splash-screen');
   if (!splash) return;
@@ -109,11 +130,21 @@ async function boot() {
   state.settings = result.settings || {};
   state.alerts = result.alerts || [];
   state.sentryCardDismissed = !!result.sentryEmptyDismissed;
+
+  // Demo/mock mode — session-scoped (resets on browser restart)
+  try {
+    const sess = await chrome.storage.session.get('mockModeEnabled');
+    state.mockMode = !!sess.mockModeEnabled;
+  } catch { state.mockMode = false; }
+
+  if (state.mockMode && state.settings.role) {
+    await injectMockState();
+    return; // skip normal data load — all charts rendered from mock state
+  }
   
   // First launch: show role-selection screen if no role has been chosen yet.
-  // This comes BEFORE the credentials check so new users pick their role first.
-  // Also used when credentials are missing — the unified welcome screen handles both.
-  if (!state.settings.role || !state.settings.jira?.token || !state.settings.sentry?.token) {
+  // Jira credentials are the minimum requirement — Sentry is optional.
+  if (!state.settings.role || !state.settings.jira?.token) {
     showScreen('role-select');
     return;
   }
@@ -161,6 +192,23 @@ function setupEventHandlers() {
     const newState = await privacyMode.togglePrivacyMode();
     updatePrivacyToggle();
     console.log('[popup] Privacy mode:', newState ? 'ON' : 'OFF');
+  });
+
+  // Gantt: click any [data-jira-key] row to open the ticket in Jira
+  document.getElementById('insights-content')?.addEventListener('click', e => {
+    const el = e.target.closest('[data-jira-key]');
+    if (!el) return;
+    const key  = el.dataset.jiraKey;
+    const base = (state.settings?.jira?.baseUrl || '').replace(/\/$/, '');
+    if (base && key) window.open(`${base}/browse/${key}`, '_blank');
+  });
+
+  // Demo mode banner × button — turns off mock mode and reboots
+  document.getElementById('mock-banner-close')?.addEventListener('click', async () => {
+    try { await chrome.storage.session.set({ mockModeEnabled: false }); } catch { /* noop */ }
+    state.mockMode = false;
+    document.getElementById('mock-mode-banner').style.display = 'none';
+    boot(); // re-run boot with real credentials
   });
   
   // Settings button
@@ -1109,6 +1157,32 @@ function renderInsights() {
   const outerStyle2  = sideBySide ? 'display:flex;gap:8px;align-items:stretch;' : '';
   const chartWrap2   = sideBySide ? 'flex:1;min-width:0;display:flex;' : 'margin-bottom:8px;';
   
+  // ── Sprint Timeline (Gantt) ──────────────────────────────────────────────
+  const workingDays = state.settings?.ui?.workingDays || [0,1,2,3,4];
+  const ganttStories  = state.currentSprint?.stories || [];
+  const ganttSprint   = state.currentSprint
+    ? { name: state.currentSprint.name,
+        startDate: (state.currentSprint.startDate || '').slice(0,10),
+        endDate:   (state.currentSprint.endDate   || '').slice(0,10) }
+    : null;
+  const ganttAccountId = state.currentUser?.accountId || '';
+
+  let ganttSectionHtml = '';
+  if (ganttSprint?.startDate && ganttStories.length > 0) {
+    const ganttInner = buildGanttSVG(ganttStories, ganttSprint, workingDays, ganttAccountId,
+      { filterMine: isEngineerMe, minWidth: '320px' });
+    const sprintRange = `${ganttSprint.startDate} → ${ganttSprint.endDate}`;
+    ganttSectionHtml = `
+    <div style="margin-top:8px;padding:10px 12px;background:var(--surface,#11131c);
+      border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">SPRINT TIMELINE</div>
+        <div style="font-size:10px;color:var(--text-muted);">${sprintRange}</div>
+      </div>
+      <div id="gantt-container" style="overflow-x:auto;">${ganttInner}</div>
+    </div>`;
+  }
+
   content.innerHTML = `
     ${progressHtml}
     <div style="${outerStyle}">
@@ -1122,6 +1196,7 @@ function renderInsights() {
       <div style="${chartWrapStyle}">${supportBoardHtml}</div>
     </div>
     <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
+    ${ganttSectionHtml}
     ${sharedControlBar}
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">

@@ -34,6 +34,15 @@
     </div>
     <div class="splash-title"><span class="splash-zealer">Zealer</span><span class="splash-dashboard">Dashboard</span></div>
   </div>
+
+  <!-- Demo / Mock Mode banner — shown when session mock mode is active -->
+  <div id="mock-mode-banner" style="display:none;position:sticky;top:0;z-index:500;
+    background:#92400e;color:#fef3c7;font-size:11px;font-weight:600;padding:5px 12px;
+    align-items:center;justify-content:space-between;gap:8px;">
+    <span>🎭 Demo mode — showing mock data</span>
+    <button id="mock-banner-close" style="background:none;border:none;color:#fef3c7;
+      cursor:pointer;font-size:13px;line-height:1;padding:0 2px;" title="Turn off demo mode">×</button>
+  </div>
   <!-- Privacy mode banner (shown when body.privacy-on) -->
   <div class="privacy-banner">
     🔒 Privacy mode — personal content hidden

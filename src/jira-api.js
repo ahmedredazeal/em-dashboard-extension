@@ -381,7 +381,8 @@ export class JiraClient {
       'customfield_10016',
       'customfield_10026',
       'subtasks', 'created', 'updated',
-      'duedate', 'labels'
+      'duedate', 'startDate', 'rank',
+      'labels'
     ];
     if (withWorklogs) fields.push('worklog');
     
