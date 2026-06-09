@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.6.6</div>
+      <div class="cl-desc"><strong>Usage logging fixed — Google Form.</strong> Replaced the workspace-restricted Apps Script (which silently dropped anonymous pings) with an anonymous Google Form submission linked to a private Sheet. Endpoint-aware flag auto-retries once per user against the new URL.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.6.5</div>
       <div class="cl-desc"><strong>Usage-ping diagnostics.</strong> The silent skip path (Jira returned no current user) now logs a loud warning, so the service-worker console always shows why a ping did or didn't fire.</div>
     </div>

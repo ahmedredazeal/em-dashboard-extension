@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.6.6 (2026-06-10) — Usage logging via Google Form (anonymous, works)
+
+The workspace-restricted Apps Script endpoint silently rejected anonymous
+service-worker POSTs (confirmed: ping fired with full payload, no row landed,
+and the Workspace admin console only offers "Only me" / "Anyone within
+getzeal.io"). Replaced the mechanism entirely:
+
+- **Endpoint:** a Google Form (`/formResponse`) with the domain restriction
+  unchecked, linked to a private Google Sheet — responses land as rows
+  automatically. Truly anonymous POST (`credentials: 'omit'`), form-encoded
+  body mapped via per-question `entry.*` IDs.
+- **Same once-per-user semantics:** the endpoint-aware `usageLoggedFor` flag
+  sees a new URL and auto-retries once for every user, including those whose
+  flag was set against the old broken endpoint.
+- **Manifest:** `script.google.com` / `script.googleusercontent.com` host
+  permissions removed; `docs.google.com` added.
+
+Payload (unchanged): email, display name, accountId, role, version, squad.
+
+---
+
 ## v2.6.5 (2026-06-09) — Diagnostic: loud log when usage ping is skipped
 
 "No `[usage]` logs at all" turned out to mean `maybeLogUsage` was never invoked:

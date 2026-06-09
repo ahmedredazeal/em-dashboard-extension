@@ -21,11 +21,21 @@ import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } fr
 runMigrations().catch(err => console.warn('[background] Migration failed:', err.message));
 
 // ── Usage logging (once per user) ────────────────────────────────────────
-// Posts a single row to a Google Apps Script web app the first time a user's
-// Jira identity is known. Fire-and-forget; never blocks or breaks the dashboard.
-// The script runs as the Sheet owner on Google's servers — no credentials live
-// in the extension, only this public POST URL.
-const USAGE_ENDPOINT = 'https://script.google.com/a/macros/getzeal.io/s/AKfycbwFBMFomoE-Ovkqspw7dgnKOt_f6jqabD9Lcc13i9djMsMENweQkybwUWQ0HslgKt98/exec?v=3';
+// Submits a single response to a Google Form the first time a user's Jira
+// identity is known. The form is linked to a private Google Sheet, so rows
+// land there automatically. Anonymous POST (the form owner unchecked the
+// getzeal.io restriction) — no credentials live in the extension.
+// Fire-and-forget; never blocks or breaks the dashboard.
+const USAGE_ENDPOINT = 'https://docs.google.com/forms/d/e/1FAIpQLSdVt-oAdORDwqLdGSMXfmKef9kczRaDXl3XWwFEemQk4F0X_Q/formResponse';
+// Form entry IDs (from the pre-filled link), one per question:
+const USAGE_FORM_FIELDS = {
+  email:       'entry.2101583835',
+  displayName: 'entry.122275861',
+  accountId:   'entry.1890037040',
+  role:        'entry.1019207398',
+  version:     'entry.985870676',
+  squad:       'entry.429506624',
+};
 
 async function maybeLogUsage(currentUser, settings) {
   if (!USAGE_ENDPOINT) { console.log('[usage] no endpoint configured — skip'); return; }
@@ -36,9 +46,9 @@ async function maybeLogUsage(currentUser, settings) {
   }
   try {
     // Endpoint-aware flag: logs once per user PER endpoint. Changing
-    // USAGE_ENDPOINT (e.g. after redeploying the Apps Script) re-triggers a
-    // single log per user and supersedes the old boolean `usageLogged` flag,
-    // so nobody stays stuck against a previous/broken URL.
+    // USAGE_ENDPOINT (e.g. switching from the old Apps Script to this form)
+    // re-triggers a single log per user, so nobody stays stuck against a
+    // previous/broken URL.
     const { usageLoggedFor } = await chrome.storage.local.get('usageLoggedFor');
     if (usageLoggedFor === USAGE_ENDPOINT) {
       console.log('[usage] already logged for this endpoint — skip'); return;
@@ -54,18 +64,23 @@ async function maybeLogUsage(currentUser, settings) {
     };
     console.log('[usage] sending ping for', payload.email || payload.accountId, payload);
 
-    // Use credentials:include so the team member's Google session cookie is sent.
-    // Since the endpoint is scoped to "Anyone within getzeal.io", the org member's
-    // browser session authenticates the request — no credentials stored in the extension.
+    // Google Form submission: form-encoded anonymous POST to /formResponse.
+    // no-cors → opaque response; the form accepts the values and the linked
+    // Sheet gets the row. credentials:omit — fully anonymous by design.
+    const body = new URLSearchParams();
+    for (const [key, entryId] of Object.entries(USAGE_FORM_FIELDS)) {
+      body.set(entryId, payload[key]);
+    }
+
     fetch(USAGE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: body.toString(),
       mode: 'no-cors',
-      credentials: 'include',
+      credentials: 'omit',
     })
       .then(() => {
-        console.log('[usage] ping sent ✓');
+        console.log('[usage] ping sent ✓ (form submission)');
         chrome.storage.local.set({ usageLoggedFor: USAGE_ENDPOINT });
       })
       .catch(err => console.warn('[usage] ping failed (will retry next fetch):', err?.message));

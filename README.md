@@ -87,7 +87,7 @@ API token links:
 
 ### Usage logging
 
-The extension posts a single once-per-user ping (Jira email, role, version, squad) to a Google Apps Script web app that appends to a private Google Sheet, so the admin can track adoption. No Google credentials are stored in the extension — the script runs as the Sheet owner. Endpoint is the `USAGE_ENDPOINT` constant in `background.js`.
+The extension submits a single once-per-user response (Jira email, display name, accountId, role, version, squad) to a Google Form linked to a private Google Sheet, so the admin can track adoption. The POST is anonymous (`credentials: omit`) — no Google credentials are stored in the extension. The form URL is the `USAGE_ENDPOINT` constant in `background.js`; per-question IDs live in `USAGE_FORM_FIELDS`.
 
 ## Architecture
 
