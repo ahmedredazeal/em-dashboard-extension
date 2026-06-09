@@ -98,9 +98,6 @@
     <div class="screen hidden" id="screen-today">
       <div class="screen-body">
 
-        <!-- Engineer progress circles (Phase 5) — only shown in engineer mode -->
-        <div id="engineer-progress-row" style="display:none;"></div>
-
         <!-- Alert inbox: only shown when alerts exist -->
         <div class="section hidden" id="alert-section">
           <div class="section-label">Alert inbox</div>
@@ -118,6 +115,9 @@
           </div>
           <div id="insights-body" style="margin-top:8px;">
             <div id="insights-content"></div>
+            <!-- Engineer progress circles — only shown in engineer mode; lives here so
+                 it collapses with Insights and sits just above the Sentry Issues section -->
+            <div id="engineer-progress-row" style="display:none;"></div>
           </div>
         </div>
 

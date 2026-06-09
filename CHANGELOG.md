@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.5.6 (2026-06-09) — Engineer progress circles moved inside Insights
+
+The sprint + support donut charts (engineer mode) were sitting above and outside
+the collapsible Insights section. Moved `#engineer-progress-row` to inside
+`#insights-body`, after `#insights-content`, so the circles:
+- collapse / expand with the Insights section like everything else
+- appear at the bottom of Insights, right above the Sentry Issues section
+
+No logic changes — the `renderEngineerProgressCircles()` call and rendering code
+are unchanged; only the HTML placeholder position moved.
+
+---
+
 ## v2.5.5 (2026-06-09) — Alert logic fixes + Sentry empty-state dismiss
 
 ### Alert rules
