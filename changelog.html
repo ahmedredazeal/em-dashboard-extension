@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.5.3</div>
+      <div class="cl-desc"><strong>Quarter timesheet fix.</strong> Time Logged / Estimate vs Actual in a quarter view now show every engineer who logged time on the squad's issues that quarter — not just people who also logged time in the current sprint. The query is now project-scoped with no author filter (was author-scoped to current-sprint loggers).</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.5.2</div>
       <div class="cl-desc"><strong>Usage logging fix.</strong> Endpoint-aware once-per-user flag (self-unsticks; re-fires when the URL changes), anonymous POST, and verbose <code>[usage]</code> console logging for diagnosis. Rows require the Apps Script to be deployed with "Anyone" access.</div>
     </div>

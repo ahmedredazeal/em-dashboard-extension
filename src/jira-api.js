@@ -214,28 +214,54 @@ export class JiraClient {
     
     const authorList = accountIds.map(id => `"${id}"`).join(',');
     const jql = `worklogAuthor in (${authorList}) AND worklogDate >= "${startDate}" AND worklogDate <= "${endDate}"`;
-    const fields = ['worklog', 'project', 'issuetype', 'priority', 'timeoriginalestimate', 'summary'];
-    
     console.log(`[jira] getTeamWorklogs ${startDate}→${endDate} for ${accountIds.length} members`);
-    
+    return this._fetchWorklogIssues(jql, startDate, endDate);
+  }
+
+  /**
+   * Fetch ALL worklogs on a project's issues within a date range, for EVERY
+   * author (no author restriction). Used by the quarter / team-time view so
+   * engineers who logged time during the period show up even if they were not
+   * part of the current sprint.
+   * @param {string} projectKey e.g. 'HRM'
+   * @param {string} startDate  YYYY-MM-DD
+   * @param {string} endDate    YYYY-MM-DD
+   */
+  async getProjectWorklogs(projectKey, startDate, endDate) {
+    if (!projectKey) {
+      console.warn('[jira] getProjectWorklogs: no projectKey provided');
+      return [];
+    }
+    const jql = `project = "${projectKey}" AND worklogDate >= "${startDate}" AND worklogDate <= "${endDate}"`;
+    console.log(`[jira] getProjectWorklogs ${projectKey} ${startDate}→${endDate}`);
+    return this._fetchWorklogIssues(jql, startDate, endDate);
+  }
+
+  /**
+   * Shared worklog-issue fetch (used by getTeamWorklogs + getProjectWorklogs):
+   * cursor pagination plus a backfill pass for issues whose embedded worklog
+   * list Jira truncates to ≤20 (common over long date ranges like a quarter).
+   */
+  async _fetchWorklogIssues(jql, startDate, endDate) {
+    const fields = ['worklog', 'project', 'issuetype', 'priority', 'timeoriginalestimate', 'summary'];
+
     // /rest/api/3/search/jql uses cursor-based pagination (nextPageToken), NOT startAt
     const allIssues = [];
     let nextPageToken = undefined;
-    
-    while (allIssues.length < 1000) {
+
+    while (allIssues.length < 2000) {
       const body = { jql, fields, maxResults: 100 };
       if (nextPageToken) body.nextPageToken = nextPageToken;
-      
+
       const result = await this._search(body);
       const issues = result.issues || [];
       allIssues.push(...issues);
-      
-      // Stop if no more pages or no results
+
       if (!result.nextPageToken || issues.length === 0) break;
       nextPageToken = result.nextPageToken;
     }
-    console.log(`[jira] getTeamWorklogs: ${allIssues.length} issues fetched`);
-    
+    console.log(`[jira] _fetchWorklogIssues: ${allIssues.length} issues fetched`);
+
     // Jira embeds only the most-recent worklogs per issue (≤20, date-descending).
     // For historical quarters, those top-20 are often post-range — fetch full list.
     const startMs = new Date(startDate).getTime();
@@ -244,7 +270,7 @@ export class JiraClient {
       const wl = i.fields?.worklog;
       return wl && wl.total > (wl.worklogs?.length || 0);
     });
-    
+
     if (truncated.length > 0) {
       console.log(`[jira] Fetching full worklogs for ${truncated.length} truncated issues`);
       for (let i = 0; i < truncated.length; i += 10) {
@@ -260,8 +286,7 @@ export class JiraClient {
         }));
       }
     }
-    
-    console.log(`[jira] getTeamWorklogs complete: ${allIssues.length} issues`);
+
     return allIssues;
   }
 

@@ -785,14 +785,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           settings.jira.email,
           settings.jira.token
         );
-        const issues = await client.getTeamWorklogs(accountIds, startDate, endDate);
-        const rawWorklogs = extractWorklogsFromIssues(issues, accountIds, startDate, endDate);
+        // Scope the quarter by the SQUAD PROJECT (all authors), NOT by the
+        // current-sprint author list — otherwise engineers who logged time in
+        // the quarter but not the active sprint never appear. `accountIds` is
+        // still received for backward compat but intentionally not used here.
+        const squadKey = settings.squad?.key;
+        const issues = await client.getProjectWorklogs(squadKey, startDate, endDate);
+        const rawWorklogs = extractWorklogsFromIssues(issues, [], startDate, endDate);
         const members = aggregateWorklogs(rawWorklogs);
         const issueTypeSplit = aggregateByIssueType(rawWorklogs);
         const payload = { fetchedAt: new Date().toISOString(), members, issueTypeSplit, startDate, endDate };
         await chrome.storage.local.set({ [cacheKey]: payload });
         chrome.runtime.sendMessage({ type: 'quarter-worklogs-ready', cacheKey }).catch(() => {});
-        console.log(`[background] Quarter ${q} ${year}: ${members.length} members cached`);
+        console.log(`[background] Quarter ${q} ${year} (project ${squadKey}): ${members.length} members cached`);
       } catch (e) {
         console.error('[background] Quarter worklog fetch failed:', e.message);
         chrome.runtime.sendMessage({ type: 'quarter-worklogs-error', cacheKey, error: e.message }).catch(() => {});

@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.5.3 (2026-06-08) — Fix: quarter timesheet only showed current-sprint loggers
+
+The Time Logged and Estimate-vs-Actual charts, when set to a **quarter** (Q1–Q4),
+only ever showed engineers who had also logged time in the **active sprint** —
+so selecting 9 engineers could still display just 2.
+
+Root cause: the quarter worklog query was author-scoped to the current sprint.
+The popup seeded the request with `accountIds` taken from the *current sprint's*
+timesheet, and the background then queried Jira with
+`worklogAuthor in (those ids) AND worklogDate in <quarter>` — filtering everyone
+else out before the data ever came back.
+
+Fix: the quarter now uses a **project-scoped** query
+(`project = <squad> AND worklogDate in <quarter>`) with **no author filter**,
+aggregating every engineer who logged time on the squad's issues during the
+quarter — the same scoping the sprint timesheet already uses as its fallback.
+Refactored the shared pagination + truncated-worklog backfill into
+`_fetchWorklogIssues`, used by both `getTeamWorklogs` and the new
+`getProjectWorklogs`. Page cap raised 1000 → 2000 for full-quarter ranges.
+
+Note: this scopes quarter time to the squad's own project. Time a squad member
+logged on a *different* project isn't included in the quarter view (it wasn't
+reliably before either); the member filter still applies on top by display name.
+
+---
+
 ## v2.5.2 (2026-06-07) — Usage logging: self-unsticking + visible
 
 Two problems made the usage ping appear to do nothing:
