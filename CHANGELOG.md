@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.6.0 (2026-06-09) — Demo / Mock Data Mode + Sprint Timeline (Gantt)
+
+### Demo / Mock Data Mode
+A session-scoped toggle in Settings (below the role selector) fills every chart
+with realistic pre-built mock data so you can demo or explore the app without
+real credentials. Resets automatically on browser restart.
+
+- Toggle in Settings under "Demo / Mock Data Mode" — writes to
+  `chrome.storage.session` (not local), so credentials are never touched.
+- When ON: all settings below are greyed out/non-interactive; an amber banner
+  "Demo mode active" appears with instructions. An amber strip in the popup
+  toolbar shows "🎭 Demo mode — showing mock data" with an × to dismiss.
+- When OFF (or on restart): normal boot with real credentials.
+- Mock EM profile: DEMO Sprint 1, 15 tickets, 5 engineers, burndown, timesheet
+  (hours × 5 members), 2 Sentry views, sprint history × 2.
+- Mock Engineer profile: same sprint with `filterMine: true` in the Gantt and
+  progress circles scoped to accountId `mock-acc-ahmed`.
+- Uses session-storage so nothing is persisted to disk.
+
+### Sprint Timeline (Gantt)
+A horizontal Gantt chart rendered inside the Insights section — after the Sentry
+trend card, before the member filter / timesheet area — for every sprint. No
+time-filter dependency (always shows the current sprint).
+
+- Matches the Sprint Planner's exact HTML/CSS layout: left label column
+  (key + priority badge + summary + due date) and right % coordinate timeline.
+- Bars span `startDate` (set by Sprint Planner) → `dueDate`; falls back to
+  sprint start when `startDate` is absent.
+- Sorted by priority (Highest → Lowest) then Jira rank (lexorank asc) — matches
+  the planner's board order.
+- Tickets without `dueDate` shown at bottom with an orange "⚠ No date" section.
+- Today column highlighted in red, due-date dashed marker, overdue row tint.
+- Assignee colour-palette legend at footer.
+- **Click any ticket row** to open the issue in Jira (`jira.baseUrl/browse/KEY`).
+- Engineer mode: `filterMine: true` shows only the engineer's own tickets.
+- 30 unit tests (ported + updated for priority→rank sort).
+
+### Also in this release
+- `parsers.js`: `normalizeStory` now extracts `startDate` and `rank`
+  (`fields.startDate`, `fields.rank || fields.customfield_10019`).
+- `jira-api.js`: sprint story search now requests `startDate` and `rank` fields.
+- `src/gantt.js`, `src/mock-data.js`: new modules.
+- `tests/gantt.test.js`: new test suite (30 tests).
+
+---
+
 ## v2.5.7 (2026-06-09) — Fix: Jira credentials enough to load dashboard
 
 Removed the requirement for Sentry credentials before the dashboard loads.
