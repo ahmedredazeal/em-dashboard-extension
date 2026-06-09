@@ -12,6 +12,7 @@
  */
 
 import * as metrics from './metrics.js';
+import { isEarlySprint } from './metrics.js';
 
 function generateAlertId(ruleId) {
   return `${ruleId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -65,11 +66,14 @@ export function scopeCreep(state) {
 
 // ── RULE 3: stalled_burndown ──────────────────────────────────────────────
 // Fires when no points were completed on any of the last 2+ working days.
+// Guarded: skips the early-sprint ramp-up window (first ~20 % of working days,
+// min 2) so day-2 silence doesn't trigger a false alarm.
 export function stalledBurndown(state) {
   const sp  = state.currentSprint;
   const wds = state.settings?.ui?.workingDays || [0, 1, 2, 3, 4];
   const stalledDays = state.settings?.alerts?.rules?.stalled_burndown?.stalledDays ?? 2;
   if (!sp?.stories || sp.todayIndex == null || sp.todayIndex < stalledDays) return null;
+  if (isEarlySprint(sp, wds)) return null; // too early — normal ramp-up, not a stall
 
   const wdSet = new Set(wds);
   const start = new Date(sp.startDate); start.setHours(0, 0, 0, 0);
@@ -93,35 +97,66 @@ export function stalledBurndown(state) {
 }
 
 // ── RULE 4: due_date_risk ─────────────────────────────────────────────────
-// Fires when undone stories with due dates on/before sprint end have open points.
+// Fires when tickets are genuinely overdue (dueDate < today) or due very soon
+// (within the next 2 working days). "Due by sprint end" is intentionally NOT
+// the threshold here — that just means "in this sprint" and is meaningless on
+// day 1 when nothing is done yet.
 export function dueDateRisk(state) {
-  const sp = state.currentSprint;
-  if (!sp?.stories || !sp.endDate) return null;
+  const sp  = state.currentSprint;
+  const wds = state.settings?.ui?.workingDays || [0, 1, 2, 3, 4];
+  if (!sp?.stories) return null;
 
-  const now       = new Date();
-  const sprintEnd = new Date(sp.endDate);
-  const atRisk    = sp.stories.filter(s =>
+  const today  = new Date(); today.setHours(0, 0, 0, 0);
+  const wdSet  = new Set(wds);
+
+  // Compute "2 working days from today" as the imminent window
+  let imminentEnd = new Date(today);
+  let wd = 0;
+  while (wd < 2) {
+    imminentEnd.setDate(imminentEnd.getDate() + 1);
+    if (wdSet.has(imminentEnd.getDay())) wd++;
+  }
+
+  const overdue  = sp.stories.filter(s =>
     s.dueDate && s.statusCategory !== 'done' &&
-    (s.points || 0) > 0 && new Date(s.dueDate) <= sprintEnd
+    (s.points || 0) > 0 && new Date(s.dueDate) < today
   );
+  const imminent = sp.stories.filter(s =>
+    s.dueDate && s.statusCategory !== 'done' &&
+    (s.points || 0) > 0 &&
+    new Date(s.dueDate) >= today && new Date(s.dueDate) <= imminentEnd
+  );
+
+  const atRisk = [...overdue, ...imminent];
   if (atRisk.length === 0) return null;
 
-  const pts     = atRisk.reduce((sum, s) => sum + (s.points || 0), 0);
-  const overdue = atRisk.filter(s => new Date(s.dueDate) < now);
-  const keys    = atRisk.slice(0, 3).map(s => s.key).join(', ');
-  const more    = atRisk.length > 3 ? ` +${atRisk.length - 3} more` : '';
-  const ovNote  = overdue.length > 0 ? ` (${overdue.length} already past due)` : '';
+  const pts  = atRisk.reduce((sum, s) => sum + (s.points || 0), 0);
+  const keys = atRisk.slice(0, 3).map(s => s.key).join(', ');
+  const more = atRisk.length > 3 ? ` +${atRisk.length - 3} more` : '';
 
-  return mkAlert('due_date_risk', overdue.length > 0 ? 'high' : 'medium',
-    `${atRisk.length} ticket${atRisk.length > 1 ? 's' : ''} (${pts} pts) due by sprint end` +
-    ` not yet done${ovNote}: ${keys}${more}.`
-  );
+  let msg;
+  if (overdue.length > 0 && imminent.length > 0) {
+    msg = `${overdue.length} ticket${overdue.length > 1 ? 's' : ''} overdue, ` +
+          `${imminent.length} due within 2 working days — ${pts} pts at risk: ${keys}${more}.`;
+  } else if (overdue.length > 0) {
+    const p = overdue.reduce((sum, s) => sum + (s.points || 0), 0);
+    msg = `${overdue.length} ticket${overdue.length > 1 ? 's' : ''} overdue ` +
+          `(${p} pts, not yet done): ${keys}${more}.`;
+  } else {
+    msg = `${imminent.length} ticket${imminent.length > 1 ? 's' : ''} due within ` +
+          `2 working days (${pts} pts) not yet done: ${keys}${more}.`;
+  }
+
+  return mkAlert('due_date_risk', overdue.length > 0 ? 'high' : 'medium', msg);
 }
 
 // ── RULE 5: unassigned_work ───────────────────────────────────────────────
 // Fires when open, pointed tickets have no assignee.
+// Severity is capped at medium during the early-sprint ramp-up window (teams
+// often assign as they pick up work, so HIGH on day 1 would be premature).
 export function unassignedWork(state) {
-  const sp = state.currentSprint;
+  const sp  = state.currentSprint;
+  const wds = state.settings?.ui?.workingDays || [0, 1, 2, 3, 4];
   if (!sp?.stories) return null;
 
   const unassigned = sp.stories.filter(s =>
@@ -133,7 +168,10 @@ export function unassignedWork(state) {
   const keys = unassigned.slice(0, 3).map(s => s.key).join(', ');
   const more = unassigned.length > 3 ? ` +${unassigned.length - 3} more` : '';
 
-  return mkAlert('unassigned_work', pts >= 8 ? 'high' : 'medium',
+  const earlyFlag = isEarlySprint(sp, wds);
+  const severity  = (!earlyFlag && pts >= 8) ? 'high' : 'medium';
+
+  return mkAlert('unassigned_work', severity,
     `${unassigned.length} unassigned ticket${unassigned.length > 1 ? 's' : ''}` +
     ` (${pts} pts) in ${sp.name}: ${keys}${more}.`
   );

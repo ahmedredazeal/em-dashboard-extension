@@ -283,6 +283,24 @@ export function countWorkingDays(fromDate, toDate, workingDayNums = [0, 1, 2, 3,
   return count;
 }
 
+/**
+ * Returns true if we are still in the "ramp-up" window of a sprint —
+ * defined as the first 20 % of working days (minimum 2). Alert rules
+ * that are meaningless right after planning should guard on this.
+ * @param {Object}   sprint      - currentSprint (needs startDate, endDate)
+ * @param {number[]} workingDays - e.g. [0,1,2,3,4] Sun-Thu
+ */
+export function isEarlySprint(sprint, workingDays = [0, 1, 2, 3, 4]) {
+  if (!sprint?.startDate || !sprint?.endDate) return false;
+  const start = new Date(sprint.startDate);
+  const end   = new Date(sprint.endDate);
+  const now   = new Date();
+  const wdTotal   = countWorkingDays(start, end, workingDays);
+  const wdElapsed = Math.min(countWorkingDays(start, now, workingDays), wdTotal);
+  const threshold = Math.max(2, Math.floor(wdTotal * 0.2));
+  return wdElapsed <= threshold;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Enhanced sprint prediction using committed baseline + working days
 

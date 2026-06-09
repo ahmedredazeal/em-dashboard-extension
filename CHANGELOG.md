@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.5.5 (2026-06-09) — Alert logic fixes + Sentry empty-state dismiss
+
+### Alert rules
+
+**Rule 4 `due_date_risk` — core fix (the screenshot bug).**
+The rule was firing on day 1 with every committed ticket ("due by sprint end,
+not yet done") because `dueDate ≤ sprintEnd` is true for the whole backlog at
+sprint start. The threshold is now `overdue (dueDate < today)` or
+`imminent (within the next 2 working days)`. On day 1 of the sprint in the
+screenshot only the 6 genuinely overdue tickets fire; the 23 "due by sprint
+end" are no longer noise. Text updated to distinguish the two cases.
+
+**Rule 3 `stalled_burndown` — early-sprint grace period.**
+Added a `isEarlySprint` guard (first 20% of working days, min 2) so the rule
+can't fire during the normal ramp-up when no tickets have closed yet.
+
+**Rule 5 `unassigned_work` — severity capped at medium early.**
+During the early-sprint window severity is capped at medium (many teams
+assign-as-they-go; a HIGH on day 1 is premature noise).
+
+**Shared `isEarlySprint` helper** added to `src/metrics.js` (exported).
+All three rules now use the same early-sprint definition as `sprint_goal_at_risk`.
+Unit tests added for all three fixes, including a day-1 regression test that
+locks in the "23 tickets → null" scenario.
+
+### Sentry empty-state dismiss button
+
+When the Reliability tab has no Sentry views configured (common for QA or
+non-engineering roles), the empty-state card now shows a brief explanation and:
+- an **×** close button (top-right) that permanently dismisses the card and
+  stores the preference in `chrome.storage.local`.
+- a **"Go to Settings →"** link for when they do want to configure later.
+
+If Sentry views are configured but no issues exist, the original minimal
+"No recent Sentry issues" message stays (no dismiss button needed).
+
+---
+
 ## v2.5.4 (2026-06-09) — Cross-squad time + accountId-based engineer filter
 
 Time Logged and Estimate vs Actual now answer one consistent question in both

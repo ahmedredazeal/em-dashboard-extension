@@ -17,6 +17,17 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver minor">v2.5.5</div>
+      <div class="cl-desc">
+        <strong>Alert fixes + Sentry dismiss.</strong>
+        due_date_risk now fires only for overdue/imminent tickets (not "everything due by sprint end").
+        stalled_burndown respects the ramp-up grace period.
+        unassigned_work capped at medium early-sprint.
+        Sentry empty-state card has a dismiss (×) button for teams that don't use Sentry.
+      </div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v2.5.4</div>
       <div class="cl-desc"><strong>Cross-squad time + accountId filter.</strong> Time Logged &amp; Estimate vs Actual now show each engineer's time across ALL projects/boards (not just the squad's), filtered by engineer selection and time period. The member filter is keyed on Jira accountId (display names still shown), so selections are stable across name changes/collisions.</div>
     </div>

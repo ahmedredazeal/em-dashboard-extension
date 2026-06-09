@@ -105,9 +105,10 @@ async function boot() {
   setupEventHandlers();
   
   // Load settings
-  const result = await chrome.storage.local.get(['settings', 'alerts']);
+  const result = await chrome.storage.local.get(['settings', 'alerts', 'sentryEmptyDismissed']);
   state.settings = result.settings || {};
   state.alerts = result.alerts || [];
+  state.sentryCardDismissed = !!result.sentryEmptyDismissed;
   
   // First launch: show role-selection screen if no role has been chosen yet.
   // This comes BEFORE the credentials check so new users pick their role first.
@@ -1604,7 +1605,53 @@ function renderTodayScreen() {
   
   if (views.length === 0 || allIds.size === 0) {
     if (spikes) spikes.innerHTML = '';
-    if (sentryEmpty) sentryEmpty.classList.remove('hidden');
+    if (sentryEmpty) {
+      // Distinguish "no views configured" (actionable — offer to configure or dismiss)
+      // from "views exist but no issues" (fine — just say so).
+      const noViewsConfigured = !state.settings?.sentry?.views?.length &&
+                                 !!state.settings?.sentry?.token;
+      if (noViewsConfigured && state.sentryCardDismissed) {
+        sentryEmpty.classList.add('hidden');
+      } else if (noViewsConfigured) {
+        sentryEmpty.innerHTML = `
+          <div style="position:relative;border:1px solid var(--border,rgba(255,255,255,0.1));
+               border-radius:8px;padding:14px 16px 14px;text-align:left;">
+            <button id="sentry-card-close"
+              style="position:absolute;top:6px;right:8px;background:none;border:none;
+                     color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;
+                     padding:2px 4px;" title="Dismiss">×</button>
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;">
+              No Sentry views configured
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">
+              Add Sentry views in Settings to track error trends and spike alerts for your squad.
+              Not relevant to your role? You can safely dismiss this.
+            </div>
+            <a id="sentry-go-settings" href="#"
+              style="font-size:11px;color:var(--primary,#6366f1);text-decoration:none;">
+              Go to Settings →
+            </a>
+          </div>`;
+        sentryEmpty.classList.remove('hidden');
+        // Wire close button
+        const closeBtn = document.getElementById('sentry-card-close');
+        if (closeBtn) closeBtn.addEventListener('click', () => {
+          chrome.storage.local.set({ sentryEmptyDismissed: true });
+          state.sentryCardDismissed = true;
+          sentryEmpty.classList.add('hidden');
+        });
+        // Wire settings link
+        const goSettings = document.getElementById('sentry-go-settings');
+        if (goSettings) goSettings.addEventListener('click', (e) => {
+          e.preventDefault();
+          chrome.runtime.openOptionsPage();
+        });
+      } else {
+        sentryEmpty.innerHTML =
+          '<div style="padding:8px 0;text-align:center;">No recent Sentry issues</div>';
+        sentryEmpty.classList.remove('hidden');
+      }
+    }
     return;
   }
   

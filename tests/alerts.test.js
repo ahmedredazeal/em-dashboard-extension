@@ -3,7 +3,7 @@
  * tests/alerts.test.js
  * Tests for src/metrics.js (new functions) and src/alerts.js rules.
  */
-import { countWorkingDays, committedBurnPrediction, sentryDayOverDaySpike } from '../src/metrics.js';
+import { countWorkingDays, committedBurnPrediction, sentryDayOverDaySpike, isEarlySprint } from '../src/metrics.js';
 import { scopeCreep, unassignedWork, reopenedTickets, dueDateRisk, stalledBurndown, sentryTrendSpike } from '../src/alerts.js';
 
 let pass = 0, fail = 0;
@@ -86,6 +86,22 @@ test('<10% scope added → null', () => {
   assertNull(scopeCreep({ currentSprint: sp2 }));
 });
 
+// ── isEarlySprint ─────────────────────────────────────────────────────────
+console.log('\nisEarlySprint');
+const todayStr = new Date().toISOString().slice(0, 10);
+const farFuture = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+const spEarlyCheck = { startDate:`${todayStr}T12:00:00`, endDate:`${farFuture}T12:00:00` };
+test('sprint started today → early', () => {
+  assertEqual(isEarlySprint(spEarlyCheck, [0,1,2,3,4]), true);
+});
+test('sprint long over → not early', () => {
+  const past = { startDate:'2026-05-01T12:00:00', endDate:'2026-05-15T12:00:00' };
+  assertEqual(isEarlySprint(past, [0,1,2,3,4]), false);
+});
+test('missing dates → not early (safe default)', () => {
+  assertEqual(isEarlySprint({}, [0,1,2,3,4]), false);
+});
+
 // ── unassignedWork ────────────────────────────────────────────────────────
 console.log('\nunassignedWork');
 const spUnassigned = { name:'S', stories:[
@@ -97,6 +113,52 @@ test('has unassigned open story → fires', () => assertNotNull(unassignedWork({
 test('all assigned → null', () => {
   const sp2 = { name:'S', stories:[{ assignee:'Ali', statusCategory:'new', points:5 }] };
   assertNull(unassignedWork({ currentSprint: sp2 }));
+});
+test('early sprint: high pts unassigned → capped at medium (not high)', () => {
+  const spEarlyU = {
+    name:'S', startDate:`${todayStr}T12:00:00`, endDate:`${farFuture}T12:00:00`,
+    stories:[{ key:'HRM-X', assignee:null, statusCategory:'new', points:10 }]
+  };
+  const alert = unassignedWork({ currentSprint: spEarlyU, settings:{} });
+  assertNotNull(alert);
+  assertEqual(alert.severity, 'medium');
+});
+
+// ── dueDateRisk ───────────────────────────────────────────────────────────
+console.log('\ndueDateRisk');
+const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+const sprintEndFar = farFuture; // 14 days out
+test('day-1: tickets with dueDate=sprint-end → null (not at risk yet)', () => {
+  const sp3 = { name:'S', endDate: sprintEndFar, stories:[
+    { key:'HRM-1', dueDate: sprintEndFar, statusCategory:'new', points:3 },
+    { key:'HRM-2', dueDate: sprintEndFar, statusCategory:'new', points:5 },
+  ]};
+  assertNull(dueDateRisk({ currentSprint: sp3, settings:{} }));
+});
+test('genuinely overdue ticket → fires HIGH', () => {
+  const sp4 = { name:'S', endDate: sprintEndFar, stories:[
+    { key:'HRM-1', dueDate: yesterday, statusCategory:'new', points:3 },
+  ]};
+  const alert = dueDateRisk({ currentSprint: sp4, settings:{} });
+  assertNotNull(alert);
+  assertEqual(alert.severity, 'high');
+});
+test('no due dates → null', () => {
+  const sp5 = { name:'S', endDate: sprintEndFar, stories:[
+    { key:'HRM-1', dueDate: null, statusCategory:'new', points:5 },
+  ]};
+  assertNull(dueDateRisk({ currentSprint: sp5, settings:{} }));
+});
+
+// ── stalledBurndown ───────────────────────────────────────────────────────
+console.log('\nstalledBurndown');
+test('early sprint → null (ramp-up grace period)', () => {
+  const spEarlyS = {
+    name:'S', startDate:`${todayStr}T12:00:00`, endDate:`${farFuture}T12:00:00`,
+    todayIndex: 3,
+    stories:[{ key:'HRM-1', closedDay:null, statusCategory:'new', points:5 }]
+  };
+  assertNull(stalledBurndown({ currentSprint: spEarlyS, settings:{} }));
 });
 
 // ── reopenedTickets ───────────────────────────────────────────────────────
