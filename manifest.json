@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zealer Dashboard",
-  "version": "2.6.1",
+  "version": "2.6.2",
   "description": "Engineering delivery cockpit \u2014 sprint health, reliability alerts, and time tracking, in a Chrome side panel.",
   "author": "Zeal",
   "icons": {

@@ -1,5 +1,34 @@
 # Changelog
 
+## v2.6.2 (2026-06-09) — Fix: demo mode 3 bugs
+
+Three bugs introduced in v2.6.0 with the Demo / Mock Data Mode feature:
+
+**1. Toggle required close/reopen.**
+Settings page wrote to `chrome.storage.session` but the popup had no listener
+for the change. Added a `mock-mode-changed` runtime message: settings.js now
+sends it after toggling, and the popup's message listener applies the change
+immediately — `injectMockState()` on enable, `boot()` on disable.
+
+**2. Empty content when demo mode was on.**
+`injectMockState()` called `renderTodayScreen()` but never called
+`showScreen('today')`, so the today screen div stayed hidden. Added
+`showScreen('today')` before `renderTodayScreen()` in `injectMockState`.
+
+**3. Burndown NaN polyline errors.**
+`buildBurndownSVG` expects `ideal`, `estimate`, `actual` as plain number
+arrays (one value per day). The mock data built them as `{day, pts}` object
+arrays, causing `Math.max(...[{...}])` → NaN and SVG attribute errors.
+Fixed: mock burndown now uses flat number arrays with the correct lengths.
+
+**Usage logging not working (action required on your side).**
+The `USAGE_ENDPOINT` URL contains `/a/macros/getzeal.io/` which means the
+Apps Script was deployed as "Anyone within getzeal.io". Anonymous PINGs from
+the extension are silently rejected. Fix: redeploy the Apps Script with
+"Who has access: Anyone" and send the new URL — I will update USAGE_ENDPOINT.
+
+---
+
 ## v2.6.1 (2026-06-09) — Gantt: startDate fix + collapsible + below time charts
 
 - **startDate from `customfield_10015`** — Sprint Planner writes start dates to

@@ -78,6 +78,7 @@ async function injectMockState() {
   // Show the demo banner
   const banner = document.getElementById('mock-mode-banner');
   if (banner) banner.style.display = 'flex';
+  showScreen('today');
   renderTodayScreen();
 }
 
@@ -2925,6 +2926,18 @@ function escapeHtml(text) {
  * Listen for settings updates from settings page
  */
 chrome.runtime.onMessage.addListener((message) => {
+  // Demo mode toggled from settings page — apply immediately without reopen
+  if (message.type === 'mock-mode-changed') {
+    state.mockMode = !!message.enabled;
+    if (state.mockMode) {
+      injectMockState();
+    } else {
+      const banner = document.getElementById('mock-mode-banner');
+      if (banner) banner.style.display = 'none';
+      boot();
+    }
+    return;
+  }
   if (message.type === 'quarter-worklogs-ready') {
     const key = message.cacheKey;
     chrome.storage.local.get([key]).then(r => {

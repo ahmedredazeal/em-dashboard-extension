@@ -54,9 +54,14 @@ const DONE_PTS = STORIES.filter(s => s.statusCategory === 'done').reduce((n, s) 
 const TOTAL_DAYS = 14; // calendar days from start to end
 const TODAY_IDX  = 8;  // d(-8) + 8 = today
 
-// Burndown: remaining pts per calendar day (0-based)
-const BD_ACTUAL  = [59,59,59,54,54,51,48,27,27,null,null,null,null,null]; // closings at days 2,4,5,6
-const BD_IDEAL   = Array.from({length:TOTAL_DAYS+1}, (_, i) => +(59 - 59 * i / TOTAL_DAYS).toFixed(1));
+// Burndown: remaining pts per calendar day (plain number arrays, as buildBurndownSVG expects)
+// ideal/estimate: full series 0..TOTAL_DAYS, actual: only elapsed days (0..TODAY_IDX)
+const BD_IDEAL_NUMS = Array.from({length:TOTAL_DAYS+1}, (_, i) =>
+  Math.round(COMMITTED_PTS - COMMITTED_PTS * (i / TOTAL_DAYS)));
+const BD_ESTIMATE_NUMS = [...BD_IDEAL_NUMS];
+// Actual remaining per day: burndowns as tickets close
+// Day 0-2: no completions. Day 3: DEMO-3 done (-5). Day 5: DEMO-6 (-3). Day 6: DEMO-4 (-3). Day 7: DEMO-1 (-8). Day 8 (today): DEMO-2 (-13).
+const BD_ACTUAL_NUMS = [59,59,59,54,54,51,48,40,27];
 const BD_LABELS  = Array.from({length:TOTAL_DAYS+1}, (_, i) => {
   const dt = new Date(SPRINT_START + 'T00:00:00');
   dt.setDate(dt.getDate() + i);
@@ -64,16 +69,22 @@ const BD_LABELS  = Array.from({length:TOTAL_DAYS+1}, (_, i) => {
 });
 
 const MOCK_BURNDOWN = {
-  ideal:          BD_IDEAL.map((pts, day) => ({ day, pts })),
-  estimate:       BD_IDEAL.map((pts, day) => ({ day, pts })),
-  actual:         BD_ACTUAL.filter(v => v !== null).map((pts, day) => ({ day, pts })),
+  ideal:          BD_IDEAL_NUMS,
+  estimate:       BD_ESTIMATE_NUMS,
+  actual:         BD_ACTUAL_NUMS,
   labels:         BD_LABELS,
   totalPoints:    COMMITTED_PTS,
   committedPoints:COMMITTED_PTS,
   totalDays:      TOTAL_DAYS,
   todayIndex:     TODAY_IDX,
   hasActualData:  true,
-  perDayData:     BD_ACTUAL.map((v, i) => ({ day:i, actual:v??0, ideal:BD_IDEAL[i], completedDelta:0, scopeNet:0 })),
+  perDayData:     BD_IDEAL_NUMS.map((ideal, i) => ({
+    day: i, ideal, estimate: ideal,
+    actual: BD_ACTUAL_NUMS[i] ?? null,
+    completedDelta: i > 0 && BD_ACTUAL_NUMS[i] != null && BD_ACTUAL_NUMS[i-1] != null
+      ? BD_ACTUAL_NUMS[i-1] - BD_ACTUAL_NUMS[i] : 0,
+    scopeNet: 0,
+  })),
 };
 
 // Timesheet members (sprint)

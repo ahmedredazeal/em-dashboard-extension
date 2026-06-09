@@ -756,6 +756,8 @@ function getTrackedViewIds() {
     const on = demoToggle.checked;
     try { await chrome.storage.session.set({ mockModeEnabled: on }); } catch { /* noop */ }
     applyDemoUI(on);
+    // Notify open popup to apply the change immediately (no close/reopen needed)
+    chrome.runtime.sendMessage({ type: 'mock-mode-changed', enabled: on }).catch(() => {});
   });
 
 })();
