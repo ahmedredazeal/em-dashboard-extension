@@ -149,6 +149,41 @@ const MOCK_SENTRY_TREND_SAMPLES = {
   })),
 };
 
+
+// Milestones (OKRs / Dev Plans) — backlog tickets grouped by label.
+// DEMO-7 is also in the sprint stories above, so it demos the "IN SPRINT" badge.
+const mkMs = (key, summary, cat, assignee, accId, label, due = null) => ({
+  key, summary,
+  status: cat === 'done' ? 'Done' : cat === 'indeterminate' ? 'In Progress' : 'To Do',
+  statusCategory: cat, assignee, assigneeAccountId: accId,
+  priority: 'Medium', points: 0, type: 'Task', dueDate: due, startDate: null, rank: null,
+  labels: [label],
+});
+const MOCK_MILESTONES = [
+  {
+    label: 'okr-q2-retention',
+    name: 'Q2 Retention OKR',
+    leapsomeUrl: 'https://app.leapsome.com/goals/demo',
+    tickets: [
+      mkMs('DEMO-21', 'Churn analysis dashboard',        'done',          'Sara Hassan',   'mock-acc-sara',  'okr-q2-retention'),
+      mkMs('DEMO-22', 'Win-back email campaign flow',    'done',          'Nour Khalil',   'mock-acc-nour',  'okr-q2-retention'),
+      { ...STORIES.find(s => s.key === 'DEMO-7'), labels: ['okr-q2-retention'] },
+      mkMs('DEMO-23', 'Retention cohort tracking',       'new',           'Omar Farouk',   'mock-acc-omar',  'okr-q2-retention', d(9)),
+      mkMs('DEMO-24', 'Exit-survey integration',         'new',           null,            null,             'okr-q2-retention'),
+    ],
+  },
+  {
+    label: 'dev-plan-ahmed',
+    name: 'Ahmed Dev Plan',
+    leapsomeUrl: null,
+    tickets: [
+      mkMs('DEMO-31', 'Lead architecture review session','done',          'Ahmed Reda',    'mock-acc-ahmed', 'dev-plan-ahmed'),
+      mkMs('DEMO-32', 'Mentor junior on testing',        'indeterminate', 'Ahmed Reda',    'mock-acc-ahmed', 'dev-plan-ahmed'),
+      mkMs('DEMO-33', 'Public talk: MV3 extensions',     'new',           'Ahmed Reda',    'mock-acc-ahmed', 'dev-plan-ahmed', d(20)),
+    ],
+  },
+];
+
 export const MOCK_CURRENT_USER = {
   accountId:    'mock-acc-ahmed',
   displayName:  'Ahmed Reda',
@@ -181,6 +216,7 @@ export function generateMockState(settings) {
     sentryViews:       MOCK_SENTRY_VIEWS,
     sentryTrendSamples:MOCK_SENTRY_TREND_SAMPLES,
     supportTickets:    SUPPORT_TICKETS,
+    milestonesData:    MOCK_MILESTONES,
     extraBoardsData:   [{
       boardId:    999,
       boardLabel: 'Support Board',

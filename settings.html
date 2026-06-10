@@ -170,6 +170,16 @@
           Find board ID in Jira board URL: <code>/jira/software/projects/HRM/boards/<strong>42</strong></code>
         </span>
       </div>
+
+      <div class="field" id="milestones-field">
+        <label for="squad-milestones">Milestones — OKRs &amp; Dev Plans <small style="color:var(--text-muted);font-weight:normal;">(optional, one per line)</small></label>
+        <textarea id="squad-milestones" rows="3" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;" placeholder="okr-q2-retention|Q2 Retention OKR|https://app.leapsome.com/goals/...&#10;dev-plan-ahmed|Ahmed Dev Plan"></textarea>
+        <span class="field-hint">
+          Format: <code>label</code> or <code>label|Display Name</code> or <code>label|Display Name|Leapsome URL</code>.<br/>
+          Tag backlog tickets with the label in Jira — progress is tracked by ticket count across the whole milestone,
+          even as tickets move in and out of sprints. The Leapsome URL (optional) adds an "Open in Leapsome" link.
+        </span>
+      </div>
     </div>
 
     <!-- Squad members (EM only) -->

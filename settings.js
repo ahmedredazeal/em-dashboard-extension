@@ -5,6 +5,7 @@
  */
 
 import { parseSentryUrl } from './src/parsers.js';
+import { parseMilestoneLines } from './src/milestones.js';
 import { runMigrations } from './src/migrations.js';
 import { importTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
@@ -453,6 +454,15 @@ function getTrackedViewIds() {
         .join('\n');
     }
   }
+  // Milestones (label | Display Name | Leapsome URL)
+  if (Array.isArray(settings.milestones)) {
+    const msEl = document.getElementById('squad-milestones');
+    if (msEl) msEl.value = settings.milestones
+      .map(m => [m.label, m.name !== m.label ? m.name : '', m.leapsomeUrl || '']
+        .filter((p, i) => i === 0 || p)
+        .join('|'))
+      .join('\n');
+  }
   
   // Select current theme
   const theme = settings.ui?.theme || 'browser';
@@ -621,6 +631,7 @@ function getTrackedViewIds() {
           squadMembersCurated: settings.role === 'em' && squadMembers.length > 0,
           monitoredMembers: freshAnalytics.monitoredMembers ?? settings.analytics?.monitoredMembers ?? []
         },
+        milestones: parseMilestoneLines(document.getElementById('squad-milestones')?.value || ''),
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',
         viewScope: settings.viewScope || (settings.role === 'engineer' ? 'me' : 'squad')

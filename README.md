@@ -85,6 +85,10 @@ API token links:
 
 ---
 
+### Milestones (OKRs & Dev Plans)
+
+Label-based milestone tracking on backlog tickets: configure labels in Settings (`label|Display Name|Leapsome URL`), tag tickets in Jira, and each milestone renders a progress card (ticket count), status breakdown, IN SPRINT badges, and a click-through listing. Me/Squad scope applies. New module: `src/milestones.js`.
+
 ### Usage logging
 
 The extension submits a single once-per-user response (Jira email, display name, accountId, role, version, squad) to a Google Form linked to a private Google Sheet, so the admin can track adoption. The POST is anonymous (`credentials: omit`) — no Google credentials are stored in the extension. The form URL is the `USAGE_ENDPOINT` constant in `background.js`; per-question IDs live in `USAGE_FORM_FIELDS`.

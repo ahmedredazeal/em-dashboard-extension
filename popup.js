@@ -11,6 +11,7 @@ import { colorForIndex } from './src/trend-colors.js';
 import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.js';
 import { buildGanttSVG } from './src/gantt.js';
 import { generateMockState, MOCK_CURRENT_USER } from './src/mock-data.js';
+import { milestoneCounts } from './src/milestones.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -49,6 +50,7 @@ let state = {
   sentryViews: [],
   supportTickets: [],
   extraBoardsData: [],
+  milestonesData: [],
   sprintAnalytics: null,
   isLoading: false,
   mockMode: false,           // true when demo/mock mode is active (session-only)
@@ -281,7 +283,7 @@ async function loadData() {
   try {
     const cacheResult = await chrome.storage.local.get([
       'settings', 'sprintHistory', 'currentSprint', 'sentryIssues',
-      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData', 'currentUser'
+      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData', 'milestonesData', 'currentUser'
     ]);
     
     // Always refresh settings so squad.extraBoards reflects latest save
@@ -294,6 +296,7 @@ async function loadData() {
     state.supportTickets   = cacheResult.supportTickets   || [];
     state.alerts           = cacheResult.alerts           || [];
     state.extraBoardsData  = cacheResult.extraBoardsData  || [];
+    state.milestonesData   = cacheResult.milestonesData   || [];
     state.currentUser      = cacheResult.currentUser      || null;
 
     // viewScope: engineers respect their last chosen scope (default 'me');
@@ -584,6 +587,111 @@ function renderExtraBoards() {
     }
     if (ticketBody) wireTicketClicks(ticketBody);
     // Wire Me/Squad scope pills inside this board's filter row
+    const filterRow = document.getElementById(`${sectionId}-filter-row`);
+    if (filterRow) wireScopePills(filterRow);
+  });
+}
+
+/**
+ * Milestones (OKRs / Dev Plans) — collapsible card per configured label.
+ * Progress is by TICKET COUNT across the whole milestone, regardless of
+ * which sprint (if any) each ticket is in. Me/Squad scope applies.
+ */
+function renderMilestones() {
+  const container = document.getElementById('milestones-container');
+  if (!container) return;
+
+  const milestones = state.milestonesData || [];
+  if (milestones.length === 0) { container.innerHTML = ''; return; }
+
+  const jiraBase = state.settings?.jira?.baseUrl || '';
+  const isEngineerMe = state.settings?.role === 'engineer'
+                    && state.viewScope === 'me'
+                    && !!state.currentUser?.accountId;
+  // Keys of tickets currently in the active sprint → "in sprint" badge
+  const sprintKeys = new Set((state.currentSprint?.stories || []).map(s => s.key));
+
+  container.innerHTML = milestones.map((ms, idx) => {
+    const sectionId = `milestone-${idx}`;
+
+    if (ms.error) {
+      return `
+        <div class="section">
+          <div class="section-label">🎯 ${escapeHtml(ms.name || ms.label)}</div>
+          <div style="padding:10px;border-radius:6px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);margin-top:6px;">
+            <div style="font-size:12px;color:#ef4444;">⚠ ${escapeHtml(ms.error)}</div>
+          </div>
+        </div>`;
+    }
+
+    const allTickets = ms.tickets || [];
+    const tickets = isEngineerMe
+      ? allTickets.filter(t => t.assigneeAccountId === state.currentUser.accountId)
+      : allTickets;
+    const { total, done, inProg, pct } = milestoneCounts(tickets);
+    const inSprintCount = tickets.filter(t => sprintKeys.has(t.key)).length;
+
+    const leapsomeHtml = ms.leapsomeUrl
+      ? `<a href="${escapeHtml(ms.leapsomeUrl)}" target="_blank" rel="noopener"
+           style="font-size:11px;color:var(--primary,#6366f1);text-decoration:none;">Open in Leapsome ↗</a>`
+      : `<span style="font-size:10px;color:var(--text-muted);font-style:italic;">Remember to update Leapsome manually</span>`;
+
+    const rows = tickets.map(t => {
+      const badge = sprintKeys.has(t.key)
+        ? ` · <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:rgba(99,102,241,0.15);color:var(--primary,#818cf8);font-weight:600;">IN SPRINT</span>`
+        : '';
+      return renderTicketRow(t, jiraBase, badge);
+    }).join('');
+
+    return `
+      <div class="section">
+        <div id="${sectionId}-section-label" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
+          <span>🎯 ${escapeHtml(ms.name || ms.label)}</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;font-weight:600;color:${pct === 100 ? '#34d399' : 'var(--text-muted)'};">${done}/${total} · ${pct}%</span>
+            <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
+          </div>
+        </div>
+        <div id="${sectionId}-section-body" style="display:none;margin-top:8px;">
+          ${state.settings?.role === 'engineer' ? `
+          <div class="scope-filter-row" id="${sectionId}-filter-row">
+            <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
+              ${escapeHtml(ms.name || ms.label)}
+            </span>
+            ${buildScopeToggleHtml()}
+          </div>` : ''}
+          <div style="padding:10px;background:var(--surface-raised);border-radius:8px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="font-size:12px;color:var(--text-muted);">
+                ${done}/${total} done (${pct}%)${inSprintCount > 0 ? ` · ${inSprintCount} in current sprint` : ''}${inProg > 0 ? ` · ${inProg} in progress` : ''}
+              </div>
+              ${leapsomeHtml}
+            </div>
+            <div style="margin-top:5px;">${collapsedBoardSummary(tickets, false)}</div>
+          </div>
+          <div id="${sectionId}-body">
+            ${rows || `<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">${isEngineerMe ? 'No tickets assigned to you in this milestone' : `No tickets carry the "${escapeHtml(ms.label)}" label yet`}</div>`}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  milestones.forEach((ms, idx) => {
+    if (ms.error) return;
+    const sectionId   = `milestone-${idx}`;
+    const label       = document.getElementById(`${sectionId}-section-label`);
+    const sectionBody = document.getElementById(`${sectionId}-section-body`);
+    const chevron     = document.getElementById(`${sectionId}-section-chevron`);
+    const ticketBody  = document.getElementById(`${sectionId}-body`);
+
+    if (label && sectionBody) {
+      label.addEventListener('click', () => {
+        const open = sectionBody.style.display !== 'none';
+        sectionBody.style.display = open ? 'none' : '';
+        chevron.textContent       = open ? '▶' : '▼';
+      });
+    }
+    if (ticketBody) wireTicketClicks(ticketBody);
     const filterRow = document.getElementById(`${sectionId}-filter-row`);
     if (filterRow) wireScopePills(filterRow);
   });
@@ -1668,6 +1776,7 @@ function renderTodayScreen() {
 
   // Extra boards — collapsible sections
   renderExtraBoards();
+  renderMilestones();
   
   // ── Wire top-level section toggles (once per session) ─────────────
   const insightsHeader = document.getElementById('insights-header');
@@ -2830,7 +2939,7 @@ function ticketStatusIcon(cat){ return ({done:'✓',indeterminate:'●',new:'○
 function priorityDot(p){ return PRIORITY_DOT[(p||'medium').toLowerCase()]||PRIORITY_DOT.medium; }
 
 /** Render one Jira ticket row — clickable, with priority dot */
-function renderTicketRow(story, jiraBaseUrl) {
+function renderTicketRow(story, jiraBaseUrl, extraMeta = '') {
   const url = jiraBaseUrl ? `${jiraBaseUrl.replace(/\/$/,'')}/browse/${story.key}` : null;
   const duePart = story.dueDate ? formatDueDate(story.dueDate, story.statusCategory) : '';
   return `
@@ -2839,7 +2948,7 @@ function renderTicketRow(story, jiraBaseUrl) {
       <div style="flex:1;min-width:0;">
         <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(story.summary)}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
-          ${escapeHtml(story.key)}${story.assignee?` · ${escapeHtml(story.assignee)}`:''}${story.points>0?` · ${story.points}pt`:''}${duePart?` · ${duePart}`:''}
+          ${escapeHtml(story.key)}${story.assignee?` · ${escapeHtml(story.assignee)}`:''}${story.points>0?` · ${story.points}pt`:''}${duePart?` · ${duePart}`:''}${extraMeta}
         </div>
       </div>
       <span style="font-size:10px;color:${ticketStatusColor(story.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(story.status)}</span>

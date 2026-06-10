@@ -13,6 +13,7 @@ import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, wasAddedAfterSp
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
+import { buildMilestoneData } from './src/milestones.js';
 import { runMigrations } from './src/migrations.js';
 import { recordTrendSample, getTrendSamples } from './src/sentry-trend.js';
 import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } from './src/worklog-aggregator.js';
@@ -178,7 +179,8 @@ async function checkDashboard() {
         supportTickets: state.supportTickets,
         sentryIssues: state.sentryIssues,
         sentryViews: state.sentryViews || [],
-        extraBoardsData: state.extraBoardsData || []
+        extraBoardsData: state.extraBoardsData || [],
+        milestonesData: state.milestonesData || []
       });
       // Push to popup if it is open (ignore error if not)
       chrome.runtime.sendMessage({ type: 'partial-update', source })
@@ -193,6 +195,7 @@ async function checkDashboard() {
         state.currentSprint   = data.currentSprint   || null;
         state.supportTickets  = data.supportTickets  || [];
         state.extraBoardsData = data.extraBoardsData || [];
+        state.milestonesData  = data.milestonesData  || [];
         if (data.currentUser) {
           state.currentUser = data.currentUser;
           await chrome.storage.local.set({ currentUser: data.currentUser });
@@ -584,6 +587,30 @@ async function fetchJiraData(settings) {
     console.warn('[background] Failed to fetch support tickets:', err.message);
   }
   
+  // Milestones (OKRs / Dev Plans) — backlog tickets grouped by label.
+  // One JQL for all configured labels; progress is by ticket count.
+  let milestonesData = [];
+  const milestoneConfigs = settings.milestones || [];
+  if (milestoneConfigs.length > 0) {
+    try {
+      const labelList = milestoneConfigs.map(m => `"${m.label}"`).join(',');
+      const jql = `project = "${squadKey}" AND labels in (${labelList}) AND issuetype not in subTaskIssueTypes() ORDER BY created ASC`;
+      const result = await client._search({
+        jql,
+        fields: ['summary','status','assignee','issuetype','priority',
+                 storyPointsField,'customfield_10016','customfield_10026',
+                 'duedate','labels'],
+        maxResults: 200,
+      });
+      const msTickets = (result.issues || []).map(i => normalizeStory(i, storyPointsField));
+      milestonesData = buildMilestoneData(milestoneConfigs, msTickets);
+      console.log(`[background] Milestones: ${milestonesData.length} configured, ${msTickets.length} labelled tickets`);
+    } catch (msErr) {
+      console.warn('[background] Milestones fetch failed (non-fatal):', msErr.message);
+      milestonesData = milestoneConfigs.map(m => ({ ...m, tickets: [], error: msErr.message }));
+    }
+  }
+
   // Extra boards — fetch active sprint + stories for each
   const extraBoardsData = [];
   const rawExtraBoards = settings.squad?.extraBoards || [];
@@ -691,7 +718,7 @@ async function fetchJiraData(settings) {
   }
   
   console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
-  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, currentUser };
+  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, milestonesData, currentUser };
 }
 
 /**

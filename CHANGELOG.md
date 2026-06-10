@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.7.0 (2026-06-10) — Milestones: OKR & Dev Plan tracking
+
+Track OKRs and Dev Plans as **label-based milestones** on backlog tickets in
+the squad's own project — tickets stay movable into any active sprint, while
+progress is tracked on the milestone overall, by **ticket count** (backlog
+tickets rarely carry points before entering a sprint).
+
+**Settings → "Milestones — OKRs & Dev Plans"** (one per line):
+- `label` — track tickets carrying this Jira label
+- `label | Display Name` — nicer card title
+- `label | Display Name | Leapsome URL` — adds an "Open in Leapsome ↗" link;
+  without a URL the card shows a small "remember to update Leapsome" hint
+  (Leapsome's Jira integration covers OKRs; Dev Plans are typically manual)
+
+**The Milestones section** (Today screen, after extra boards) renders one
+collapsible card per milestone:
+- Header: 🎯 name + `done/total · pct%` (green at 100%)
+- Status-breakdown strip (same as the support board)
+- "N in current sprint" count + **IN SPRINT badge** on each ticket currently
+  in the active sprint
+- Full ticket listing — click opens the ticket in Jira
+- **Me/Squad scope applies** (engineer Me = only your tickets per milestone)
+- Completed milestones stay visible until you remove the label from settings
+
+**Mechanics:** one JQL per refresh (`project = <squad> AND labels in (…)`),
+grouped client-side; a ticket carrying two milestone labels counts in both.
+New module `src/milestones.js` (+ 12 unit tests). Demo mode includes two mock
+milestones (an OKR with a Leapsome link and an in-sprint ticket, and a Dev
+Plan that demos the Me filter).
+
+---
+
 ## v2.6.11 (2026-06-10) — Sprint time charts now cross-board (ATH etc.)
 
 In sprint mode, Time Logged and Estimate vs Actual could silently show ONLY the
