@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.6.9 (2026-06-10) — Demo mode: progress circles render
+
+The sprint + support donut circles are an engineer-mode-only feature, and the
+guard `role !== 'engineer' → hide` was hiding them in demo mode for anyone
+whose real role is EM (the demo keeps your real role). Since demo mode exists
+to showcase every feature, mock mode now bypasses the role guard:
+`role === 'engineer' || state.mockMode`. Real (non-demo) EM mode is unchanged
+— circles remain engineer-only there.
+
+With the mock data, the demo renders: sprint donut 11/16 pts (4 tickets) and
+support donut 3 tickets for the mock "me" (Ahmed Reda).
+
+---
+
 ## v2.6.8 (2026-06-10) — Usage endpoint → personal form + demo Sentry trend
 
 **Usage logging now points at a personal-account Google Form.**

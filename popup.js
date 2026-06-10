@@ -1439,7 +1439,10 @@ function renderEngineerProgressCircles() {
   const row = document.getElementById('engineer-progress-row');
   if (!row) return;
 
-  if (state.settings?.role !== 'engineer' || !state.currentUser?.accountId) {
+  // Engineer-only feature — but demo mode showcases it regardless of the
+  // user's real role (mock "me" = mock-acc-ahmed has sprint + support tickets).
+  const roleOk = state.settings?.role === 'engineer' || state.mockMode;
+  if (!roleOk || !state.currentUser?.accountId) {
     row.style.display = 'none';
     return;
   }
