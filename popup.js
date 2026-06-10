@@ -1325,6 +1325,49 @@ function renderInsights() {
     </div>`;
   }
 
+  // ── Milestone summary (compact, above filters) ───────────────────────
+  const msData = state.milestonesData || [];
+  let milestoneSummaryHtml = '';
+  if (msData.length > 0) {
+    const msRows = msData.map((ms, idx) => {
+      if (ms.error) return '';
+      const allTickets = ms.tickets || [];
+      const tickets = isEngineerMe
+        ? allTickets.filter(t => t.assigneeAccountId === state.currentUser?.accountId)
+        : allTickets;
+      const { total, done, inProg, open, pct } = milestoneCounts(tickets);
+      if (total === 0 && !isEngineerMe) return ''; // hide empty milestones in squad mode
+
+      const doneW  = total > 0 ? (done / total * 100).toFixed(1) : 0;
+      const ipW    = total > 0 ? (inProg / total * 100).toFixed(1) : 0;
+      const openW  = total > 0 ? (open / total * 100).toFixed(1) : 0;
+      const pctColor = pct === 100 ? '#34d399' : pct >= 50 ? '#fbbf24' : 'var(--text-muted)';
+
+      return `
+        <div data-milestone-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:5px 0;
+          cursor:pointer;border-bottom:1px solid var(--border,rgba(255,255,255,0.04));"
+          title="Click to expand milestone details">
+          <span style="font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap;">🎯 ${escapeHtml(ms.name || ms.label)}</span>
+          <span style="font-size:10px;font-weight:600;color:${pctColor};flex-shrink:0;">${done}/${total} · ${pct}%</span>
+          <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden;flex-shrink:0;display:flex;">
+            <div style="width:${doneW}%;background:#34d399;"></div>
+            <div style="width:${ipW}%;background:#60a5fa;"></div>
+            <div style="width:${openW}%;background:rgba(255,255,255,0.12);"></div>
+          </div>
+        </div>`;
+    }).filter(Boolean).join('');
+
+    if (msRows) {
+      milestoneSummaryHtml = `
+      <div style="margin-top:8px;padding:8px 12px;background:var(--surface,#11131c);
+        border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
+        <div style="font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:4px;">MILESTONES</div>
+        <div id="milestone-summary-rows">${msRows}</div>
+      </div>`;
+    }
+  }
+
   content.innerHTML = `
     ${progressHtml}
     <div style="${outerStyle}">
@@ -1338,6 +1381,7 @@ function renderInsights() {
       <div style="${chartWrapStyle}">${supportBoardHtml}</div>
     </div>
     <div id="sentry-trend-card" style="display:none;margin-top:8px;"></div>
+    ${milestoneSummaryHtml}
     <div id="engineer-progress-row" style="display:none;margin-top:6px;"></div>
     ${sharedControlBar}
     <div style="${outerStyle2}">
@@ -1361,6 +1405,24 @@ function renderInsights() {
   // Engineer progress circles: div is now inside insights-content so must be
   // populated AFTER innerHTML is set (not before, as in the old renderTodayScreen call).
   renderEngineerProgressCircles();
+
+  // Milestone summary: click a row to scroll to + expand the full milestone card
+  document.getElementById('milestone-summary-rows')?.querySelectorAll('[data-milestone-idx]').forEach(row => {
+    row.addEventListener('click', () => {
+      const idx = row.dataset.milestoneIdx;
+      const label = document.getElementById(`milestone-${idx}-section-label`);
+      const body  = document.getElementById(`milestone-${idx}-section-body`);
+      const chevron = document.getElementById(`milestone-${idx}-section-chevron`);
+      if (label) {
+        // Expand if collapsed
+        if (body && body.style.display === 'none') {
+          body.style.display = '';
+          if (chevron) chevron.textContent = '▼';
+        }
+        label.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
 
   // Gantt collapse/expand toggle
   const ganttHeader = document.getElementById('gantt-toggle-header');

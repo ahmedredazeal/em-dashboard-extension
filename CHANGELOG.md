@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.7.3 (2026-06-10) — Milestone summary row in Insights
+
+A compact **MILESTONES** summary section now appears inside the Insights area,
+between the Sentry trend chart and the engineer progress circles (above the
+filters row). One row per milestone showing:
+
+- 🎯 Name + `done/total · pct%` (colour-coded: green at 100%, amber ≥50%)
+- A thin horizontal progress bar (green=done, blue=in-progress, grey=open)
+
+**Click any row** to scroll down to the full milestone card and auto-expand it.
+Me/Squad scope applies to the summary the same way as the full cards below.
+
+Empty milestones (no tickets yet) are hidden in Squad mode but visible in Me
+mode (so an engineer can see a Dev Plan they haven't started). Demo mode
+renders both mock milestones in the summary.
+
+---
+
 ## v2.7.2 (2026-06-10) — Fix: unestimated→estimated tickets invisible on burndown
 
 **Root cause (the remaining piece of the "+5 added today" report):**
