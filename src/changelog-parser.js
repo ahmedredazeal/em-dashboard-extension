@@ -123,9 +123,13 @@ export function estimateAtSprintStart(rawIssue, sprintStartDate, estimateFieldId
   }
   if (!earliest) return { startEst: null, changeDayAfterStart: null };
   const raw = earliest.from ?? earliest.fromString;
-  const startEst = raw != null ? parseFloat(raw) : null;
+  // A null/empty `from` means the ticket went from unestimated to estimated
+  // AFTER sprint start — that's a 0→N change, so startEst = 0 (not null).
+  // Without this, the delta block in background.js never fires and the new
+  // points silently absorb into the committed baseline.
+  const parsed = (raw != null && raw !== '') ? parseFloat(raw) : 0;
   return {
-    startEst: (!isNaN(startEst) ? startEst : null),
+    startEst: Number.isFinite(parsed) ? parsed : 0,
     changeDayAfterStart: dayIndex(earliest.created, sprintStartDate)
   };
 }

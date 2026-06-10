@@ -67,6 +67,28 @@ test('estimate edited mid-sprint → startEst is pre-change value + change day',
   assertEqual(startEst, 5);
   assertEqual(changeDayAfterStart, 2);
 });
+test('ticket estimated from null/unestimated → startEst is 0 (not null)', () => {
+  // This is the actual bug: Jira changelog "from" is null when a ticket goes
+  // from unestimated to estimated. The old code returned startEst: null, so
+  // the delta block never fired and the points silently absorbed into baseline.
+  const issue = issueWith([{
+    created: '2026-06-10T14:00:00.000+0300',
+    items: [{ fieldId: 'customfield_10039', field: 'Story point estimate',
+              from: null, fromString: null, to: '3', toString: '3' }],
+  }]);
+  const { startEst, changeDayAfterStart } = estimateAtSprintStart(issue, SPRINT_START, 'customfield_10039');
+  assertEqual(startEst, 0);  // was null → bug; now 0 → delta fires
+  assertEqual(changeDayAfterStart, 2);
+});
+test('ticket estimated from empty string → startEst is 0', () => {
+  const issue = issueWith([{
+    created: '2026-06-09T10:00:00.000+0300',
+    items: [{ fieldId: 'customfield_10039', field: 'Story point estimate',
+              from: '', fromString: '', to: '5', toString: '5' }],
+  }]);
+  const { startEst } = estimateAtSprintStart(issue, SPRINT_START, 'customfield_10039');
+  assertEqual(startEst, 0);
+});
 
 console.log('\ncomputeBurndownSeries — scope steps land on the right day');
 test('+3 estimateDelta on day 2 raises the actual line and tooltip data', () => {

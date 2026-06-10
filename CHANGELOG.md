@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.7.2 (2026-06-10) — Fix: unestimated→estimated tickets invisible on burndown
+
+**Root cause (the remaining piece of the "+5 added today" report):**
+When a ticket goes from **unestimated (null/empty) to N points** after sprint
+start, the Jira changelog `from` field is `null`. `estimateAtSprintStart()`
+was treating `parseFloat(null) → NaN → null` as "no change detected", so the
+background loop's delta block (`if (startEst !== null)`) never fired. The new
+points silently absorbed into the committed baseline as if they had always been
+there. The burndown actual line, the orange +Scope segment, and the tooltip
+all stayed flat.
+
+Fix: null/empty `from` → `startEst = 0` (the ticket had 0 points at sprint
+start). Now: `baselinePts = 0`, `delta = currentPts - 0 = N` → `addScope(day,
+'estimateDelta', N)` fires → orange step on the burndown, "+N scope added" in
+the tooltip.
+
+Added 2 regression tests for null→N and empty→N estimate changes. 12 suites,
+all green.
+
+---
+
 ## v2.7.1 (2026-06-10) — Fix: scope changes invisible on the burndown
 
 **Root cause (the "+3 added today shows on Jira but not on ours" report):**

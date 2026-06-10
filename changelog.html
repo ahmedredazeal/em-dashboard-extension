@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.7.2</div>
+      <div class="cl-desc"><strong>Burndown: unestimated→estimated scope fix.</strong> Tickets going from unestimated (null) to N points after sprint start now appear as orange +Scope on the burndown with tooltip — previously they silently absorbed into the committed baseline.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.7.1</div>
       <div class="cl-desc"><strong>Burndown scope fix.</strong> Scope changes (points added mid-sprint or estimates edited) were invisible: a variable-ordering bug crashed the sprint fetch on the first real scope change, silently serving stale cache. Fixed, plus additions are now dated by the day the ticket joined the sprint.</div>
     </div>
