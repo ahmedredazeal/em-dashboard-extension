@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.6.11 (2026-06-10) — Sprint time charts now cross-board (ATH etc.)
+
+In sprint mode, Time Logged and Estimate vs Actual could silently show ONLY the
+squad's own board (HRM). The cross-project worklog query is author-scoped, and
+its author list came solely from **sprint assignees** — for a team that assigns
+tickets as they pick them up, early-sprint = zero assignees, which triggered a
+project-scoped fallback (`project = HRM AND worklogDate …`) that by construction
+can never surface time logged on other boards like ATH/Athena.
+
+Fix (mirrors the quarter's v2.5.4 two-pass approach):
+- Author list = sprint assignees ∪ the persisted member roster
+  (`settings.analytics.discoveredMembers` accountIds) — the roster carries the
+  whole team from previous sprints, so the cross-project query always runs.
+- Only if BOTH are empty (fresh install) does a project-scoped **discovery
+  pass** run first to find who logged on the squad board, and their IDs then
+  drive the cross-project query.
+- Result: Hermes members are listed, and any time they logged on other boards
+  (ATH, CL, …) appears in the charts and the project-colour legend — exactly
+  what the legend was built for.
+
+---
+
 ## v2.6.10 (2026-06-10) — Engineer mode defaults to "Me"
 
 Engineers could open on "Squad" instead of "Me" through two paths:

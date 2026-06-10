@@ -435,46 +435,64 @@ async function fetchJiraData(settings) {
         normalizedStories
       );
       
-      // Timesheet — fetch worklogs across ALL projects for all assignees.
-      // Uses worklogAuthor JQL so we capture time logged on any squad's tickets,
-      // not just HRM. One embedded-worklog search replaces the old N+1 approach.
+      // Timesheet — fetch worklogs across ALL projects (boards) for the squad.
+      // Author list = sprint assignees ∪ persisted roster, so the cross-project
+      // worklogAuthor query runs even early in a sprint when tickets are still
+      // unassigned (previously that fell back to a project-scoped query that
+      // could only ever show the squad's own board — e.g. HRM but never ATH).
       let allWorklogs = [];
       try {
-        // Collect unique account IDs from sprint stories
-        const accountIds = [...new Set(
+        const assigneeIds = [...new Set(
           (stories || [])
             .map(s => s.assigneeAccountId)
             .filter(Boolean)
         )];
-        
+        const rosterIds = (settings.analytics?.discoveredMembers || [])
+          .map(m => (typeof m === 'string' ? null : m.accountId))
+          .filter(Boolean);
+        let accountIds = [...new Set([...assigneeIds, ...rosterIds])];
+
         let issues = [];
         // Slice to YYYY-MM-DD — Jira sprint dates are ISO datetime strings
         const wlStart = (activeSprint.startDate || '').slice(0, 10);
         const wlEnd   = (activeSprint.endDate   || '').slice(0, 10);
-        
+
         if (!wlStart || !wlEnd) {
           console.warn('[background] Sprint has no startDate/endDate — skipping worklog fetch');
-        } else if (accountIds.length > 0) {
-          // Option A: cross-squad query by author IDs (preferred)
-          const worklogPromise = client.getTeamWorklogs(accountIds, wlStart, wlEnd);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
-          );
-          issues = await Promise.race([worklogPromise, timeoutPromise]);
-          console.log(`[background] Cross-squad worklogs: ${issues.length} issues for ${accountIds.length} members`);
         } else {
-          // Fallback: project-scoped query when account IDs unavailable (old cache)
-          console.warn('[background] No assignee account IDs — falling back to project-scoped worklog query');
-          const jql = `project = "${squadKey}" AND worklogDate >= "${wlStart}" AND worklogDate <= "${wlEnd}"`;
-          const result = await client._search({
-            jql,
-            fields: ['worklog','project','issuetype','priority','timeoriginalestimate','summary'],
-            maxResults: 200,
-          });
-          issues = result.issues || [];
-          console.log(`[background] Project-scoped worklogs (fallback): ${issues.length} issues`);
+          if (accountIds.length === 0) {
+            // Discovery pass (fresh install, empty roster): who logged time on
+            // the squad's own board this sprint? Their IDs then drive the
+            // cross-project query below.
+            console.warn('[background] No assignees or roster — running project-scoped discovery pass');
+            const jql = `project = "${squadKey}" AND worklogDate >= "${wlStart}" AND worklogDate <= "${wlEnd}"`;
+            const result = await client._search({
+              jql,
+              fields: ['worklog','project','issuetype','priority','timeoriginalestimate','summary'],
+              maxResults: 200,
+            });
+            const discoveryIssues = result.issues || [];
+            const discoveredIds = [...new Set(
+              extractWorklogsFromIssues(discoveryIssues, [], wlStart, wlEnd)
+                .map(w => w.authorId)
+                .filter(Boolean)
+            )];
+            console.log(`[background] Discovery pass: ${discoveredIds.length} authors on ${squadKey} this sprint`);
+            accountIds = discoveredIds;
+            issues = discoveryIssues; // final fallback if even discovery found nobody
+          }
+
+          if (accountIds.length > 0) {
+            // Cross-project query by author IDs — captures time on ANY board
+            const worklogPromise = client.getTeamWorklogs(accountIds, wlStart, wlEnd);
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Worklog fetch timeout after 15s')), 15000)
+            );
+            issues = await Promise.race([worklogPromise, timeoutPromise]);
+            console.log(`[background] Cross-project worklogs: ${issues.length} issues for ${accountIds.length} members`);
+          }
         }
-        
+
         allWorklogs = extractWorklogsFromIssues(
           issues, accountIds, wlStart, wlEnd
         );
