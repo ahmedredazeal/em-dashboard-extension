@@ -89,8 +89,11 @@ async function injectMockState() {
         : [],
     },
   };
-  // Default to squad view so the team timesheet renders (not just "me")
-  if (!state.viewScope) state.viewScope = 'squad';
+  // Scope default is role-aware: engineers open on "Me", EMs on "Squad"
+  // (squad keeps the team timesheet visible in EM demos).
+  if (!state.viewScope) {
+    state.viewScope = state.settings?.role === 'engineer' ? 'me' : 'squad';
+  }
 
   // Compute alerts on the mock sprint so the alert inbox is populated
   try {

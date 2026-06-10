@@ -422,6 +422,9 @@ function getTrackedViewIds() {
     btn.addEventListener('click', async () => {
       const role = btn.dataset.role;
       settings.role = role;
+      // Role change resets the scope default: engineers open on "Me",
+      // EMs on "Squad" — otherwise a stale persisted scope survives the switch.
+      settings.viewScope = role === 'engineer' ? 'me' : 'squad';
       setRolePill(role);
       applyRoleToSettings(role);
       await chrome.storage.local.set({ settings });

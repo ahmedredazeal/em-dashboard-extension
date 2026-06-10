@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.6.9
+## Current version: v2.6.10
 
 ## Last session: Ahmed + Claude — 2026-06-04
 

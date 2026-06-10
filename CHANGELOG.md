@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.6.10 (2026-06-10) — Engineer mode defaults to "Me"
+
+Engineers could open on "Squad" instead of "Me" through two paths:
+
+1. **Stale persisted scope on role switch.** The Settings-page role pill saved
+   the new role but never reset `viewScope`, so an EM's persisted `'squad'`
+   survived a switch to Engineer — and boot then "respected" it as the last
+   chosen scope. Role changes now reset the scope default: engineer → `'me'`,
+   EM → `'squad'`.
+2. **Demo mode hardcoded squad.** `injectMockState` forced `viewScope='squad'`
+   unconditionally. Now role-aware: engineer demos open on "Me", EM demos keep
+   "Squad" (so the team timesheet stays visible).
+
+Engineers who explicitly toggle to Squad still keep that choice for the
+session and across reopens — only the *default* changed.
+
+---
+
 ## v2.6.9 (2026-06-10) — Demo mode: progress circles render
 
 The sprint + support donut circles are an engineer-mode-only feature, and the
