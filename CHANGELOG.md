@@ -1,5 +1,34 @@
 # Changelog
 
+## v2.7.4 (2026-06-10) — Fix: tickets created inside the sprint now count as scope
+
+**How scope detection works (for the record):** Jira does not expose its
+burndown data to us — its chart uses an internal sprint-report API. We
+reconstruct scope from each ticket's changelog (`expand=changelog`): replaying
+the "Sprint" field (when did the ticket join?) and the estimate field (what
+were the points at start?).
+
+**The blind spot fixed here:** a ticket **created directly inside the active
+sprint** has NO "Sprint" changelog entry at all — the sprint was set at
+creation, so there is nothing to replay. Our reconstruction treated such
+tickets as committed-from-day-0; Jira flags `created > sprintStart` as scope.
+That is exactly how "5 points added today" were silently absorbed into the
+baseline instead of showing as an orange +Scope step.
+
+Fix: new `createdDayAfterStart()` (timestamp-precise: a ticket created during
+planning on sprint-start morning is commitment; one created after the start
+time is scope). The scope loop now treats an addition as: moved-into-sprint
+(changelog) OR created-after-start. 5 new regression tests; 17 in the suite.
+
+**Also:**
+- Tooltip wording: completed work now reads "N points completed" (was
+  "removed", which read like scope removal).
+- **Milestone summary breakdown:** the compact rows now use the same status
+  breakdown component as the support board — real Done / In Progress / Open
+  segments with counts — instead of the plain done-vs-rest bar.
+
+---
+
 ## v2.7.3 (2026-06-10) — Milestone summary row in Insights
 
 A compact **MILESTONES** summary section now appears inside the Insights area,

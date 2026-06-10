@@ -1335,26 +1335,23 @@ function renderInsights() {
       const tickets = isEngineerMe
         ? allTickets.filter(t => t.assigneeAccountId === state.currentUser?.accountId)
         : allTickets;
-      const { total, done, inProg, open, pct } = milestoneCounts(tickets);
+      const { total, done, pct } = milestoneCounts(tickets);
       if (total === 0 && !isEngineerMe) return ''; // hide empty milestones in squad mode
 
-      const doneW  = total > 0 ? (done / total * 100).toFixed(1) : 0;
-      const ipW    = total > 0 ? (inProg / total * 100).toFixed(1) : 0;
-      const openW  = total > 0 ? (open / total * 100).toFixed(1) : 0;
       const pctColor = pct === 100 ? '#34d399' : pct >= 50 ? '#fbbf24' : 'var(--text-muted)';
 
+      // Same status breakdown component the support board uses — shows the
+      // real Done / In Progress / Open distribution, not just a done-vs-rest bar.
       return `
-        <div data-milestone-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:5px 0;
-          cursor:pointer;border-bottom:1px solid var(--border,rgba(255,255,255,0.04));"
+        <div data-milestone-idx="${idx}" style="padding:6px 0;cursor:pointer;
+          border-bottom:1px solid var(--border,rgba(255,255,255,0.04));"
           title="Click to expand milestone details">
-          <span style="font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;
-            text-overflow:ellipsis;white-space:nowrap;">🎯 ${escapeHtml(ms.name || ms.label)}</span>
-          <span style="font-size:10px;font-weight:600;color:${pctColor};flex-shrink:0;">${done}/${total} · ${pct}%</span>
-          <div style="width:80px;height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden;flex-shrink:0;display:flex;">
-            <div style="width:${doneW}%;background:#34d399;"></div>
-            <div style="width:${ipW}%;background:#60a5fa;"></div>
-            <div style="width:${openW}%;background:rgba(255,255,255,0.12);"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
+            <span style="font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;
+              text-overflow:ellipsis;white-space:nowrap;">🎯 ${escapeHtml(ms.name || ms.label)}</span>
+            <span style="font-size:10px;font-weight:600;color:${pctColor};flex-shrink:0;">${done}/${total} · ${pct}%</span>
           </div>
+          ${collapsedBoardSummary(tickets, false)}
         </div>`;
     }).filter(Boolean).join('');
 
@@ -2853,7 +2850,7 @@ function buildBurndownSVG(bd) {
       } else {
         const comp = pd.completedDelta || 0;
         const sNet = pd.scopeNet || 0;
-        if (comp > 0) parts.push(`${_fmtPts(comp)} ${comp === 1 ? 'point' : 'points'} removed`);
+        if (comp > 0) parts.push(`${_fmtPts(comp)} ${comp === 1 ? 'point' : 'points'} completed`);
         if (sNet > 0) parts.push(`+${_fmtPts(sNet)} scope added`);
         if (sNet < 0) parts.push(`${_fmtPts(Math.abs(sNet))} pts scope reduced`);
         if (parts.length === 0) parts.push('No change');

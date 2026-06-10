@@ -7,7 +7,7 @@
  * first real scope change killed the sprint fetch; and mid-sprint additions
  * were dated by estimate-change day instead of sprint-add day.
  */
-import { sprintAddDay, wasAddedAfterSprintStart, estimateAtSprintStart } from '../src/changelog-parser.js';
+import { sprintAddDay, wasAddedAfterSprintStart, estimateAtSprintStart, createdDayAfterStart } from '../src/changelog-parser.js';
 import { computeBurndownSeries } from '../src/burndown.js';
 
 let pass = 0, fail = 0;
@@ -121,6 +121,27 @@ test('non-finite day key is ignored, not silently corrupting (NaN guard)', () =>
   );
   assertEqual(bd.actual[2], 57);                       // valid key still applied
   assert(bd.actual.every(v => Number.isFinite(v)), 'no NaN leaks into the series');
+});
+
+console.log('\ncreatedDayAfterStart (tickets created directly inside the sprint)');
+test('created 2 days after sprint start → day 2 (scope addition)', () => {
+  const issue = { fields: { created: '2026-06-10T11:30:00.000+0300' } };
+  assertEqual(createdDayAfterStart(issue, SPRINT_START), 2);
+});
+test('created before sprint start → null (part of commitment)', () => {
+  const issue = { fields: { created: '2026-06-04T10:00:00.000+0300' } };
+  assertEqual(createdDayAfterStart(issue, SPRINT_START), null);
+});
+test('created same day but AFTER start time → day 0 addition', () => {
+  const issue = { fields: { created: '2026-06-08T15:00:00.000+0300' } }; // start is 09:00
+  assertEqual(createdDayAfterStart(issue, SPRINT_START), 0);
+});
+test('created same day but BEFORE start time (during planning) → null', () => {
+  const issue = { fields: { created: '2026-06-08T08:00:00.000+0300' } };
+  assertEqual(createdDayAfterStart(issue, SPRINT_START), null);
+});
+test('no created field → null', () => {
+  assertEqual(createdDayAfterStart({}, SPRINT_START), null);
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

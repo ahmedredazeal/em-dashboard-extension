@@ -9,7 +9,7 @@ import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone } from './src/parsers.js';
-import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, sprintAddDay } from './src/changelog-parser.js';
+import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, sprintAddDay, createdDayAfterStart } from './src/changelog-parser.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
@@ -387,12 +387,17 @@ async function fetchJiraData(settings) {
       const currentPts = story.points || 0;
 
       // Was this issue added to the sprint after it started?
-      const addedDay = sprintAddDay(raw, activeSprint.startDate, activeSprint.id);
+      // A ticket is a mid-sprint scope addition when EITHER:
+      //  (a) the changelog shows it was moved INTO this sprint after start, OR
+      //  (b) it was CREATED after the sprint started — tickets created directly
+      //      inside an active sprint have NO Sprint changelog entry at all
+      //      (sprint set at creation), which is how additions were silently
+      //      absorbed into the committed baseline. Jira flags created>start
+      //      as scope; now we do too.
+      const addedDay = sprintAddDay(raw, activeSprint.startDate, activeSprint.id)
+                    ?? createdDayAfterStart(raw, activeSprint.startDate);
       if (addedDay !== null) {
         if (currentPts > 0) {
-          // Scope addition on the day the ticket JOINED the sprint — a ticket
-          // may have been estimated in the backlog long before being added,
-          // so the estimate-change day is the wrong anchor here.
           addScope(addedDay, 'added', currentPts);
         }
         continue; // not part of the committed baseline

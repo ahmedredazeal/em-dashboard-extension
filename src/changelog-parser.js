@@ -135,6 +135,26 @@ export function estimateAtSprintStart(rawIssue, sprintStartDate, estimateFieldId
 }
 
 /**
+ * Returns the 0-based sprint-day index on which the issue was CREATED, if
+ * created after the sprint started — otherwise null.
+ *
+ * Why this exists: a ticket created DIRECTLY inside an active sprint has no
+ * "Sprint" changelog entry at all (the sprint was set at creation), so
+ * sprintAddDay() can't see it. Jira's own burndown flags created > sprintStart
+ * as a scope addition — this helper lets us match that.
+ *
+ * @param {Object} rawIssue        - Raw Jira issue (needs fields.created)
+ * @param {string} sprintStartDate - ISO datetime of sprint start
+ * @returns {number|null}
+ */
+export function createdDayAfterStart(rawIssue, sprintStartDate) {
+  const created = rawIssue?.fields?.created;
+  if (!created) return null;
+  if (new Date(created).getTime() <= new Date(sprintStartDate).getTime()) return null;
+  return Math.max(0, dayIndex(created, sprintStartDate));
+}
+
+/**
  * Returns the 0-based sprint-day index on which the issue was ADDED to the
  * given sprint (via the changelog "Sprint" field), or null if it was not
  * added after the sprint started. This is the correct day to attribute a
