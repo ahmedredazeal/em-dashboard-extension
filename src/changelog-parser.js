@@ -131,6 +131,41 @@ export function estimateAtSprintStart(rawIssue, sprintStartDate, estimateFieldId
 }
 
 /**
+ * Returns the 0-based sprint-day index on which the issue was ADDED to the
+ * given sprint (via the changelog "Sprint" field), or null if it was not
+ * added after the sprint started. This is the correct day to attribute a
+ * mid-sprint scope addition to — a ticket may have been estimated long
+ * before it was dragged into the sprint.
+ *
+ * @param {Object} rawIssue        - Raw Jira issue with changelog.histories
+ * @param {string} sprintStartDate - ISO datetime of sprint start
+ * @param {number|string} sprintId - Numeric sprint id
+ * @returns {number|null}
+ */
+export function sprintAddDay(rawIssue, sprintStartDate, sprintId) {
+  const histories = rawIssue?.changelog?.histories;
+  if (!Array.isArray(histories)) return null;
+  const startMs = new Date(sprintStartDate).getTime();
+  const sid = String(sprintId);
+  let earliest = null;
+  for (const h of histories) {
+    if (new Date(h.created).getTime() <= startMs || !Array.isArray(h.items)) continue;
+    for (const item of h.items) {
+      if (item.field === 'Sprint') {
+        const toIds = (item.to || '').split(',').map(s => s.trim());
+        const fromIds = (item.from || '').split(',').map(s => s.trim());
+        if (toIds.includes(sid) && !fromIds.includes(sid)) {
+          if (!earliest || new Date(h.created).getTime() < new Date(earliest).getTime()) {
+            earliest = h.created;
+          }
+        }
+      }
+    }
+  }
+  return earliest === null ? null : Math.max(0, dayIndex(earliest, sprintStartDate));
+}
+
+/**
  * Returns true if the issue was added to the given sprint AFTER the sprint
  * started (i.e. it is a mid-sprint scope addition, not part of the commitment).
  *
@@ -140,21 +175,7 @@ export function estimateAtSprintStart(rawIssue, sprintStartDate, estimateFieldId
  * @returns {boolean}
  */
 export function wasAddedAfterSprintStart(rawIssue, sprintStartDate, sprintId) {
-  const histories = rawIssue?.changelog?.histories;
-  if (!Array.isArray(histories)) return false;
-  const startMs = new Date(sprintStartDate).getTime();
-  const sid = String(sprintId);
-  for (const h of histories) {
-    if (new Date(h.created).getTime() <= startMs || !Array.isArray(h.items)) continue;
-    for (const item of h.items) {
-      if (item.field === 'Sprint') {
-        const toIds = (item.to || '').split(',').map(s => s.trim());
-        const fromIds = (item.from || '').split(',').map(s => s.trim());
-        if (toIds.includes(sid) && !fromIds.includes(sid)) return true;
-      }
-    }
-  }
-  return false;
+  return sprintAddDay(rawIssue, sprintStartDate, sprintId) !== null;
 }
 
 /**

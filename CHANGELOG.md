@@ -1,5 +1,32 @@
 # Changelog
 
+## v2.7.1 (2026-06-10) — Fix: scope changes invisible on the burndown
+
+**Root cause (the "+3 added today shows on Jira but not on ours" report):**
+`addScope()` in the scope-reconstruction loop clamps with `totalDays`, but
+`const totalDays` was declared ~40 lines BELOW the loop. Because `const` is in
+the temporal dead zone until its declaration, the FIRST real scope change in a
+sprint threw `ReferenceError: Cannot access 'totalDays' before initialization`
+inside the sprint-fetch try — the outer catch swallowed it, and the popup
+silently rendered the stale cached sprint. No orange scope step, no tooltip
+delta, no error visible. The sprint had zero scope changes until today, which
+is why everything looked fine before.
+
+Fixes:
+- Sprint day geometry (`totalDays`, `todayCalIdx`, `daysElapsed`) is now
+  computed BEFORE the scope loop.
+- Mid-sprint additions are attributed to the day the ticket JOINED the sprint
+  (new `sprintAddDay()` in changelog-parser, replaying the changelog "Sprint"
+  field) — previously they were dated by the estimate-change day, so a ticket
+  pointed in the backlog last week and dragged in today landed on day 0.
+- `computeBurndownSeries` now ignores non-finite day keys instead of silently
+  dropping the scope step (hardening).
+- New regression suite `tests/changelog-parser.test.js` (10 tests): sprint-add
+  day extraction, estimate-at-start, and scope steps landing on the right day
+  with correct tooltip data. 12 suites total, all green.
+
+---
+
 ## v2.7.0 (2026-06-10) — Milestones: OKR & Dev Plan tracking
 
 Track OKRs and Dev Plans as **label-based milestones** on backlog tickets in

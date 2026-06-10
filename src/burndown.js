@@ -145,7 +145,9 @@ export function computeBurndownSeries(sprint, stories) {
   const scopeNetPerDay = new Array(_td + 1).fill(0);
   let hasScopeChanges = false;
   for (const [dayStr, sc] of Object.entries(scopeByDay)) {
-    const d = Math.max(0, Math.min(Number(dayStr), _td));
+    const dayNum = Number(dayStr);
+    if (!Number.isFinite(dayNum)) continue; // guard: a bad key must never silently swallow a scope step
+    const d = Math.max(0, Math.min(dayNum, _td));
     const net = (sc.added || 0) - (sc.removed || 0) + (sc.estimateDelta || 0);
     if (net !== 0) { scopeNetPerDay[d] += net; hasScopeChanges = true; }
   }

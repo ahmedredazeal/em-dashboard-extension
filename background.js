@@ -9,7 +9,7 @@ import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone } from './src/parsers.js';
-import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, wasAddedAfterSprintStart } from './src/changelog-parser.js';
+import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, sprintAddDay } from './src/changelog-parser.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
@@ -353,6 +353,22 @@ async function fetchJiraData(settings) {
     
     console.log(`[background] Stories with close dates: ${normalizedStories.filter(s=>s.closedAt).length}/${normalizedStories.length}`);
 
+    // ── Sprint day geometry — MUST be computed BEFORE the scope loop below:
+    // addScope() clamps with totalDays, and const TDZ means the first real
+    // scope change would otherwise throw "Cannot access 'totalDays' before
+    // initialization" and silently kill the whole sprint fetch (popup then
+    // renders stale cache with no scope step anywhere).
+    const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
+    const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
+    const now = new Date();
+
+    // Calendar-date based (matches changelog-parser.dayIndex), so the burndown's
+    // "today" and each ticket's close day are measured the same way. Raw 24h
+    // windows broke this when sprints start mid-afternoon.
+    const totalDays = Math.max(1, dayIndex(activeSprint.endDate || now.toISOString(), activeSprint.startDate || now.toISOString()));
+    const todayCalIdx = Math.max(0, Math.min(dayIndex(now.toISOString(), activeSprint.startDate || now.toISOString()), totalDays));
+    const daysElapsed = Math.min(todayCalIdx + 1, totalDays); // 1-based for the "Day X of Y" header
+
     // ── Committed baseline + scope changes ────────────────────────────
     // Reconstruct the sprint-start committed scope from changelogs so the
     // burndown matches Jira: estimate changes and mid-sprint additions are shown
@@ -371,12 +387,13 @@ async function fetchJiraData(settings) {
       const currentPts = story.points || 0;
 
       // Was this issue added to the sprint after it started?
-      if (wasAddedAfterSprintStart(raw, activeSprint.startDate, activeSprint.id)) {
+      const addedDay = sprintAddDay(raw, activeSprint.startDate, activeSprint.id);
+      if (addedDay !== null) {
         if (currentPts > 0) {
-          // Scope addition: contributes to the per-day step, not the baseline.
-          // Attribute to day 0 if we can't find the exact add day (rare).
-          const { changeDayAfterStart } = estimateAtSprintStart(raw, activeSprint.startDate, storyPointsField);
-          addScope(changeDayAfterStart ?? 0, 'added', currentPts);
+          // Scope addition on the day the ticket JOINED the sprint — a ticket
+          // may have been estimated in the backlog long before being added,
+          // so the estimate-change day is the wrong anchor here.
+          addScope(addedDay, 'added', currentPts);
         }
         continue; // not part of the committed baseline
       }
@@ -395,18 +412,7 @@ async function fetchJiraData(settings) {
 
     // Safety: fall back to live total if reconstruction produced 0 (e.g. no changelog).
     if (committedPoints === 0) committedPoints = totalPoints;
-    
-    const startDate = activeSprint.startDate ? new Date(activeSprint.startDate) : new Date();
-    const endDate = activeSprint.endDate ? new Date(activeSprint.endDate) : new Date();
-    const now = new Date();
 
-    // Calendar-date based (matches changelog-parser.dayIndex), so the burndown's
-    // "today" and each ticket's close day are measured the same way. Raw 24h
-    // windows broke this when sprints start mid-afternoon.
-    const totalDays = Math.max(1, dayIndex(activeSprint.endDate || now.toISOString(), activeSprint.startDate || now.toISOString()));
-    const todayCalIdx = Math.max(0, Math.min(dayIndex(now.toISOString(), activeSprint.startDate || now.toISOString()), totalDays));
-    const daysElapsed = Math.min(todayCalIdx + 1, totalDays); // 1-based for the "Day X of Y" header
-    
     currentSprint = {
       id: activeSprint.id,
       name: activeSprint.name,
