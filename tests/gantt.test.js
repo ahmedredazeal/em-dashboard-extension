@@ -197,6 +197,26 @@ test('today column is highlighted in red (Sprint Planner style)', () => {
 
 // ── Summary ────────────────────────────────────────────────────────────────
 console.log('');
+console.log('Subtask rendering');
+test('subtask rows show the ↳ marker with parent in title', () => {
+  const sub = { key:'HRM-9a', summary:'Sub work', priority:'Medium', points:0,
+    assignee:'Ali', assigneeAccountId:'acc-ali', statusCategory:'indeterminate',
+    dueDate:'2026-06-12', startDate:'2026-06-10', rank:'0|x:', isSubtask:true, parentKey:'HRM-9', labels:[] };
+  const html = buildGanttSVG([sub],
+    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-ali');
+  assert(html.includes('↳'), 'marker missing');
+  assert(html.includes('Subtask of HRM-9'), 'parent title missing');
+});
+test('non-subtask rows have no ↳ marker', () => {
+  const story = { key:'HRM-9', summary:'Parent', priority:'Medium', points:3,
+    assignee:'Ali', assigneeAccountId:'acc-ali', statusCategory:'new',
+    dueDate:'2026-06-12', startDate:'2026-06-10', rank:'0|y:', labels:[] };
+  const html = buildGanttSVG([story],
+    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-ali');
+  assert(!html.includes('↳'), 'unexpected marker');
+});
+
+console.log('');
 console.log(`${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
 

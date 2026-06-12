@@ -85,6 +85,10 @@ API token links:
 
 ---
 
+### Sprint Timeline (Gantt)
+
+Sprint Planner-style timeline of the active sprint: stories, tasks, and subtasks (↳), bars from startDate to dueDate, sorted by priority then rank, click-through to Jira. Engineer Me mode shows only your rows.
+
 ### Milestones (OKRs & Dev Plans)
 
 Label-based milestone tracking on backlog tickets: configure labels in Settings (`label|Display Name|Leapsome URL`), tag tickets in Jira, and each milestone renders a progress card (ticket count), status breakdown, IN SPRINT badges, and a click-through listing. Me/Squad scope applies. New module: `src/milestones.js`.

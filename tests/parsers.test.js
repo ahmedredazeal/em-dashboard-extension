@@ -193,8 +193,26 @@ test('full Jira issue shape', () => {
     dueDate: '2026-06-01',
     startDate: null,
     rank: null,
+    isSubtask: false,
+    parentKey: null,
     labels: []
   });
+
+test('subtask issue → isSubtask true + parentKey', () => {
+  const sub = normalizeStory({
+    key: 'HRM-101',
+    fields: {
+      summary: 'Write migration', status: { name: 'To Do', statusCategory: { key: 'new' } },
+      assignee: null, priority: { name: 'Medium' },
+      issuetype: { name: 'Sub-task', subtask: true },
+      parent: { key: 'HRM-100' },
+      customfield_10016: 0, labels: [],
+    },
+  }, 'customfield_10016');
+  assertEqual(sub.isSubtask, true);
+  assertEqual(sub.parentKey, 'HRM-100');
+  assertEqual(sub.type, 'Sub-task');
+});
 });
 test('missing assignee → null', () => {
   const issue = { key: 'X-1', fields: { summary: 'a' } };

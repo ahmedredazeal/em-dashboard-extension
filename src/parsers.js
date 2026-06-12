@@ -132,6 +132,8 @@ export function normalizeStory(issue, storyPointsField) {
     dueDate:   fields.duedate    || null,
     startDate: fields.customfield_10015 || fields.startDate || null,
     rank:      fields.rank       || fields.customfield_10019 || null,
+    isSubtask: fields.issuetype?.subtask === true,
+    parentKey: fields.parent?.key || null,
     labels: Array.isArray(fields.labels) ? fields.labels : []
   };
 }

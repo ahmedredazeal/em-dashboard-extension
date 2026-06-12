@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.8.0 (2026-06-11) — Engineer parity, Gantt subtasks, anti-flicker
+
+**1. Extra boards + milestones for both roles.**
+The "Extra boards" settings field was `em-only` (hidden for engineers), so
+engineers could never configure a support board even though the dashboard
+renders them fine. The field is now visible in both roles. Milestones were
+already role-neutral. (Squad-members monitoring stays EM-only by design.)
+
+**2. Gantt shows tasks AND subtasks.**
+Tasks were already included (the sprint fetch excludes only subtask types);
+subtasks are now fetched separately — `getSprintSubtasks()`, one extra JQL —
+and merged into the Gantt ONLY. They never enter the burndown, committed
+points, or alerts (that would double-count parent + child points). Subtask
+rows carry a `↳` marker before the key with "Subtask of PARENT-KEY" on hover.
+Engineer "MY TIMELINE" includes your subtasks — usually where the real
+day-to-day work lives. Parser now extracts `isSubtask` + `parentKey`.
+Demo mode includes two subtasks under DEMO-5.
+
+**3. Charts flicker fixed (three mechanisms).**
+Root cause: the background notifies the popup separately per source
+(jira, sentry, …) and each notification triggered a FULL innerHTML rebuild
+of the charts area — three rebuilds in quick succession on panel open
+(cache → jira → sentry), each collapsing open sections and re-popping the
+async Sentry card. Fixes:
+- **Debounce:** partial-update renders are coalesced (250ms trailing) — 
+  back-to-back jira+sentry notifications now produce ONE rebuild.
+- **Fingerprint skip:** if the data driving the Today screen is identical to
+  the last render, the rebuild is skipped entirely (the cache→jira double
+  render with unchanged data no longer repaints at all).
+- **Collapse-state preservation:** open/closed state of every collapsible
+  (Insights, sprint/sentry sections, boards, milestones, Gantt) is
+  snapshotted before a rebuild and restored after — your open sections no
+  longer slam shut when fresh data arrives.
+
+---
+
 ## v2.7.4 (2026-06-10) — Fix: tickets created inside the sprint now count as scope
 
 **How scope detection works (for the record):** Jira does not expose its

@@ -395,6 +395,28 @@ export class JiraClient {
   }
 
   /**
+   * Get the SUBTASKS in a sprint — used by the Gantt only (kept separate from
+   * getSprintStories so subtask points never double-count into the burndown).
+   * @param {number} sprintId
+   * @param {string} projectKey
+   * @param {string} storyPointsField
+   * @returns {Promise<Array>}
+   */
+  async getSprintSubtasks(sprintId, projectKey, storyPointsField = 'customfield_10016') {
+    const jql = `project = ${projectKey} AND sprint = ${sprintId} AND issuetype in subTaskIssueTypes() ORDER BY rank ASC`;
+    const fields = [
+      'summary', 'status', 'assignee', 'issuetype', 'priority',
+      storyPointsField, 'customfield_10016', 'customfield_10026',
+      'parent', 'created', 'updated',
+      'duedate', 'startDate', 'customfield_10015', 'rank',
+      'labels'
+    ];
+    const result = await this._search({ jql, fields, maxResults: 100 });
+    console.log(`[jira] Found ${result.issues?.length || 0} subtasks in sprint`);
+    return result.issues || [];
+  }
+
+  /**
    * Get ALL worklogs logged during a sprint period — including subtasks.
    * Uses JQL worklogDate filter: one search call covers all issue types.
    *

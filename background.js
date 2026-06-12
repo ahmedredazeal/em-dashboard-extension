@@ -418,6 +418,17 @@ async function fetchJiraData(settings) {
     // Safety: fall back to live total if reconstruction produced 0 (e.g. no changelog).
     if (committedPoints === 0) committedPoints = totalPoints;
 
+    // Subtasks — Gantt-only (separate fetch so points never double-count
+    // into the burndown/committed baseline). Non-fatal on failure.
+    let sprintSubtasks = [];
+    try {
+      const rawSubs = await client.getSprintSubtasks(activeSprint.id, squadKey, storyPointsField);
+      sprintSubtasks = rawSubs.map(i => normalizeStory(i, storyPointsField));
+      console.log(`[background] Sprint subtasks for Gantt: ${sprintSubtasks.length}`);
+    } catch (subErr) {
+      console.warn('[background] Subtask fetch skipped (non-fatal):', subErr.message);
+    }
+
     currentSprint = {
       id: activeSprint.id,
       name: activeSprint.name,
@@ -434,7 +445,8 @@ async function fetchJiraData(settings) {
       daysElapsed,
       todayIndex: todayCalIdx,
       scopeByDay,
-      stories: normalizedStories
+      stories: normalizedStories,
+      subtasks: sprintSubtasks
     };
     console.log('[background] Current sprint:', currentSprint.name, `${totalPoints}pt/${totalDays}d`);
     

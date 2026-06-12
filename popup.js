@@ -1295,7 +1295,12 @@ function renderInsights() {
   
   // ── Sprint Timeline (Gantt) — below the two time charts, same Me/Squad scope ──
   const workingDays  = state.settings?.ui?.workingDays || [0,1,2,3,4];
-  const ganttStories = state.currentSprint?.stories || [];
+  // Stories + subtasks — the Gantt shows both (like the reference extension);
+  // subtasks stay out of every other chart (burndown/points would double-count).
+  const ganttStories = [
+    ...(state.currentSprint?.stories || []),
+    ...(state.currentSprint?.subtasks || []),
+  ];
   const ganttSprint  = state.currentSprint
     ? { name: state.currentSprint.name,
         startDate: (state.currentSprint.startDate || '').slice(0,10),
@@ -1706,7 +1711,76 @@ function renderEngineerProgressCircles() {
     </div>`;
 }
 
+// ── Anti-flicker machinery ──────────────────────────────────────────────
+// The background notifies the popup separately per source (jira, sentry, …),
+// and each notification used to trigger a full innerHTML rebuild — 3 rebuilds
+// in quick succession on open (cache → jira → sentry), collapsing open
+// sections and visibly flickering the charts area.
+
+// (1) Fingerprint: skip the rebuild entirely when the data that drives the
+//     Today screen hasn't actually changed.
+let _lastTodayFingerprint = '';
+function todayFingerprint() {
+  try {
+    return JSON.stringify({
+      cs: state.currentSprint, sa: state.sprintAnalytics,
+      sup: state.supportTickets, eb: state.extraBoardsData,
+      ms: state.milestonesData, sv: state.sentryViews,
+      al: (state.alerts || []).length,
+      scope: state.viewScope, mode: state.timesheetMode, mock: state.mockMode,
+    });
+  } catch { return String(Date.now()); } // never let fingerprinting block a render
+}
+
+// (2) Collapse-state preservation: snapshot which sections the user opened
+//     before a rebuild and restore them after.
+function snapshotOpenSections() {
+  const map = {};
+  document.querySelectorAll('[id$="-section-body"]').forEach(el => { map[el.id] = el.style.display; });
+  const gantt = document.getElementById('gantt-container');
+  if (gantt) map['gantt-container'] = gantt.style.display;
+  const insights = document.getElementById('insights-body');
+  if (insights) map['insights-body'] = insights.style.display;
+  return map;
+}
+function restoreOpenSections(map) {
+  for (const [id, disp] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.style.display = disp;
+    const chev = document.getElementById(id.replace('-section-body', '-section-chevron'));
+    if (chev) chev.textContent = (disp === 'none') ? '▶' : '▼';
+  }
+  const ganttBtn = document.getElementById('gantt-toggle-btn');
+  const gantt = document.getElementById('gantt-container');
+  if (ganttBtn && gantt) ganttBtn.textContent = gantt.style.display === 'none' ? '▲' : '▼';
+  const insightsChevron = document.getElementById('insights-chevron');
+  const insights = document.getElementById('insights-body');
+  if (insightsChevron && insights) insightsChevron.textContent = insights.style.display === 'none' ? '▶' : '▼';
+}
+
+// (3) Debounce: coalesce back-to-back partial-update notifications into ONE
+//     rebuild (trailing edge, 250ms).
+let _renderDebounceTimer = null;
+function scheduleCurrentScreenRender() {
+  clearTimeout(_renderDebounceTimer);
+  _renderDebounceTimer = setTimeout(() => renderCurrentScreen(), 250);
+}
+
 function renderTodayScreen() {
+  // Anti-flicker (1): identical data → skip the rebuild entirely
+  const fp = todayFingerprint();
+  if (fp === _lastTodayFingerprint && document.getElementById('insights-content')?.innerHTML) {
+    return;
+  }
+  _lastTodayFingerprint = fp;
+  // Anti-flicker (2): preserve which sections the user has open.
+  // Restoration is scheduled (not called at function end) because this
+  // function has early-return paths; setTimeout(0) runs after the entire
+  // synchronous rebuild regardless of which exit was taken.
+  const openSections = snapshotOpenSections();
+  setTimeout(() => restoreOpenSections(openSections), 0);
+
   // Alert section — only show if there are unacknowledged alerts
   const alertSection = document.getElementById('alert-section');
   const inbox = document.getElementById('alert-inbox');
@@ -3166,7 +3240,9 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'partial-update') {
     console.log(`[popup] Partial update received: ${message.source}`);
     loadData().then(() => {
-      renderCurrentScreen();
+      // Coalesced: jira + sentry updates arriving back-to-back now produce
+      // ONE rebuild instead of one each (the flicker on panel open).
+      scheduleCurrentScreenRender();
       setSectionLoading(message.source, false);
       if (message.source === 'jira') startRefreshTimer(Date.now());
       const errBanner = document.getElementById('error-banner');

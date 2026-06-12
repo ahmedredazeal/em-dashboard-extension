@@ -113,6 +113,14 @@ const MOCK_SPRINT = {
   todayIndex:   TODAY_IDX,
   scopeByDay:   {},
   stories:      STORIES,
+  subtasks: [
+    { key:'DEMO-5a', summary:'DB index migration script', status:'Done', statusCategory:'done',
+      assignee:'Sara Hassan', assigneeAccountId:'mock-acc-sara', priority:'High', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-5', dueDate:d(0), startDate:d(-3), rank:'0|i0004:a', labels:[] },
+    { key:'DEMO-5b', summary:'Verify query plans on staging', status:'In Progress', statusCategory:'indeterminate',
+      assignee:'Sara Hassan', assigneeAccountId:'mock-acc-sara', priority:'High', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-5', dueDate:d(2), startDate:d(-1), rank:'0|i0004:b', labels:[] },
+  ],
 };
 
 const MOCK_ANALYTICS = {

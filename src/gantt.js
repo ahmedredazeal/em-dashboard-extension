@@ -214,7 +214,8 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
           + `border-right:1px solid var(--border,rgba(255,255,255,.08));`
           + `display:flex;flex-direction:column;justify-content:center;overflow:hidden;">`;
     html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;flex-wrap:wrap;">`;
-    html += `<span style="font-size:9px;color:var(--text-muted,#94a3b8);font-family:monospace;">${esc(story.key)}</span>`;
+    const subMark = story.isSubtask ? `<span title="Subtask${story.parentKey ? ' of ' + esc(story.parentKey) : ''}" style="color:var(--text-muted,#94a3b8);">↳ </span>` : '';
+    html += `<span style="font-size:9px;color:var(--text-muted,#94a3b8);font-family:monospace;">${subMark}${esc(story.key)}</span>`;
     html += `<span style="font-size:9px;padding:1px 4px;border-radius:3px;font-weight:500;background:${pBg};color:${pFg};">${esc(pText)}</span>`;
     if (isUnscheduled) html += `<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(249,115,22,0.15);color:#f97316;font-weight:500;">⚠ No date</span>`;
     if (isTD) html += `<span style="font-size:9px;color:#DC2626;" title="Due today">🔴</span>`;
