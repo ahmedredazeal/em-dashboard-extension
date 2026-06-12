@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.8.1 (2026-06-12) — "My Tasks" title + Sentry tooltip clamp
+
+- **"MY TASKS" title** added above the engineer progress circles (sprint +
+  support donuts), making it clear at a glance that these are the tickets
+  assigned to *you* — the card is always me-scoped regardless of the
+  Me/Squad toggle.
+- **Sentry trend tooltip no longer clips at "today".** The tooltip is centred
+  on the hovered point (`translate(-50%)`), so on the rightmost point half of
+  it extended past the card edge and got trimmed by the panel border. The
+  horizontal position is now clamped inside the card, flipping the overflow
+  back inward on both edges.
+
+---
+
 ## v2.8.0 (2026-06-11) — Engineer parity, Gantt subtasks, anti-flicker
 
 **1. Extra boards + milestones for both roles.**

@@ -1700,6 +1700,8 @@ function renderEngineerProgressCircles() {
 
   row.style.display = '';
   row.innerHTML = `
+    <div style="font-size:10px;font-weight:600;color:var(--text-muted);
+      letter-spacing:0.3px;margin:2px 0 4px;text-transform:uppercase;">My Tasks</div>
     <div class="progress-circles-row">
       ${sprintPts   > 0 ? makeCard(sprintDonutHtml,  'Sprint') : ''}
       ${supportTotal > 0 ? makeCard(supportDonutHtml, 'Support') : ''}
@@ -2473,7 +2475,11 @@ function wireTrendHover(card) {
       const ptRect   = pt.getBoundingClientRect();
       const x = ptRect.left + ptRect.width / 2 - cardRect.left;
       const y = ptRect.top - cardRect.top;
-      tip.style.left = `${x}px`;
+      // Clamp horizontally so the (translate(-50%)) tooltip never overflows the
+      // card — the rightmost "today" point used to clip at the panel border.
+      const half = tip.offsetWidth / 2;
+      const clampedX = Math.max(half + 4, Math.min(x, cardRect.width - half - 4));
+      tip.style.left = `${clampedX}px`;
       tip.style.top  = `${Math.max(y - 4, 12)}px`;
     });
     pt.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
