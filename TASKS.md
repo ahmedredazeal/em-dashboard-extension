@@ -39,7 +39,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
-| v1.0.0 | Initial extension: side panel, Jira + Sentry integration, 4 alert rules, 3 screens |
+| v2.8.3 | Gantt parent-row + child sub-lane layout (Sprint Planner parity). |
 | v1.1.x | Board auto-discovery, multi-view Sentry, sprint story list, privacy mode, refresh timer, due dates, extra boards |
 | v1.2.x–v1.3.4 | Sprint analytics: burndown (3 series), timesheet, worklog fetch, sprint cache, sprint-change prompt |
 | v1.8.7 | Burndown calendar-day bucketing fix (tz-safe). 63 tests. |

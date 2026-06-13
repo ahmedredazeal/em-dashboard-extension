@@ -117,6 +117,65 @@ export function partitionStories(stories, accountId, filterMine = false) {
   };
 }
 
+/**
+ * Attach child subtasks to their parent stories and synthesize parent rows for
+ * orphan subtasks (whose parent isn't in the sprint story list).
+ *
+ * Returns a NEW array of "row stories": each is the parent story object with a
+ * `.children` array. The Gantt renders one row per element here, with the
+ * children laid out as per-assignee sub-lanes inside the row.
+ *
+ * @param {Object[]} stories   — parent stories (no subtasks)
+ * @param {Object[]} subtasks  — subtask stories (have parentKey)
+ * @param {string}   accountId — engineer accountId (for filterMine on children)
+ * @param {boolean}  filterMine
+ */
+export function attachChildren(stories, subtasks = [], accountId = '', filterMine = false) {
+  const byParent = new Map();
+  for (const sub of subtasks) {
+    const pk = sub.parentKey || '__noparent__';
+    if (!byParent.has(pk)) byParent.set(pk, []);
+    byParent.get(pk).push(sub);
+  }
+
+  const storyKeys = new Set(stories.map(s => s.key));
+  const rows = stories.map(s => ({ ...s, children: (byParent.get(s.key) || []) }));
+
+  // Orphan subtasks: parent not present in the sprint's story list → make a
+  // synthetic parent row so the work still shows (label = the parent key).
+  for (const [pk, subs] of byParent.entries()) {
+    if (pk === '__noparent__' || storyKeys.has(pk)) continue;
+    // Synthesize a minimal parent from the first child's parent reference.
+    const child0 = subs[0];
+    rows.push({
+      key: pk,
+      summary: child0.parentSummary || `Parent ${pk}`,
+      priority: child0.priority || 'Medium',
+      rank: child0.rank || null,
+      assignee: null, assigneeAccountId: null,
+      // Parent due date = latest child due date (so the dashed marker lands sensibly)
+      dueDate: subs.map(c => c.dueDate).filter(Boolean).sort().pop() || null,
+      startDate: subs.map(c => c.startDate).filter(Boolean).sort()[0] || null,
+      points: 0, isSynthetic: true,
+      children: subs,
+    });
+  }
+
+  // In engineer "mine" mode, keep a parent row if the parent OR any child is mine.
+  if (filterMine && accountId) {
+    return rows.filter(r =>
+      r.assigneeAccountId === accountId ||
+      (r.children || []).some(c => c.assigneeAccountId === accountId)
+    ).map(r => ({
+      ...r,
+      // also narrow the visible children to mine
+      children: (r.children || []).filter(c => c.assigneeAccountId === accountId),
+    }));
+  }
+
+  return rows;
+}
+
 // ── Main renderer ──────────────────────────────────────────────────────────
 /**
  * Build the Gantt HTML — Sprint Planner visual style (HTML divs, not SVG).
@@ -139,7 +198,9 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
     labelWidth  = 168,
     barH        = 17,
     rowH        = 44,
+    laneH       = 22,   // height of one assignee sub-lane within a parent row
     minWidth    = '320px',
+    subtasks    = [],
   } = opts;
 
   if (!sprint?.startDate || !sprint?.endDate) return '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No sprint date range.</div>';
@@ -156,7 +217,10 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
   let cum = 0;
   wdays.forEach(d => { DW[d] = 100 / nDays; DO[d] = cum; cum += DW[d]; });
 
-  const { scheduled, unscheduled } = partitionStories(stories, accountId, filterMine);
+  // Nest subtasks into their parents, then sort+split parents by due date.
+  const rowsWithChildren = attachChildren(stories, subtasks, accountId, filterMine);
+  const { scheduled, unscheduled } = partitionStories(rowsWithChildren, accountId, false);
+  // Re-attach children after partition (partitionStories spreads but keeps props)
   const hasUnscheduled = unscheduled.length > 0;
 
   // ── Day header ────────────────────────────────────────────────────────────
@@ -184,11 +248,22 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
   html += `<div style="flex:1;display:flex;">${hdrs}</div></div>`;
 
   // ── Story row renderer ─────────────────────────────────────────────────
+  // Parent acts as the row label/container. Its due date is a dashed vertical
+  // marker. Child subtasks render as bars in per-assignee sub-lanes (Sprint
+  // Planner layout). A childless parent renders its own single bar.
   function storyRow(story, isUnscheduled = false) {
     const isMe  = story.assigneeAccountId === accountId;
     const isOv  = story.dueDate && story.dueDate < todayISO;
     const isTD  = story.dueDate === todayISO;
-    const c     = gc(story.assignee || story.key);
+    const children = story.children || [];
+
+    // Sub-lanes: one per distinct child assignee (fallback to a single lane
+    // when the parent has no children — it draws its own bar instead).
+    const childAssignees = [...new Set(children.map(c => c.assignee || '—'))];
+    const nLanes = Math.max(1, childAssignees.length);
+    const dynRowH = children.length > 0
+      ? Math.max(rowH, nLanes * laneH + 10)
+      : rowH;
 
     let rowBg = '';
     if (isTD)       rowBg = 'background:rgba(220,38,38,0.06);';
@@ -205,7 +280,7 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
       duePct = DO[story.dueDate] + DW[story.dueDate];
     }
 
-    html += `<div data-jira-key="${esc(story.key)}" style="display:flex;min-height:${rowH}px;`
+    html += `<div data-jira-key="${esc(story.key)}" style="display:flex;min-height:${dynRowH}px;`
           + `border-bottom:1px solid var(--border,rgba(255,255,255,.07));${rowBg}cursor:pointer;" `
           + `title="Open ${esc(story.key)} in Jira">`;
 
@@ -214,9 +289,10 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
           + `border-right:1px solid var(--border,rgba(255,255,255,.08));`
           + `display:flex;flex-direction:column;justify-content:center;overflow:hidden;">`;
     html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;flex-wrap:wrap;">`;
-    const subMark = story.isSubtask ? `<span title="Subtask${story.parentKey ? ' of ' + esc(story.parentKey) : ''}" style="color:var(--text-muted,#94a3b8);">↳ </span>` : '';
-    html += `<span style="font-size:9px;color:var(--text-muted,#94a3b8);font-family:monospace;">${subMark}${esc(story.key)}</span>`;
+    html += `<span style="font-size:9px;color:var(--text-muted,#94a3b8);font-family:monospace;">${esc(story.key)}</span>`;
     html += `<span style="font-size:9px;padding:1px 4px;border-radius:3px;font-weight:500;background:${pBg};color:${pFg};">${esc(pText)}</span>`;
+    if (children.length > 0) html += `<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(148,163,184,0.15);color:var(--text-muted,#94a3b8);font-weight:500;" title="${children.length} child ticket${children.length>1?'s':''}">${children.length}↳</span>`;
+    if (story.isSynthetic) html += `<span style="font-size:9px;color:var(--text-muted,#94a3b8);font-style:italic;" title="Parent not in this sprint">ext</span>`;
     if (isUnscheduled) html += `<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(249,115,22,0.15);color:#f97316;font-weight:500;">⚠ No date</span>`;
     if (isTD) html += `<span style="font-size:9px;color:#DC2626;" title="Due today">🔴</span>`;
     html += `</div>`;
@@ -241,31 +317,51 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
       }
     });
 
-    // Due-date dashed marker
+    // Parent due-date dashed marker (Sprint Planner style)
     if (duePct > 0 && duePct <= 100) {
-      html += `<div style="position:absolute;left:${Math.min(duePct,99.5).toFixed(3)}%;top:0;bottom:0;border-left:1.5px dashed #9ca3af;z-index:5;pointer-events:none;"></div>`;
+      html += `<div style="position:absolute;left:${Math.min(duePct,99.5).toFixed(3)}%;top:0;bottom:0;border-left:1.5px dashed #9ca3af;z-index:5;pointer-events:none;" title="Due ${esc(fmtDate(story.dueDate))}"></div>`;
     }
 
-    if (!isUnscheduled && story.dueDate) {
-      const effectiveStart = (story.startDate && story.startDate >= sprint.startDate)
-        ? story.startDate : sprint.startDate;
-      const startColDate = wdays[Math.max(0, dayColIndex(effectiveStart, wdays))];
-      const dueColDate   = wdays[Math.min(wdays.length - 1, dayColIndex(story.dueDate, wdays))];
-      const barLeft  = DO[startColDate] ?? 0;
-      const barRight = (DO[dueColDate] ?? 0) + (DW[dueColDate] ?? 0);
-      const barW     = Math.max(barRight - barLeft, 0.5);
-      const barTop   = Math.round((rowH - barH) / 2);
+    // Helper: place a single bar from a ticket's start/due on a given lane top.
+    const barFor = (t, top, isChild) => {
+      if (!t.dueDate) return '';
+      const c = gc(t.assignee || t.key);
+      const effStart = (t.startDate && t.startDate >= sprint.startDate) ? t.startDate : sprint.startDate;
+      const startCol = wdays[Math.max(0, dayColIndex(effStart, wdays))];
+      const dueCol   = wdays[Math.min(wdays.length - 1, dayColIndex(t.dueDate, wdays))];
+      const left  = DO[startCol] ?? 0;
+      const right = (DO[dueCol] ?? 0) + (DW[dueCol] ?? 0);
+      const w     = Math.max(right - left, 0.5);
+      const subMark = isChild ? '↳ ' : '';
+      const titleParent = isChild && t.parentKey ? ` · child of ${esc(t.parentKey)}` : '';
+      return `<div title="${esc(t.key)}: ${esc(t.summary)} · ${esc(t.assignee || 'Unassigned')}${titleParent}" `
+        + `style="position:absolute;left:${left.toFixed(3)}%;width:calc(${w.toFixed(3)}% - 1px);min-width:18px;`
+        + `top:${top}px;height:${barH}px;background:${c.bg};border:0.5px solid ${c.bo};border-radius:3px;z-index:3;`
+        + `display:flex;align-items:center;overflow:hidden;pointer-events:none;">`
+        + `<span style="font-size:10px;padding:0 4px;color:${c.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${subMark}${esc(t.summary)}</span>`
+        + `</div>`;
+    };
 
-      html += `<div style="position:absolute;left:${barLeft.toFixed(3)}%;width:calc(${barW.toFixed(3)}% - 1px);min-width:20px;`
-            + `top:${barTop}px;height:${barH}px;background:${c.bg};border:0.5px solid ${c.bo};border-radius:3px;z-index:3;`
-            + `display:flex;align-items:center;overflow:hidden;pointer-events:none;">`;
-      html += `<span style="font-size:10px;padding:0 4px;color:${c.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(story.summary)}</span>`;
-      html += `</div>`;
-      if (story.points > 0 && barW > 5) {
-        html += `<div style="position:absolute;right:calc(${(100 - barRight).toFixed(3)}% + 3px);top:${barTop}px;font-size:8px;color:${c.tx};opacity:0.8;z-index:4;pointer-events:none;line-height:${barH}px;">${story.points}pt</div>`;
+    if (children.length > 0) {
+      // One sub-lane per assignee; each child sits in its assignee's lane,
+      // positioned by its own start→due (sequential bars show dependency order).
+      childAssignees.forEach((a, li) => {
+        const top = 5 + li * laneH;
+        children.filter(c => (c.assignee || '—') === a).forEach(c => {
+          html += barFor(c, top, true);
+        });
+      });
+    } else if (!isUnscheduled && story.dueDate) {
+      // Childless parent: draw its own single bar.
+      const barTop = Math.round((dynRowH - barH) / 2);
+      html += barFor(story, barTop, false);
+      if (story.points > 0) {
+        const dueCol = wdays[Math.min(wdays.length - 1, dayColIndex(story.dueDate, wdays))];
+        const barRight = (DO[dueCol] ?? 0) + (DW[dueCol] ?? 0);
+        html += `<div style="position:absolute;right:calc(${(100 - barRight).toFixed(3)}% + 3px);top:${barTop}px;font-size:8px;color:var(--text-muted,#94a3b8);opacity:0.8;z-index:4;pointer-events:none;line-height:${barH}px;">${story.points}pt</div>`;
       }
     } else if (isUnscheduled) {
-      const barTop = Math.round((rowH - barH) / 2);
+      const barTop = Math.round((dynRowH - barH) / 2);
       html += `<div style="position:absolute;left:0;right:0;top:${barTop}px;height:${barH}px;border:1px dashed rgba(249,115,22,0.4);border-radius:3px;z-index:3;display:flex;align-items:center;overflow:hidden;pointer-events:none;">`;
       html += `<span style="font-size:9px;padding:0 6px;color:rgba(249,115,22,0.6);white-space:nowrap;">no due date — add in Jira</span>`;
       html += `</div>`;

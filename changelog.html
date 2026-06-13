@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.8.3</div>
+      <div class="cl-desc"><strong>Gantt parent/child layout.</strong> Subtasks no longer get their own rows — each parent story is one row, with child tickets shown as bars in per-assignee sub-lanes and the parent due date as a dashed marker, matching the Sprint Planner tool.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.8.2</div>
       <div class="cl-desc"><strong>Fix: Insights section blank.</strong> A v2.8.0 anti-flicker helper was overwriting the Insights content with a chevron character on every render (the chevron-id lookup was a no-op for insights-body/gantt-container, returning the body itself). Guarded so it only touches real section-body ids.</div>
     </div>

@@ -9,6 +9,7 @@ import {
   dayColIndex,
   fmtDay,
   partitionStories,
+  attachChildren,
   buildGanttSVG,
 } from '../src/gantt.js';
 
@@ -197,30 +198,83 @@ test('today column is highlighted in red (Sprint Planner style)', () => {
 
 // ── Summary ────────────────────────────────────────────────────────────────
 console.log('');
-console.log('Subtask rendering');
-test('subtask rows show the ↳ marker with parent in title', () => {
-  const sub = { key:'HRM-9a', summary:'Sub work', priority:'Medium', points:0,
+console.log('Parent/child (subtask) rendering');
+test('subtasks nest into parent row (not their own row) and show ↳ child bars', () => {
+  const parent = { key:'HRM-9', summary:'Parent story', priority:'Medium', points:3,
+    assignee:'Ali', assigneeAccountId:'acc-ali', statusCategory:'new',
+    dueDate:'2026-06-16', startDate:'2026-06-10', rank:'0|y:', labels:[] };
+  const sub = { key:'HRM-9a', summary:'Child work', priority:'Medium', points:0,
     assignee:'Ali', assigneeAccountId:'acc-ali', statusCategory:'indeterminate',
     dueDate:'2026-06-12', startDate:'2026-06-10', rank:'0|x:', isSubtask:true, parentKey:'HRM-9', labels:[] };
-  const html = buildGanttSVG([sub],
-    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-ali');
-  assert(html.includes('↳'), 'marker missing');
-  assert(html.includes('Subtask of HRM-9'), 'parent title missing');
+  const html = buildGanttSVG([parent],
+    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-ali',
+    { subtasks: [sub] });
+  // Parent row present once
+  assert((html.match(/data-jira-key="HRM-9"/g) || []).length === 1, 'parent row missing/duplicated');
+  // Child has NO row of its own (data-jira-key only on parent rows)
+  assert(!html.includes('data-jira-key="HRM-9a"'), 'child should not have its own row');
+  // Child bar rendered with ↳ marker + child-of title
+  assert(html.includes('↳'), 'child ↳ marker missing');
+  assert(html.includes('child of HRM-9'), 'child-of title missing');
+  // Child count badge on the parent
+  assert(html.includes('1↳'), 'child-count badge missing');
 });
-test('non-subtask rows have no ↳ marker', () => {
-  const story = { key:'HRM-9', summary:'Parent', priority:'Medium', points:3,
+test('orphan subtask (parent not in sprint) gets a synthetic parent row', () => {
+  const orphan = { key:'HRM-50a', summary:'Orphan child', priority:'High', points:0,
+    assignee:'Sara', assigneeAccountId:'acc-sara', statusCategory:'new',
+    dueDate:'2026-06-14', startDate:'2026-06-11', rank:'0|z:', isSubtask:true, parentKey:'HRM-50', labels:[] };
+  const html = buildGanttSVG([], // no parent stories
+    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-sara',
+    { subtasks: [orphan] });
+  assert(html.includes('data-jira-key="HRM-50"'), 'synthetic parent row missing');
+  assert(html.includes('ext'), 'external/synthetic marker missing');
+});
+test('childless parent still draws its own single bar', () => {
+  const story = { key:'HRM-7', summary:'Solo', priority:'Medium', points:3,
     assignee:'Ali', assigneeAccountId:'acc-ali', statusCategory:'new',
     dueDate:'2026-06-12', startDate:'2026-06-10', rank:'0|y:', labels:[] };
   const html = buildGanttSVG([story],
-    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-ali');
-  assert(!html.includes('↳'), 'unexpected marker');
+    { name:'S', startDate:'2026-06-08', endDate:'2026-06-18' }, [0,1,2,3,4], 'acc-ali',
+    { subtasks: [] });
+  assert(html.includes('data-jira-key="HRM-7"'), 'parent row missing');
+  assert(html.includes('3pt'), 'childless parent should show its own bar with points');
+  assert(!html.includes('↳'), 'no child marker expected for childless story');
+});
+
+console.log('');
+console.log('attachChildren grouping');
+test('children attach to their parent by parentKey', () => {
+  const stories = [{ key:'P-1', summary:'P', priority:'Medium', rank:'a' }];
+  const subs = [
+    { key:'P-1a', parentKey:'P-1', assignee:'Ali', assigneeAccountId:'x', dueDate:'2026-06-10' },
+    { key:'P-1b', parentKey:'P-1', assignee:'Sara', assigneeAccountId:'y', dueDate:'2026-06-11' },
+  ];
+  const rows = attachChildren(stories, subs);
+  assert(rows.length === 1, 'one parent row');
+  assert(rows[0].children.length === 2, 'two children attached');
+});
+test('orphan subtask becomes a synthetic parent', () => {
+  const rows = attachChildren([], [
+    { key:'Q-9a', parentKey:'Q-9', assignee:'Ali', assigneeAccountId:'x', dueDate:'2026-06-12', startDate:'2026-06-10' },
+  ]);
+  assert(rows.length === 1, 'synthetic row created');
+  assert(rows[0].key === 'Q-9' && rows[0].isSynthetic === true, 'synthetic parent keyed by parentKey');
+  assert(rows[0].children.length === 1, 'orphan attached to synthetic parent');
+});
+test('filterMine keeps parent if a child is mine, narrows children to mine', () => {
+  const stories = [{ key:'P-1', summary:'P', priority:'Medium', rank:'a', assigneeAccountId:'other' }];
+  const subs = [
+    { key:'P-1a', parentKey:'P-1', assignee:'Me', assigneeAccountId:'me', dueDate:'2026-06-10' },
+    { key:'P-1b', parentKey:'P-1', assignee:'Other', assigneeAccountId:'other', dueDate:'2026-06-11' },
+  ];
+  const rows = attachChildren(stories, subs, 'me', true);
+  assert(rows.length === 1, 'parent kept because a child is mine');
+  assert(rows[0].children.length === 1 && rows[0].children[0].assigneeAccountId === 'me', 'children narrowed to mine');
 });
 
 console.log('');
 console.log(`${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
-
-// ── Bar start uses startDate from Sprint Planner ──────────────────────────
 console.log('\nBar start uses startDate (set by Sprint Planner)');
 
 test('ticket with startDate renders a positioned bar', () => {

@@ -87,7 +87,7 @@ API token links:
 
 ### Sprint Timeline (Gantt)
 
-Sprint Planner-style timeline of the active sprint: stories, tasks, and subtasks (↳), bars from startDate to dueDate, sorted by priority then rank, click-through to Jira. Engineer Me mode shows only your rows.
+Sprint Planner-style timeline: one row per parent story (sorted by priority then rank), the parent due date as a dashed marker, and child tickets (subtasks) as bars within the row in per-assignee sub-lanes. Childless stories show their own bar; orphan subtasks get a synthetic parent row. Click-through to Jira; engineer Me mode shows only your rows/children.
 
 ### Milestones (OKRs & Dev Plans)
 

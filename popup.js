@@ -1297,10 +1297,11 @@ function renderInsights() {
   const workingDays  = state.settings?.ui?.workingDays || [0,1,2,3,4];
   // Stories + subtasks — the Gantt shows both (like the reference extension);
   // subtasks stay out of every other chart (burndown/points would double-count).
-  const ganttStories = [
-    ...(state.currentSprint?.stories || []),
-    ...(state.currentSprint?.subtasks || []),
-  ];
+  // Parent stories and their child subtasks are passed SEPARATELY — the Gantt
+  // nests each subtask into its parent's row (one row per parent, children as
+  // per-assignee sub-lanes), matching the Sprint Planner layout.
+  const ganttStories  = state.currentSprint?.stories  || [];
+  const ganttSubtasks = state.currentSprint?.subtasks || [];
   const ganttSprint  = state.currentSprint
     ? { name: state.currentSprint.name,
         startDate: (state.currentSprint.startDate || '').slice(0,10),
@@ -1309,9 +1310,9 @@ function renderInsights() {
   const ganttAccountId = state.currentUser?.accountId || '';
 
   let ganttSectionHtml = '';
-  if (ganttSprint?.startDate && ganttStories.length > 0) {
+  if (ganttSprint?.startDate && (ganttStories.length > 0 || ganttSubtasks.length > 0)) {
     const ganttInner   = buildGanttSVG(ganttStories, ganttSprint, workingDays, ganttAccountId,
-      { filterMine: isEngineerMe, minWidth: '320px' });
+      { filterMine: isEngineerMe, minWidth: '320px', subtasks: ganttSubtasks });
     const sprintRange  = `${ganttSprint.startDate} → ${ganttSprint.endDate}`;
     const ganttLabel   = isEngineerMe ? 'MY TIMELINE' : 'SPRINT TIMELINE';
     ganttSectionHtml = `

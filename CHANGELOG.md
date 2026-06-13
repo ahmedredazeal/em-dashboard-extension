@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.8.3 (2026-06-13) — Gantt: parent rows with child sub-lanes (Sprint Planner layout)
+
+The Gantt previously gave every subtask its own full row. It now matches the
+Sprint Planner tool: one row per parent story, with child tickets (subtasks)
+laid out inside that row.
+
+- Rows = parent stories. Sorted by priority then Jira rank, as before.
+- Parent is the row label/container — no parent bar; its due date is a dashed
+  vertical marker across the row (Sprint Planner style).
+- Children render as bars in per-assignee sub-lanes — one lane per distinct
+  child assignee, each child positioned by its own start to due. Sequential
+  child bars in the same row read as the dependency/work order. Row height
+  grows with the number of assignee lanes.
+- Childless parents still draw their own single bar (with points label).
+- Orphan subtasks (parent not in the sprint) get a synthesized parent row,
+  keyed by the parent key and marked "ext".
+- Engineer Me mode: a parent row is kept if the parent or any child is yours,
+  and the visible children are narrowed to yours.
+
+New attachChildren() in gantt.js does the grouping. Gantt tests rewritten for
+the nested layout plus direct grouping tests — 36 gantt tests, 12 suites green.
+
+---
+
 ## v2.8.2 (2026-06-13) — Fix: Insights section blank (regression from v2.8.0)
 
 **Root cause (my v2.8.0 anti-flicker helper):** `restoreOpenSections()` runs
