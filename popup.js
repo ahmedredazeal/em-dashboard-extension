@@ -4,7 +4,6 @@
  * ES module with imports from src/
  */
 
-import * as privacyMode from './src/privacy-mode.js';
 import * as metrics from './src/metrics.js';
 import { getTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
@@ -148,9 +147,6 @@ async function boot() {
   const manifest = chrome.runtime.getManifest();
   document.getElementById('app-version').textContent = `v${manifest.version}`;
   
-  // Apply privacy mode state
-  await privacyMode.applyPrivacyMode();
-  updatePrivacyToggle();
   
   // Wire up event handlers
   setupEventHandlers();
@@ -218,13 +214,6 @@ async function loadAndApplyTheme() {
  * Setup event handlers
  */
 function setupEventHandlers() {
-  // Privacy toggle
-  document.getElementById('privacy-toggle').addEventListener('click', async () => {
-    const newState = await privacyMode.togglePrivacyMode();
-    updatePrivacyToggle();
-    console.log('[popup] Privacy mode:', newState ? 'ON' : 'OFF');
-  });
-
   // Gantt: click any [data-jira-key] row to open the ticket in Jira
   document.getElementById('insights-content')?.addEventListener('click', e => {
     const el = e.target.closest('[data-jira-key]');
@@ -273,12 +262,6 @@ function setupEventHandlers() {
 /**
  * Update privacy toggle visual state
  */
-function updatePrivacyToggle() {
-  const toggle = document.getElementById('privacy-toggle');
-  const isOn = document.body.classList.contains('privacy-on');
-  toggle.setAttribute('data-active', isOn ? 'true' : 'false');
-}
-
 /**
  * Load data from cache or fetch fresh
  */
@@ -317,7 +300,19 @@ async function loadData() {
     } else {
       state.sprintAnalytics = null;
     }
-    
+
+    // Recompute alerts from the freshly-loaded state so they always carry the
+    // current rule output (detail/bullets/tickets for the expandable UI), even
+    // if the cached `alerts` array predates a rule change. Falls back to the
+    // cached array if recomputation throws. Snoozes still filter at render time.
+    try {
+      const { checkAlerts } = await import('./src/alerts.js');
+      const fresh = checkAlerts(state).filter(Boolean);
+      if (fresh.length > 0 || state.alerts.length === 0) state.alerts = fresh;
+    } catch (e) {
+      console.warn('[popup] Alert recompute skipped:', e.message);
+    }
+
     console.log('[popup] Data loaded:', {
       extraBoardsConfigured: state.settings?.squad?.extraBoards?.length || 0,
       extraBoardsFetched: state.extraBoardsData.length,
@@ -1404,6 +1399,7 @@ function renderInsights() {
     ${ganttSectionHtml}`;
 
   wireBurndownHover();
+  wireTimesheetHover();
   // Engineer me/squad toggle wiring — variable is 'content', not 'contentEl'
   if (state.settings?.role === 'engineer') wireScopePills(content);
   // Re-populate sentry trend card now that it lives inside insights-content
@@ -3066,9 +3062,10 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
     const segSvg = segments.map(([pk, hrs]) => {
       const w = bw(hrs);
       const color = colorMap[pk] || '#94a3b8';
-      // SVG <title> child = real native tooltip on hover (project + hours +
-      // who). Unlike a title="" attribute on <rect>, this is honoured by browsers.
-      const seg = `<rect x="${segX.toFixed(1)}" y="${y1}" width="${w.toFixed(1)}" height="${BAR_H}" fill="${color}" rx="2">`
+      // Data attributes drive an immediate, styled JS tooltip (native SVG
+      // <title> is slow and easy to miss). Keep <title> too as a fallback.
+      const seg = `<rect class="ts-seg" data-ts-name="${escapeHtml(m.name || '')}" data-ts-proj="${escapeHtml(pk)}" data-ts-hrs="${hrs}" `
+                + `x="${segX.toFixed(1)}" y="${y1}" width="${w.toFixed(1)}" height="${BAR_H}" fill="${color}" rx="2" style="cursor:pointer;">`
                 + `<title>${escapeHtml(m.name || '')} — ${escapeHtml(pk)}: ${hrs}h</title></rect>`;
       segX += w;
       return seg;
@@ -3103,8 +3100,42 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
     return item;
   }).join('');
   
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
-    ${grid}${ax}${rows}${legendSvg}</svg>`;
+  return `<div class="ts-wrap" style="position:relative;">
+    <div class="ts-tooltip" style="display:none;position:absolute;z-index:20;pointer-events:none;
+      background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.12));
+      border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text,#e2e8f0);white-space:nowrap;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:translate(-50%,-100%);"></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    ${grid}${ax}${rows}${legendSvg}</svg>
+  </div>`;
+}
+
+/** Wire immediate styled hover tooltips on Time Logged bar segments. */
+function wireTimesheetHover() {
+  document.querySelectorAll('.ts-wrap').forEach(wrap => {
+    const tip = wrap.querySelector('.ts-tooltip');
+    if (!tip) return;
+    wrap.querySelectorAll('.ts-seg').forEach(seg => {
+      seg.addEventListener('mouseenter', () => {
+        const name = seg.getAttribute('data-ts-name') || '';
+        const proj = seg.getAttribute('data-ts-proj') || '';
+        const hrs  = seg.getAttribute('data-ts-hrs') || '';
+        tip.innerHTML = `<span style="font-weight:600;">${proj}</span> · ${hrs}h`
+          + (name ? `<div style="color:var(--text-muted);font-size:10px;">${name}</div>` : '');
+        tip.style.display = 'block';
+        const wrapRect = wrap.getBoundingClientRect();
+        const segRect  = seg.getBoundingClientRect();
+        const x = segRect.left + segRect.width / 2 - wrapRect.left;
+        const y = segRect.top - wrapRect.top;
+        // Clamp within the card so edge segments don't clip
+        const half = tip.offsetWidth / 2;
+        const clampedX = Math.max(half + 4, Math.min(x, wrapRect.width - half - 4));
+        tip.style.left = `${clampedX}px`;
+        tip.style.top  = `${Math.max(y - 4, 14)}px`;
+      });
+      seg.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    });
+  });
 }
 
 /**

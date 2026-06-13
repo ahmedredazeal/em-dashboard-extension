@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.8.6 (2026-06-13) — Time Logged hover, alert fields on load, privacy button removed
+
+**1. Time Logged — proper hover tooltip.** v2.8.5 used a native SVG `<title>`,
+which is slow to appear and easy to miss. Each bar segment now shows an
+immediate, styled tooltip on hover — "PROJECT · Nh" with the member name —
+positioned and clamped inside the card (same approach as the burndown/Sentry
+charts). The `<title>` stays as a fallback.
+
+**2. Alerts now always carry their detail on load.** The expandable detail,
+bullets, and ticket links only appear when an alert has those fields — but
+alerts cached before v2.8.5 don't, so they showed as plain (no chevron, no
+links) until the next background refresh. The popup now recomputes alerts from
+the loaded state on every open, so the structured fields (and therefore the
+expand affordance + clickable Jira ticket links) are always present. (Demo mode
+already recomputed; this brings real-data parity.)
+
+**3. Privacy button removed.** The header privacy/screen-share toggle and its
+banner are gone — no longer meaningful for this dashboard.
+
+Backlog added: **T-GT-1** open the Gantt in a full-tab view + export to PDF
+(Sprint Planner style), to be built alongside **T-BR-1** bug-reports charts.
+
+---
+
 ## v2.8.5 (2026-06-13) — Alert redesign, Time Logged fix, Sentry-trend flicker
 
 **1. Alerts redesigned.**
