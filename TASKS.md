@@ -39,6 +39,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.8.4 | Gantt per-subtask hover tooltip (summary/assignee/estimate/status). |
 | v2.8.3 | Gantt parent-row + child sub-lane layout (Sprint Planner parity). |
 | v1.1.x | Board auto-discovery, multi-view Sentry, sprint story list, privacy mode, refresh timer, due dates, extra boards |
 | v1.2.x–v1.3.4 | Sprint analytics: burndown (3 series), timesheet, worklog fetch, sprint cache, sprint-change prompt |

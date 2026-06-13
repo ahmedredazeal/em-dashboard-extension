@@ -211,11 +211,15 @@ test('subtasks nest into parent row (not their own row) and show ↳ child bars'
     { subtasks: [sub] });
   // Parent row present once
   assert((html.match(/data-jira-key="HRM-9"/g) || []).length === 1, 'parent row missing/duplicated');
-  // Child has NO row of its own (data-jira-key only on parent rows)
-  assert(!html.includes('data-jira-key="HRM-9a"'), 'child should not have its own row');
-  // Child bar rendered with ↳ marker + child-of title
+  // Child must NOT be a full row of its own — a row is a flex div with min-height;
+  // the child key may appear ONLY on its bar (which uses position:absolute).
+  assert(!/data-jira-key="HRM-9a"[^>]*min-height/.test(html), 'child should not be a full row');
+  assert(/data-jira-key="HRM-9a"[^>]*position:absolute/.test(html), 'child should render as an absolutely-positioned bar');
+  // Child bar rendered with ↳ marker
   assert(html.includes('↳'), 'child ↳ marker missing');
-  assert(html.includes('child of HRM-9'), 'child-of title missing');
+  // Child bar is hoverable/clickable on its own and shows a rich tooltip
+  assert(/data-jira-key="HRM-9a"[^>]*pointer-events:auto/.test(html), 'child bar should be hoverable (pointer-events:auto + own key)');
+  assert(/title="Child work · Ali/.test(html), 'child tooltip should show summary · assignee');
   // Child count badge on the parent
   assert(html.includes('1↳'), 'child-count badge missing');
 });

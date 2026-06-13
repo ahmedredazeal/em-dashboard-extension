@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.8.4 (2026-06-13) — Gantt: per-subtask hover tooltip
+
+Child (subtask) bars in the Gantt now show their OWN tooltip on hover —
+summary, assignee, estimate (story points, when set), and status — instead of
+the parent row's "Open … in Jira" tooltip taking over the whole row.
+
+Root cause: child bars were rendered with `pointer-events:none`, so the
+browser fell through to the row-level `title`. Child bars now set
+`pointer-events:auto` and carry their own `data-jira-key`, so hovering a child
+shows its tooltip and clicking it opens THAT subtask in Jira; clicking anywhere
+else on the row still opens the parent. The bar's text label keeps
+`pointer-events:none` so it never blocks the bar's own hover.
+
+---
+
 ## v2.8.3 (2026-06-13) — Gantt: parent rows with child sub-lanes (Sprint Planner layout)
 
 The Gantt previously gave every subtask its own full row. It now matches the

@@ -333,12 +333,21 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
       const right = (DO[dueCol] ?? 0) + (DW[dueCol] ?? 0);
       const w     = Math.max(right - left, 0.5);
       const subMark = isChild ? '↳ ' : '';
-      const titleParent = isChild && t.parentKey ? ` · child of ${esc(t.parentKey)}` : '';
-      return `<div title="${esc(t.key)}: ${esc(t.summary)} · ${esc(t.assignee || 'Unassigned')}${titleParent}" `
-        + `style="position:absolute;left:${left.toFixed(3)}%;width:calc(${w.toFixed(3)}% - 1px);min-width:18px;`
-        + `top:${top}px;height:${barH}px;background:${c.bg};border:0.5px solid ${c.bo};border-radius:3px;z-index:3;`
-        + `display:flex;align-items:center;overflow:hidden;pointer-events:none;">`
-        + `<span style="font-size:10px;padding:0 4px;color:${c.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${subMark}${esc(t.summary)}</span>`
+      // Rich tooltip: "Summary · Assignee · Npt · Status" (estimate = story
+      // points; omitted when 0, common for subtasks). Children get their OWN
+      // pointer events + data-jira-key so the hover shows THIS tooltip (not the
+      // row's "Open parent" title) and a click opens the child issue in Jira.
+      const estPart = t.points > 0 ? ` · ${t.points}pt` : '';
+      const statusPart = t.status ? ` · ${esc(t.status)}` : '';
+      const tip = `${esc(t.summary)} · ${esc(t.assignee || 'Unassigned')}${estPart}${statusPart}`;
+      const childAttrs = isChild
+        ? `data-jira-key="${esc(t.key)}" style="pointer-events:auto;cursor:pointer;`
+        : `style="pointer-events:none;`;
+      return `<div title="${tip}" ${childAttrs}`
+        + `position:absolute;left:${left.toFixed(3)}%;width:calc(${w.toFixed(3)}% - 1px);min-width:18px;`
+        + `top:${top}px;height:${barH}px;background:${c.bg};border:0.5px solid ${c.bo};border-radius:3px;z-index:4;`
+        + `display:flex;align-items:center;overflow:hidden;">`
+        + `<span style="font-size:10px;padding:0 4px;color:${c.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">${subMark}${esc(t.summary)}</span>`
         + `</div>`;
     };
 
