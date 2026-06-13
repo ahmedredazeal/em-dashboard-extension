@@ -1750,8 +1750,15 @@ function restoreOpenSections(map) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.style.display = disp;
-    const chev = document.getElementById(id.replace('-section-body', '-section-chevron'));
-    if (chev) chev.textContent = (disp === 'none') ? '▶' : '▼';
+    // Only sync a chevron for ids that ACTUALLY end in -section-body. For the
+    // two special keys (insights-body, gantt-container) the replace is a no-op,
+    // so getElementById would return the body element itself and writing
+    // textContent to it would wipe the whole section's content. Those two have
+    // dedicated chevron/button handling after this loop.
+    if (id.endsWith('-section-body')) {
+      const chev = document.getElementById(id.replace('-section-body', '-section-chevron'));
+      if (chev) chev.textContent = (disp === 'none') ? '▶' : '▼';
+    }
   }
   const ganttBtn = document.getElementById('gantt-toggle-btn');
   const gantt = document.getElementById('gantt-container');

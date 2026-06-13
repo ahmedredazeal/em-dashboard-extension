@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.8.2 (2026-06-13) — Fix: Insights section blank (regression from v2.8.0)
+
+**Root cause (my v2.8.0 anti-flicker helper):** `restoreOpenSections()` runs
+after every render and, for each snapshotted section, looked up its chevron by
+replacing `-section-body` → `-section-chevron` in the id. For the two specially
+handled keys — `insights-body` and `gantt-container` — that replace is a no-op,
+so `getElementById` returned the BODY element itself and
+`chev.textContent = '▼'` overwrote the entire Insights content with a single
+chevron character. Silent, no exception, on every render — so the whole
+Insights section (burndown, charts, milestones, Gantt, circles) vanished, in
+real and demo mode alike.
+
+Fix: the chevron sync in the loop now only runs for ids that actually end in
+`-section-body`. The two special keys keep their dedicated chevron/button
+handling after the loop (which was already correct). No other behaviour
+changed; all 12 suites green.
+
+---
+
 ## v2.8.1 (2026-06-12) — "My Tasks" title + Sentry tooltip clamp
 
 - **"MY TASKS" title** added above the engineer progress circles (sprint +

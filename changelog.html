@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.8.2</div>
+      <div class="cl-desc"><strong>Fix: Insights section blank.</strong> A v2.8.0 anti-flicker helper was overwriting the Insights content with a chevron character on every render (the chevron-id lookup was a no-op for insights-body/gantt-container, returning the body itself). Guarded so it only touches real section-body ids.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.8.1</div>
       <div class="cl-desc"><strong>"My Tasks" title + tooltip clamp.</strong> The engineer progress donuts now carry a MY TASKS header, and the Sentry trend tooltip stays inside the card on the rightmost "today" point instead of clipping at the panel border.</div>
     </div>
