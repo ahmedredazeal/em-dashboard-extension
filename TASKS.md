@@ -39,6 +39,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.8.5 | Alert redesign (snooze-to-tomorrow × button, compact+expandable, ticket links); Time Logged headroom + hover; Sentry-trend flicker fix; spike-rule date/day robustness. |
 | v2.8.4 | Gantt per-subtask hover tooltip (summary/assignee/estimate/status). |
 | v2.8.3 | Gantt parent-row + child sub-lane layout (Sprint Planner parity). |
 | v1.1.x | Board auto-discovery, multi-view Sentry, sprint story list, privacy mode, refresh timer, due dates, extra boards |

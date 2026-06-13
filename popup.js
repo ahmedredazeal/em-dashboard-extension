@@ -12,6 +12,7 @@ import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.j
 import { buildGanttSVG } from './src/gantt.js';
 import { generateMockState, MOCK_CURRENT_USER } from './src/mock-data.js';
 import { milestoneCounts } from './src/milestones.js';
+import { visibleAlerts } from './src/alerts.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -44,6 +45,7 @@ let state = {
   currentScreen: null,
   settings: null,
   alerts: [],
+  alertSnoozes: {},
   sprintHistory: [],
   currentSprint: null,
   sentryIssues: [],
@@ -154,9 +156,10 @@ async function boot() {
   setupEventHandlers();
   
   // Load settings
-  const result = await chrome.storage.local.get(['settings', 'alerts', 'sentryEmptyDismissed']);
+  const result = await chrome.storage.local.get(['settings', 'alerts', 'sentryEmptyDismissed', 'alertSnoozes']);
   state.settings = result.settings || {};
   state.alerts = result.alerts || [];
+  state.alertSnoozes = result.alertSnoozes || {};
   state.sentryCardDismissed = !!result.sentryEmptyDismissed;
 
   // Demo/mock mode — session-scoped (resets on browser restart)
@@ -1723,13 +1726,14 @@ function renderEngineerProgressCircles() {
 // (1) Fingerprint: skip the rebuild entirely when the data that drives the
 //     Today screen hasn't actually changed.
 let _lastTodayFingerprint = '';
+let _lastTrendFingerprint = '';
 function todayFingerprint() {
   try {
     return JSON.stringify({
       cs: state.currentSprint, sa: state.sprintAnalytics,
       sup: state.supportTickets, eb: state.extraBoardsData,
       ms: state.milestonesData, sv: state.sentryViews,
-      al: (state.alerts || []).length,
+      al: visibleAlerts(state.alerts, state.alertSnoozes).length,
       scope: state.viewScope, mode: state.timesheetMode, mock: state.mockMode,
     });
   } catch { return String(Date.now()); } // never let fingerprinting block a render
@@ -1791,26 +1795,86 @@ function renderTodayScreen() {
   const openSections = snapshotOpenSections();
   setTimeout(() => restoreOpenSections(openSections), 0);
 
-  // Alert section — only show if there are unacknowledged alerts
+  // Alert section — only show alerts that aren't acknowledged or snoozed
   const alertSection = document.getElementById('alert-section');
   const inbox = document.getElementById('alert-inbox');
-  const unacknowledged = state.alerts.filter(a => !a.acknowledged);
-  
+  const unacknowledged = visibleAlerts(state.alerts, state.alertSnoozes);
+
   if (unacknowledged.length === 0) {
     alertSection.classList.add('hidden');
   } else {
     alertSection.classList.remove('hidden');
-    inbox.innerHTML = unacknowledged.map(alert => `
-      <div class="alert-item severity-${alert.severity}" data-alert-id="${alert.id}">
-        <div class="alert-header">
-          <span class="badge badge-${alert.severity}">${alert.severity.toUpperCase()}</span>
-          <span class="alert-time">${formatTimestamp(alert.createdAt)}</span>
+    const jiraBase = (state.settings?.jira?.baseUrl || '').replace(/\/$/, '');
+    const ticketLink = (key) => jiraBase
+      ? `<a href="${jiraBase}/browse/${escapeHtml(key)}" target="_blank" rel="noopener" class="alert-ticket-link" data-alert-link="1">${escapeHtml(key)}</a>`
+      : `<span class="alert-ticket-link">${escapeHtml(key)}</span>`;
+
+    inbox.innerHTML = unacknowledged.map(alert => {
+      const hasDetail = (alert.detail && alert.detail.length) ||
+                        (alert.bullets && alert.bullets.length) ||
+                        (alert.tickets && alert.tickets.length);
+      const bulletsHtml = (alert.bullets || []).map(b => {
+        // Linkify any ticket keys that appear in the bullet text
+        let html = escapeHtml(b);
+        (alert.tickets || []).forEach(k => {
+          html = html.replace(new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`),
+            ticketLink(k));
+        });
+        return `<li>${html}</li>`;
+      }).join('');
+      const ticketChips = (alert.tickets || []).length && !(alert.bullets || []).length
+        ? `<div class="alert-tickets">${alert.tickets.map(ticketLink).join(' ')}</div>`
+        : '';
+
+      return `
+      <div class="alert-item severity-${alert.severity}" data-alert-id="${alert.id}" data-rule-id="${alert.ruleId}">
+        <div class="alert-row">
+          <div class="alert-main" data-alert-toggle="1" ${hasDetail ? 'role="button" tabindex="0" title="Click for details"' : ''}>
+            <div class="alert-header">
+              <span class="badge badge-${alert.severity}">${alert.severity.toUpperCase()}</span>
+              <span class="alert-time">${formatTimestamp(alert.createdAt)}</span>
+              ${hasDetail ? '<span class="alert-chevron">▶</span>' : ''}
+            </div>
+            <div class="alert-message">${escapeHtml(alert.message)}</div>
+          </div>
+          <button class="alert-close" data-alert-snooze="1" title="Snooze until tomorrow" aria-label="Snooze this alert">×</button>
         </div>
-        <div class="alert-message">${escapeHtml(alert.message)}</div>
-      </div>
-    `).join('');
+        ${hasDetail ? `
+        <div class="alert-detail" style="display:none;">
+          ${alert.detail ? `<div class="alert-detail-text">${escapeHtml(alert.detail)}</div>` : ''}
+          ${bulletsHtml ? `<ul class="alert-bullets">${bulletsHtml}</ul>` : ''}
+          ${ticketChips}
+        </div>` : ''}
+      </div>`;
+    }).join('');
+
+    // Wiring: expand/collapse on the main area, snooze on the × button,
+    // and let ticket links open without toggling/snoozing.
     inbox.querySelectorAll('.alert-item').forEach(item => {
-      item.addEventListener('click', () => acknowledgeAlert(item.dataset.alertId));
+      const main   = item.querySelector('[data-alert-toggle]');
+      const detail = item.querySelector('.alert-detail');
+      const chev   = item.querySelector('.alert-chevron');
+      if (main && detail) {
+        const toggle = () => {
+          const open = detail.style.display !== 'none';
+          detail.style.display = open ? 'none' : '';
+          if (chev) chev.textContent = open ? '▶' : '▼';
+        };
+        main.addEventListener('click', toggle);
+        main.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+        });
+      }
+      const closeBtn = item.querySelector('[data-alert-snooze]');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          snoozeAlert(item.dataset.ruleId);
+        });
+      }
+      // Ticket links shouldn't bubble up into the toggle handler
+      item.querySelectorAll('[data-alert-link]').forEach(a =>
+        a.addEventListener('click', e => e.stopPropagation()));
     });
   }
   
@@ -2176,20 +2240,17 @@ function renderReliabilityScreen() {
 /**
  * Acknowledge an alert
  */
-async function acknowledgeAlert(alertId) {
+async function snoozeAlert(ruleId) {
+  if (!ruleId) return;
   try {
-    await chrome.runtime.sendMessage({ type: 'acknowledge-alert', alertId });
-    
-    // Update local state
-    const alert = state.alerts.find(a => a.id === alertId);
-    if (alert) {
-      alert.acknowledged = true;
-    }
-    
-    // Re-render
+    await chrome.runtime.sendMessage({ type: 'snooze-alert', ruleId });
+    // Mirror locally so the UI updates immediately (snooze until tomorrow)
+    const t = new Date(); t.setDate(t.getDate() + 1);
+    const key = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    state.alertSnoozes = { ...(state.alertSnoozes || {}), [ruleId]: key };
     renderCurrentScreen();
   } catch (error) {
-    console.error('[popup] Failed to acknowledge alert:', error);
+    console.error('[popup] Failed to snooze alert:', error);
   }
 }
 
@@ -2443,11 +2504,26 @@ function buildSprintProgressBar(stories) {
 // Legend toggle state — viewIds whose line is currently hidden
 const _hiddenTrendViews = new Set();
 
-async function renderSentryTrend() {
+async function renderSentryTrend(force = false) {
   const card = document.getElementById('sentry-trend-card');
   if (!card) return;
 
   const series = await getTrackedSeries();
+
+  // Anti-flicker: skip the innerHTML rewrite when the trend data is identical
+  // to what's already painted. This render runs on a SEPARATE async path
+  // (getTrackedSeries hits storage/background), so without this guard it
+  // repaints the card every time it resolves — and since the card sits directly
+  // above the Gantt, that repaint reflows everything below it (the flicker from
+  // the Sentry trend down to the end of the Gantt). `force` bypasses the guard
+  // for legend-toggle re-renders that change visibility without changing data.
+  let fp;
+  try { fp = JSON.stringify(series); } catch { fp = String(Date.now()); }
+  if (!force && fp === _lastTrendFingerprint && card.innerHTML) {
+    card.style.display = '';
+    return;
+  }
+  _lastTrendFingerprint = fp;
 
   if (series.length === 0) {
     // No views tracked — setup prompt
@@ -2610,7 +2686,7 @@ function wireTrendLegend(card, series) {
       const vid = item.dataset.viewId;
       if (_hiddenTrendViews.has(vid)) _hiddenTrendViews.delete(vid);
       else _hiddenTrendViews.add(vid);
-      renderSentryTrend(); // re-render with updated visibility
+      renderSentryTrend(true); // force — legend visibility changed, not data
     });
   });
 }
@@ -2963,13 +3039,16 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
   
   const W       = 300;
   const NAME_W  = 100;
-  const PW      = W - NAME_W - 8;
+  const TOTAL_W = 30;            // reserved space on the right for the "Nh" total label
+  const PW      = W - NAME_W - 8 - TOTAL_W;
   const BAR_H   = 9;
   const ROW_H   = 20;
   const PAD_TOP = 8;
   const PAD_BOT = 28;  // room for legend
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
   
+  // Headroom: scale bars to the longest member's total so the widest bar fills
+  // PW exactly — and PW already excludes TOTAL_W, so the total label never clips.
   const maxTotal = Math.max(...members.map(m => m.total || 0), 0.1);
   const bw = h => Math.max(1, (h / maxTotal) * PW);
   const baseX = NAME_W;
@@ -2987,16 +3066,18 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
     const segSvg = segments.map(([pk, hrs]) => {
       const w = bw(hrs);
       const color = colorMap[pk] || '#94a3b8';
-      const seg = `<rect x="${segX.toFixed(1)}" y="${y1}" width="${w.toFixed(1)}" height="${BAR_H}" fill="${color}" rx="2" title="${pk}: ${hrs}h"/>`;
+      // SVG <title> child = real native tooltip on hover (project + hours +
+      // who). Unlike a title="" attribute on <rect>, this is honoured by browsers.
+      const seg = `<rect x="${segX.toFixed(1)}" y="${y1}" width="${w.toFixed(1)}" height="${BAR_H}" fill="${color}" rx="2">`
+                + `<title>${escapeHtml(m.name || '')} — ${escapeHtml(pk)}: ${hrs}h</title></rect>`;
       segX += w;
       return seg;
     }).join('');
     
-    // Small gap between segments
     rows += `
       <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="var(--text)" font-size="9.5" font-family="system-ui">${displayName}</text>
       ${segSvg}
-      <text x="${segX + 3}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="var(--text)" font-size="9" font-family="system-ui">${m.total}h</text>`;
+      <text x="${(segX + 3).toFixed(1)}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="var(--text)" font-size="9" font-family="system-ui">${m.total}h</text>`;
   });
   
   // X-axis grid

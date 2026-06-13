@@ -18,9 +18,29 @@ function generateAlertId(ruleId) {
   return `${ruleId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function mkAlert(ruleId, severity, message, evidenceLink = '#sprint-health') {
-  return { id: generateAlertId(ruleId), ruleId, severity, message, evidenceLink,
-           createdAt: Date.now(), acknowledged: false };
+/**
+ * Build an alert.
+ * @param {string} ruleId
+ * @param {string} severity   'high' | 'medium' | 'low'
+ * @param {string} message    one-line summary shown in the compact header
+ * @param {Object} [extra]
+ * @param {string} [extra.evidenceLink]  in-app anchor (default #sprint-health)
+ * @param {string} [extra.detail]        longer description shown when expanded
+ * @param {string[]} [extra.bullets]     bullet lines shown when expanded
+ * @param {string[]} [extra.tickets]     Jira keys → rendered as clickable links
+ */
+function mkAlert(ruleId, severity, message, extra = {}) {
+  const {
+    evidenceLink = '#sprint-health',
+    detail  = '',
+    bullets = [],
+    tickets = [],
+  } = extra;
+  return {
+    id: generateAlertId(ruleId), ruleId, severity, message,
+    evidenceLink, detail, bullets, tickets,
+    createdAt: Date.now(), acknowledged: false,
+  };
 }
 
 // ── RULE 1: sprint_goal_at_risk (enhanced) ────────────────────────────────
@@ -147,7 +167,15 @@ export function dueDateRisk(state) {
           `2 working days (${pts} pts) not yet done: ${keys}${more}.`;
   }
 
-  return mkAlert('due_date_risk', overdue.length > 0 ? 'high' : 'medium', msg);
+  const bullets = atRisk.map(s => {
+    const od = new Date(s.dueDate) < today;
+    return `${s.key} · ${s.points || 0}pt · ${od ? 'overdue' : 'due'} ${s.dueDate}${s.assignee ? ' · ' + s.assignee : ' · unassigned'}`;
+  });
+  return mkAlert('due_date_risk', overdue.length > 0 ? 'high' : 'medium', msg, {
+    detail: `${atRisk.length} ticket${atRisk.length > 1 ? 's' : ''} at risk (${pts} pts total). Overdue items have a due date before today; imminent items are due within the next 2 working days.`,
+    bullets,
+    tickets: atRisk.map(s => s.key),
+  });
 }
 
 // ── RULE 5: unassigned_work ───────────────────────────────────────────────
@@ -173,7 +201,12 @@ export function unassignedWork(state) {
 
   return mkAlert('unassigned_work', severity,
     `${unassigned.length} unassigned ticket${unassigned.length > 1 ? 's' : ''}` +
-    ` (${pts} pts) in ${sp.name}: ${keys}${more}.`
+    ` (${pts} pts) in ${sp.name}: ${keys}${more}.`,
+    {
+      detail: `Open, pointed tickets with no assignee (${pts} pts). Assigning early keeps the burndown attributable and avoids work falling through the cracks.`,
+      bullets: unassigned.map(s => `${s.key} · ${s.points || 0}pt · ${s.status || 'open'}`),
+      tickets: unassigned.map(s => s.key),
+    }
   );
 }
 
@@ -194,7 +227,12 @@ export function reopenedTickets(state) {
 
   return mkAlert('reopened_tickets', 'medium',
     `${reopened.length} ticket${reopened.length > 1 ? 's' : ''} reopened this sprint` +
-    ` (${pts} pts of potential rework): ${keys}${more}. Check for quality or spec issues.`
+    ` (${pts} pts of potential rework): ${keys}${more}.`,
+    {
+      detail: `These tickets reached Done earlier this sprint but are open again — usually a sign of quality or spec issues. ${pts} pts of potential rework.`,
+      bullets: reopened.map(s => `${s.key} · ${s.points || 0}pt · now ${s.status || 'reopened'}${s.assignee ? ' · ' + s.assignee : ''}`),
+      tickets: reopened.map(s => s.key),
+    }
   );
 }
 
@@ -220,8 +258,12 @@ export function sentryTrendSpike(state) {
 
   return mkAlert('sentry_trend_spike', worst.spike.delta >= 20 ? 'high' : 'medium',
     `Sentry spike: ${details}. ${worst.v.label} rose from ${worst.spike.prevCount}` +
-    ` → ${worst.v.count}${pctStr}. Investigate error trends.`,
-    '#reliability'
+    ` → ${worst.v.count}${pctStr}.`,
+    {
+      evidenceLink: '#reliability',
+      detail: 'Day-over-day error count increase across one or more Sentry views.',
+      bullets: spikes.map(x => `${x.v.label}: ${x.spike.prevCount} → ${x.v.count} (+${x.spike.delta})`),
+    }
   );
 }
 
@@ -290,4 +332,43 @@ export function mergeAlerts(existingAlerts, newAlerts) {
     merged.unshift(a);
   }
   return merged.slice(0, 50);
+}
+
+/**
+ * Local YYYY-MM-DD for "today" (snooze granularity is one calendar day).
+ */
+export function todayKey(now = new Date()) {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Tomorrow's YYYY-MM-DD — an alert snoozed today reappears tomorrow (if its
+ * condition still holds). Snooze is a one-day reprieve, not a permanent dismiss.
+ */
+export function tomorrowKey(now = new Date()) {
+  const t = new Date(now);
+  t.setDate(t.getDate() + 1);
+  return todayKey(t);
+}
+
+/**
+ * Filter alerts by the snooze map: hide an alert whose ruleId is snoozed until
+ * a date strictly after today. Once the snooze date arrives, the alert is shown
+ * again (re-evaluated fresh by checkAlerts on the next data refresh).
+ *
+ * @param {Object[]} alertList
+ * @param {Object<string,string>} snoozeMap  { ruleId: 'YYYY-MM-DD' }
+ * @param {Date} [now]
+ */
+export function visibleAlerts(alertList, snoozeMap = {}, now = new Date()) {
+  const today = todayKey(now);
+  return (alertList || []).filter(a => {
+    if (a.acknowledged) return false;
+    const until = snoozeMap[a.ruleId];
+    if (!until) return true;
+    return today >= until; // snooze expired (today is the reappear day or later)
+  });
 }

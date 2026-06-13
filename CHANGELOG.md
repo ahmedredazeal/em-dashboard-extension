@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.8.5 (2026-06-13) — Alert redesign, Time Logged fix, Sentry-trend flicker
+
+**1. Alerts redesigned.**
+- No more click-to-dismiss (too easy to lose an alert by accident). Each alert
+  now has an explicit × button that **snoozes it until tomorrow** — it stays
+  hidden for the rest of today and reappears tomorrow only if the condition
+  still holds (re-evaluated fresh on the next data refresh). Snoozes are keyed
+  by rule, persisted in storage, and the toolbar badge counts only visible
+  (non-snoozed, non-acknowledged) alerts.
+- **Compact header + expandable detail.** The header shows severity, time, and
+  the one-line summary; clicking expands a detail section with a fuller
+  description, bullet breakdown, and **clickable ticket links** that open each
+  issue in Jira. Ticket links don't trigger expand/snooze.
+- Rules (due-date risk, unassigned work, reopened tickets, Sentry spike) now
+  emit structured `detail` / `bullets` / `tickets` so the expandable view is
+  populated.
+
+**2. Time Logged chart — top bar no longer clipped + hover.**
+The longest member's bar now scales to a width that reserves room for the "Nh"
+total label on the right, so it never clips at the card edge. Each project
+segment shows a native tooltip on hover — "Name — PROJECT: Nh" (e.g.
+"Sara — ATH: 6.5h"), via an SVG `<title>` child (a `title=""` attribute on
+`<rect>` is ignored by browsers).
+
+**3. Sentry trend → Gantt flicker fixed.**
+`renderSentryTrend()` rewrote the card's innerHTML every time it resolved — and
+it runs on a separate async path (storage/background round-trip) from the main
+render, so an unchanged trend still repainted, reflowing everything below it
+(down through the Gantt). It now fingerprints the series and skips the rewrite
+when the data is identical; legend-visibility toggles pass `force` to bypass.
+
+**Bonus robustness:** `sentryDayOverDaySpike` tolerated only `{date}` samples;
+a `{day}` sample threw on `localeCompare` and the rule's try/catch silently
+swallowed it — so the Sentry spike alert never fired in some states. Now
+tolerates both shapes. (Surfaced a real third demo alert.) 12 suites green.
+
+---
+
 ## v2.8.4 (2026-06-13) — Gantt: per-subtask hover tooltip
 
 Child (subtask) bars in the Gantt now show their OWN tooltip on hover —

@@ -186,5 +186,50 @@ const sentryStateQuiet = {
 };
 test('small Sentry delta → null', () => assertNull(sentryTrendSpike(sentryStateQuiet)));
 
+// ── Structured alert fields (compact + expandable UI) ──────────────────────
+import { visibleAlerts, todayKey, tomorrowKey } from '../src/alerts.js';
+
+test('dueDateRisk carries tickets + bullets for the expandable detail', () => {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const past  = new Date(today); past.setDate(past.getDate() - 2);
+  const iso = d => d.toISOString().slice(0,10);
+  const a = dueDateRisk({
+    settings: { ui: { workingDays:[0,1,2,3,4] } },
+    currentSprint: { name:'S', stories: [
+      { key:'HRM-1', points:3, statusCategory:'new', dueDate: iso(past), assignee:'Ali' },
+    ] }
+  });
+  if (!a) throw new Error('expected an alert');
+  if (!a.tickets.includes('HRM-1')) throw new Error('tickets[] missing the key');
+  if (!a.bullets.length) throw new Error('bullets[] missing');
+  if (!a.detail) throw new Error('detail missing');
+});
+
+console.log('\nSnooze model');
+test('tomorrowKey is the day after todayKey', () => {
+  const now = new Date('2026-06-13T10:00:00');
+  if (todayKey(now) !== '2026-06-13') throw new Error('todayKey wrong: ' + todayKey(now));
+  if (tomorrowKey(now) !== '2026-06-14') throw new Error('tomorrowKey wrong: ' + tomorrowKey(now));
+});
+test('an alert snoozed until tomorrow is hidden today, shown tomorrow', () => {
+  const now = new Date('2026-06-13T10:00:00');
+  const list = [{ id:'x1', ruleId:'scope_creep', severity:'medium', acknowledged:false }];
+  const snoozes = { scope_creep: '2026-06-14' };
+  // Today: hidden
+  if (visibleAlerts(list, snoozes, now).length !== 0) throw new Error('should be hidden today');
+  // Tomorrow: visible again
+  const tmrw = new Date('2026-06-14T09:00:00');
+  if (visibleAlerts(list, snoozes, tmrw).length !== 1) throw new Error('should reappear tomorrow');
+});
+test('acknowledged alerts never visible; unsnoozed alerts visible', () => {
+  const now = new Date('2026-06-13T10:00:00');
+  const list = [
+    { id:'a', ruleId:'r1', acknowledged:true },
+    { id:'b', ruleId:'r2', acknowledged:false },
+  ];
+  const v = visibleAlerts(list, {}, now);
+  if (v.length !== 1 || v[0].id !== 'b') throw new Error('expected only the unacknowledged, unsnoozed alert');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail > 0 ? 1 : 0);

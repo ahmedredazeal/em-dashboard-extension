@@ -377,11 +377,14 @@ export function sentryDayOverDaySpike(
   deltaThreshold = 10, pctThreshold = 25
 ) {
   if (!trendSamples || trendSamples.length === 0) return null;
-  const sorted = [...trendSamples].sort((a, b) => a.date.localeCompare(b.date));
+  // Tolerate both {date} and {day} sample shapes, and guard against missing
+  // keys — a malformed sample must not throw and silently kill this rule.
+  const keyOf = s => s.date || s.day || '';
+  const sorted = [...trendSamples].sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
   const last   = sorted[sorted.length - 1];
   const delta  = currentCount - last.count;
   if (delta <= 0) return null;
   const pct = last.count > 0 ? Math.round(delta / last.count * 100) : null;
   if (delta < deltaThreshold && (pct === null || pct < pctThreshold)) return null;
-  return { delta, pctChange: pct, prevCount: last.count, prevDate: last.date };
+  return { delta, pctChange: pct, prevCount: last.count, prevDate: keyOf(last) };
 }

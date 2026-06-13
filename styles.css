@@ -501,12 +501,7 @@ body.privacy-on .privacy-banner {
   border-left: 3px solid;
   border-radius: var(--radius);
   margin-bottom: 8px;
-  cursor: pointer;
   transition: background 0.15s;
-}
-
-.alert-item:hover {
-  background: var(--bg-secondary);
 }
 
 .alert-item.severity-high {
@@ -525,11 +520,35 @@ body.privacy-on .privacy-banner {
   opacity: 0.5;
 }
 
+/* Row: main (clickable to expand) + close button */
+.alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.alert-main {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.alert-main[role="button"]:hover {
+  background: var(--bg-secondary);
+}
+
 .alert-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   margin-bottom: 4px;
+}
+
+.alert-chevron {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 .alert-message {
@@ -541,7 +560,74 @@ body.privacy-on .privacy-banner {
 .alert-time {
   font-size: 10px;
   color: var(--text-muted);
-  margin-top: 4px;
+}
+
+.alert-close {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.alert-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+/* Expandable detail */
+.alert-detail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.alert-detail-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.alert-bullets {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.alert-bullets li {
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.alert-tickets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.alert-ticket-link {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--primary, #6366f1);
+  text-decoration: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.alert-ticket-link:hover {
+  background: rgba(99, 102, 241, 0.22);
+  text-decoration: underline;
 }
 
 /* ========== Privacy mode masking ========== */

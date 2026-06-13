@@ -840,13 +840,19 @@ async function fetchSentryData(settings) {
 /**
  * Update toolbar badge with unacknowledged alert count
  */
-async function updateBadge(alertList) {
-  const unacknowledged = alertList.filter(a => !a.acknowledged).length;
-  
-  if (unacknowledged === 0) {
+async function updateBadge(alertList, snoozeMap = null) {
+  // Count only alerts that are actually visible (not acknowledged, not snoozed)
+  let snoozes = snoozeMap;
+  if (snoozes === null) {
+    const r = await chrome.storage.local.get(['alertSnoozes']);
+    snoozes = r.alertSnoozes || {};
+  }
+  const count = alerts.visibleAlerts(alertList, snoozes).length;
+
+  if (count === 0) {
     await chrome.action.setBadgeText({ text: '' });
   } else {
-    await chrome.action.setBadgeText({ text: String(unacknowledged) });
+    await chrome.action.setBadgeText({ text: String(count) });
     await chrome.action.setBadgeBackgroundColor({ color: '#dc2626' }); // red
   }
 }
@@ -979,6 +985,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
+  if (message.type === 'snooze-alert') {
+    snoozeAlert(message.ruleId).then(() => {
+      sendResponse({ success: true });
+    }).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  }
 });
 
 /**
@@ -994,4 +1009,19 @@ async function acknowledgeAlert(alertId) {
     await chrome.storage.local.set({ alerts: alertList });
     await updateBadge(alertList);
   }
+}
+
+/**
+ * Snooze an alert by ruleId until tomorrow. It stays hidden for the rest of
+ * today and reappears tomorrow only if its condition still holds (checkAlerts
+ * re-fires it on the next data refresh). Keyed by ruleId so a refreshed alert
+ * with a new random id stays snoozed.
+ */
+async function snoozeAlert(ruleId) {
+  const result = await chrome.storage.local.get(['alertSnoozes', 'alerts']);
+  const snoozes = result.alertSnoozes || {};
+  snoozes[ruleId] = alerts.tomorrowKey();
+  await chrome.storage.local.set({ alertSnoozes: snoozes });
+  // Recompute badge against the snooze map
+  await updateBadge(result.alerts || [], snoozes);
 }
