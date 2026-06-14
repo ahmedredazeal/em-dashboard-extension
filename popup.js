@@ -1190,7 +1190,20 @@ function renderInsights() {
     timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
       Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
   } else if ((timesheetMembers || []).length > 0) {
-    timesheetHtml = buildTimesheetSVG(timesheetMembers);
+    // Capacity reference (sprint mode only): expected hours per person so far =
+    // elapsed working days × 8h. Drives the "who's over capacity?" marker.
+    let capacityHours = 0;
+    if (currentMode === 'sprint' && state.currentSprint?.startDate) {
+      const wds = state.settings?.ui?.workingDays || [0,1,2,3,4];
+      const start = new Date(state.currentSprint.startDate.slice(0,10));
+      const today = new Date(); today.setHours(0,0,0,0);
+      let elapsed = 0;
+      for (let d = new Date(start); d <= today; d.setDate(d.getDate()+1)) {
+        if (wds.includes(d.getDay())) elapsed++;
+      }
+      capacityHours = elapsed * 8;
+    }
+    timesheetHtml = buildTimesheetSVG(timesheetMembers, capacityHours);
   } else {
     timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet — open the panel daily to populate.</div>';
   }
@@ -1324,12 +1337,17 @@ function renderInsights() {
         </div>
         <button id="gantt-toggle-btn" style="background:none;border:none;color:var(--text-muted);
           cursor:pointer;font-size:11px;padding:2px 4px;line-height:1;" title="Toggle Gantt">▼</button>
+        <button id="gantt-expand-btn" style="background:none;border:none;color:var(--text-muted);
+          cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;" title="Open in full tab / export PDF">⤢</button>
       </div>
       <div id="gantt-container" style="overflow-x:auto;margin-top:8px;">${ganttInner}</div>
     </div>`;
   }
 
   // ── Milestone summary (compact, above filters) ───────────────────────
+  // Shows each milestone with an explicit stacked breakdown — Done / In
+  // Progress / Open as labelled count rows (like the support board), not just
+  // a thin done-vs-rest bar. The full clickable cards live below.
   const msData = state.milestonesData || [];
   let milestoneSummaryHtml = '';
   if (msData.length > 0) {
@@ -1339,15 +1357,25 @@ function renderInsights() {
       const tickets = isEngineerMe
         ? allTickets.filter(t => t.assigneeAccountId === state.currentUser?.accountId)
         : allTickets;
-      const { total, done, pct } = milestoneCounts(tickets);
+      const { total, done, inProg, open, pct } = milestoneCounts(tickets);
       if (total === 0 && !isEngineerMe) return ''; // hide empty milestones in squad mode
 
       const pctColor = pct === 100 ? '#34d399' : pct >= 50 ? '#fbbf24' : 'var(--text-muted)';
 
-      // Same status breakdown component the support board uses — shows the
-      // real Done / In Progress / Open distribution, not just a done-vs-rest bar.
+      // Stacked breakdown rows: count · label, colour-coded, under each other.
+      const brk = [
+        { n: done,   label: 'Done',        color: '#22c55e' },
+        { n: inProg, label: 'In Progress', color: '#3b82f6' },
+        { n: open,   label: 'Open',        color: 'var(--text-muted)' },
+      ].filter(r => r.n > 0).map(r => `
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.7;">
+          <span style="width:7px;height:7px;border-radius:2px;background:${r.color};flex-shrink:0;"></span>
+          <span style="color:var(--text);font-weight:600;min-width:14px;">${r.n}</span>
+          <span style="color:var(--text-muted);">${r.label}</span>
+        </div>`).join('');
+
       return `
-        <div data-milestone-idx="${idx}" style="padding:6px 0;cursor:pointer;
+        <div data-milestone-idx="${idx}" style="padding:7px 0;cursor:pointer;
           border-bottom:1px solid var(--border,rgba(255,255,255,0.04));"
           title="Click to expand milestone details">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
@@ -1355,7 +1383,7 @@ function renderInsights() {
               text-overflow:ellipsis;white-space:nowrap;">🎯 ${escapeHtml(ms.name || ms.label)}</span>
             <span style="font-size:10px;font-weight:600;color:${pctColor};flex-shrink:0;">${done}/${total} · ${pct}%</span>
           </div>
-          ${collapsedBoardSummary(tickets, false)}
+          ${brk || '<div style="font-size:11px;color:var(--text-muted);">No tickets yet</div>'}
         </div>`;
     }).filter(Boolean).join('');
 
@@ -1363,7 +1391,7 @@ function renderInsights() {
       milestoneSummaryHtml = `
       <div style="margin-top:8px;padding:8px 12px;background:var(--surface,#11131c);
         border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
-        <div style="font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:4px;">MILESTONES</div>
+        <div class="section-label-std" style="margin-bottom:4px;">MILESTONES</div>
         <div id="milestone-summary-rows">${msRows}</div>
       </div>`;
     }
@@ -1431,10 +1459,34 @@ function renderInsights() {
   const ganttBtn    = document.getElementById('gantt-toggle-btn');
   const ganttCont   = document.getElementById('gantt-container');
   if (ganttHeader && ganttCont) {
-    ganttHeader.addEventListener('click', () => {
+    ganttHeader.addEventListener('click', (e) => {
+      // Don't toggle when the expand button (inside the header) is clicked
+      if (e.target.closest('#gantt-expand-btn')) return;
       const collapsed = ganttCont.style.display === 'none';
       ganttCont.style.display = collapsed ? 'block' : 'none';
       if (ganttBtn) ganttBtn.textContent = collapsed ? '▼' : '▲';
+    });
+  }
+  // Expand to full tab + PDF: stash the gantt payload, open the tab page.
+  const ganttExpandBtn = document.getElementById('gantt-expand-btn');
+  if (ganttExpandBtn) {
+    ganttExpandBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await chrome.storage.local.set({ ganttTabState: {
+          sprint: ganttSprint,
+          stories: ganttStories,
+          subtasks: ganttSubtasks,
+          workingDays,
+          accountId: ganttAccountId,
+          scope: isEngineerMe ? 'me' : 'squad',
+          projectName: state.settings?.squad?.projectKey || state.currentSprint?.boardName || '',
+          jiraBaseUrl: state.settings?.jira?.baseUrl || '',
+        }});
+        chrome.tabs.create({ url: chrome.runtime.getURL('gantt-tab.html') });
+      } catch (err) {
+        console.error('[popup] Failed to open Gantt tab:', err);
+      }
     });
   }
   
@@ -3026,7 +3078,7 @@ function buildBurndownSVG(bd) {
   return `<div class="bd-wrap" style="position:relative;">${svg}<div class="bd-tooltip" style="display:none;position:absolute;z-index:50;pointer-events:none;background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.15));border-radius:6px;padding:5px 9px;font-size:11px;line-height:1.35;color:var(--text);white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.45);"></div></div>`;
 }
 
-function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
+function buildTimesheetSVG(members, capacityHours = 0) {
   if (!members || members.length === 0) return '';
   
   // Collect all project keys across all members
@@ -3043,16 +3095,19 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
   const PAD_BOT = 28;  // room for legend
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
   
-  // Headroom: scale bars to the longest member's total so the widest bar fills
-  // PW exactly — and PW already excludes TOTAL_W, so the total label never clips.
-  const maxTotal = Math.max(...members.map(m => m.total || 0), 0.1);
+  // Scale so the longest bar OR the capacity line (whichever is larger) fits.
+  const maxLogged = Math.max(...members.map(m => m.total || 0), 0.1);
+  const maxTotal  = capacityHours > 0 ? Math.max(maxLogged, capacityHours) : maxLogged;
   const bw = h => Math.max(1, (h / maxTotal) * PW);
   const baseX = NAME_W;
   
   let rows = '';
   members.forEach((m, i) => {
     const y1 = PAD_TOP + i * ROW_H;
-    const displayName = (m.name || '').length > 14 ? m.name.slice(0, 13) + '…' : (m.name || '');
+    const over = capacityHours > 0 && (m.total || 0) > capacityHours;
+    const nameRaw = m.name || '';
+    const displayName = (over ? '⚠ ' : '') + (nameRaw.length > 12 ? nameRaw.slice(0, 11) + '…' : nameRaw);
+    const nameColor = over ? '#f59e0b' : 'var(--text)';
     
     // Stacked segments left to right
     let segX = baseX;
@@ -3071,10 +3126,11 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
       return seg;
     }).join('');
     
+    const totalColor = over ? '#f59e0b' : 'var(--text)';
     rows += `
-      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="var(--text)" font-size="9.5" font-family="system-ui">${displayName}</text>
+      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${nameColor}" font-size="9.5" font-family="system-ui">${displayName}</text>
       ${segSvg}
-      <text x="${(segX + 3).toFixed(1)}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="var(--text)" font-size="9" font-family="system-ui">${m.total}h</text>`;
+      <text x="${(segX + 3).toFixed(1)}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="${totalColor}" font-size="9" font-family="system-ui" font-weight="${over ? '600' : 'normal'}">${m.total}h</text>`;
   });
   
   // X-axis grid
@@ -3087,6 +3143,15 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
     grid += `<text x="${x}" y="${H - PAD_BOT + 10}" text-anchor="middle" fill="var(--text-muted)" font-size="9" font-family="system-ui">${label}h</text>`;
   }
   const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="var(--border)" stroke-width="1"/>`;
+  
+  // Capacity reference line — "who's over capacity?" — dashed amber vertical at
+  // expected hours-so-far; bars/names past it are flagged ⚠ above.
+  let capLine = '';
+  if (capacityHours > 0) {
+    const cx = (baseX + (capacityHours / maxTotal) * PW).toFixed(1);
+    capLine = `<line x1="${cx}" y1="${PAD_TOP - 2}" x2="${cx}" y2="${H - PAD_BOT}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/>`
+            + `<text x="${cx}" y="${PAD_TOP - 4}" text-anchor="middle" fill="#f59e0b" font-size="8" font-family="system-ui">cap ${capacityHours}h</text>`;
+  }
   
   // Legend (up to 4 projects shown inline, rest omitted)
   const ly = H - 10;
@@ -3105,8 +3170,8 @@ function buildTimesheetSVG(members, _w1Lbl, _w2Lbl) {
       background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.12));
       border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text,#e2e8f0);white-space:nowrap;
       box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:translate(-50%,-100%);"></div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">
-    ${grid}${ax}${rows}${legendSvg}</svg>
+    <svg viewBox="0 0 ${W} ${H + 6}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    ${grid}${ax}${capLine}${rows}${legendSvg}</svg>
   </div>`;
 }
 
@@ -3198,6 +3263,20 @@ function ticketStatusIcon(cat){ return ({done:'✓',indeterminate:'●',new:'○
 function priorityDot(p){ return PRIORITY_DOT[(p||'medium').toLowerCase()]||PRIORITY_DOT.medium; }
 
 /** Render one Jira ticket row — clickable, with priority dot */
+/**
+ * Consistent empty-state markup (stability v2.8.7).
+ * @param {string} msg     one-line "nothing to show" message
+ * @param {string} [icon]  emoji/glyph
+ * @param {string} [action] optional muted action hint
+ */
+function emptyState(msg, icon = '—', action = '') {
+  return `<div class="empty-state">
+    <div class="empty-icon">${icon}</div>
+    <div class="empty-msg">${escapeHtml(msg)}</div>
+    ${action ? `<div class="empty-action">${escapeHtml(action)}</div>` : ''}
+  </div>`;
+}
+
 function renderTicketRow(story, jiraBaseUrl, extraMeta = '') {
   const url = jiraBaseUrl ? `${jiraBaseUrl.replace(/\/$/,'')}/browse/${story.key}` : null;
   const duePart = story.dueDate ? formatDueDate(story.dueDate, story.statusCategory) : '';

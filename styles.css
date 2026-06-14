@@ -57,6 +57,21 @@
   --screen-padding: 14px 16px;
   --gap-cards: 12px;
   --gap-section: 28px;
+
+  /* ── Design tokens (stability v2.8.7) ──────────────────────────────
+     A small, consistent type scale + spacing rhythm. Use these via the
+     helper classes below instead of ad-hoc inline styles, so visual
+     hierarchy is learnable and changes are one-line. Inline styles are
+     being migrated to these section by section (tracked in STABILITY-AUDIT). */
+  --fs-caption: 10px;   /* timestamps, meta, axis labels */
+  --fs-label:   11px;   /* section headers, pills */
+  --fs-body:    12px;   /* default body text */
+  --fs-subhead: 13px;   /* card titles */
+  --fs-head:    16px;   /* screen titles */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
 }
 
 /* Dark theme overrides */
@@ -1179,4 +1194,34 @@ body.privacy-on [data-privacy-mask]::after {
   opacity: 0.4;
   pointer-events: none;
   user-select: none;
+}
+
+/* ── Reusable section header (stability v2.8.7) ──────────────────────
+   Replaces the ad-hoc "10/11px uppercase muted" headers scattered as
+   inline styles. One class → consistent hierarchy. */
+.section-label-std {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* ── Reusable empty state (stability v2.8.7) ─────────────────────────
+   Consistent "nothing to show" treatment so empty sections read as
+   intentional, not broken. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon { font-size: 18px; opacity: 0.7; }
+.empty-state .empty-msg  { font-size: var(--fs-body); }
+.empty-state .empty-action {
+  font-size: var(--fs-caption);
+  color: var(--primary, #6366f1);
 }

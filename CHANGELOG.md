@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.8.7 (2026-06-13) — Stability phase: UX + data-rep enhancements (Hat 1 & 2)
+
+First execution pass of the stability audit (docs/STABILITY-AUDIT.md). Hat 3
+(architecture refactors) is deferred to the next version by design.
+
+**1.2 — Milestone summary breakdown.** The Insights milestone summary now shows
+an explicit stacked Done / In Progress / Open breakdown (count · label, colour
+-coded, under each other) instead of a thin done-vs-rest bar — the support
+-board style you asked for. The full clickable cards below are unchanged.
+
+**1.3 / 1.4 — Design tokens + empty-state pattern (foundation).** Added a small
+type scale (--fs-*) and spacing scale (--space-*), a reusable `.section-label
+-std` header class, and a `.empty-state` component + `emptyState()` helper. The
+milestone summary is migrated as the reference; the bulk inline-style migration
+(238 occurrences) is tracked as a Hat-3 item to do section by section.
+
+**1.5 — Gantt full-tab view + PDF.** A new ⤢ button on the Sprint Timeline
+header opens the Gantt in a full-width browser tab (gantt-tab.html), with a
+"Save as PDF / Print" button (A3 landscape). Mirrors the Sprint Planner
+extension's gantt-print pattern: the payload is stashed in storage and the tab
+renders the same buildGanttSVG at full width with a wider label column.
+Click-through to Jira works in the tab too.
+
+**2.2 — Timesheet "who's over capacity?"** The Time Logged chart (sprint mode)
+now draws a dashed amber capacity reference line at expected hours-so-far
+(elapsed working days × 8h). Anyone past it is flagged with a ⚠ and amber name
++ total. Answers the "who's over capacity?" question at a glance.
+
+**2.3 — parked** (estimate-vs-actual unit mismatch) — revisit in bug-charts
+ideation. **2.8 — deferred** (chart captions) — avoiding bulk for now.
+
+All 12 suites green; pre-flight passes.
+
+---
+
 ## v2.8.6 (2026-06-13) — Time Logged hover, alert fields on load, privacy button removed
 
 **1. Time Logged — proper hover tooltip.** v2.8.5 used a native SVG `<title>`,
