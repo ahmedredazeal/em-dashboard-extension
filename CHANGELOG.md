@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.9.2 (2026-06-14) — Stability S-3 step 2: extract timesheet builder
+
+Second step of the incremental popup.js de-monolithing (S-3).
+
+- **New `src/render/timesheet-svg.js`** exports `buildTimesheetSVG`. Pure: takes
+  the aggregated member array + optional capacity, returns HTML; no DOM access.
+  Imports `assignProjectColors` from worklog-aggregator. The hover wiring
+  (`wireTimesheetHover`) stays in popup.js and binds the `.ts-seg` / `.ts
+  -tooltip` / `.ts-wrap` elements the builder emits — DOM contract unchanged.
+- **popup.js** drops ~100 lines (the inline builder) and imports the module.
+  Now ~3,340 lines (was 3,457 at the start of Hat 3).
+- **New `tests/timesheet-svg.test.js`** (10 tests): empty guard, segment count
+  + hover attrs, total labels, capacity line + over-capacity ⚠ flagging, and
+  ampersand escaping.
+
+The module uses a pure HTML-escape that also escapes quotes (the old popup
+escapeHtml did not); for all realistic inputs — engineer names, Jira project
+keys — output is byte-identical (verified vs HEAD), and where a value contains a
+quote the pure version is strictly safer. 15 suites green.
+
+Next S-3 step: extract the donut / progress builders.
+
+---
+
 ## v2.9.1 (2026-06-14) — Stability S-3 step 1: extract burndown builder
 
 First step of the incremental popup.js de-monolithing (S-3). The burndown SVG
