@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.9.3 (2026-06-14) — My Tasks title inside card (layout consistency)
+
+The "My Tasks" heading was the only section title rendered outside a card
+wrapper — a lone div sitting above the progress circles. All other Insights
+sections (burndown, sentry trend, milestones, timesheet) have their title
+inside a surface card. Fixed: the progress-circles block is now wrapped in
+the same card pattern, and the title uses `.section-label-std` (the design
+token class added in v2.8.7) instead of ad-hoc inline styles.
+
+---
+
 ## v2.9.2 (2026-06-14) — Stability S-3 step 2: extract timesheet builder
 
 Second step of the incremental popup.js de-monolithing (S-3).

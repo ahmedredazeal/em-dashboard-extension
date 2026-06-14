@@ -1755,15 +1755,17 @@ function renderEngineerProgressCircles() {
 
   row.style.display = '';
   row.innerHTML = `
-    <div style="font-size:10px;font-weight:600;color:var(--text-muted);
-      letter-spacing:0.3px;margin:2px 0 4px;text-transform:uppercase;">My Tasks</div>
-    <div class="progress-circles-row">
-      ${sprintPts   > 0 ? makeCard(sprintDonutHtml,  'Sprint') : ''}
-      ${supportTotal > 0 ? makeCard(supportDonutHtml, 'Support') : ''}
-      <div class="progress-circles-legend">
-        <span class="pcl-dot" style="background:${C_DONE}"></span>Done
-        <span class="pcl-dot" style="background:${C_PROG}"></span>In Progress
-        <span class="pcl-dot" style="background:${C_OPEN}"></span>Open
+    <div style="padding:8px 12px;background:var(--surface,#11131c);
+      border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;">
+      <div class="section-label-std" style="margin-bottom:6px;">My Tasks</div>
+      <div class="progress-circles-row">
+        ${sprintPts   > 0 ? makeCard(sprintDonutHtml,  'Sprint') : ''}
+        ${supportTotal > 0 ? makeCard(supportDonutHtml, 'Support') : ''}
+        <div class="progress-circles-legend">
+          <span class="pcl-dot" style="background:${C_DONE}"></span>Done
+          <span class="pcl-dot" style="background:${C_PROG}"></span>In Progress
+          <span class="pcl-dot" style="background:${C_OPEN}"></span>Open
+        </div>
       </div>
     </div>`;
 }

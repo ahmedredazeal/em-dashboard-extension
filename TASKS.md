@@ -41,6 +41,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.9.3 | My Tasks title moved inside card wrapper (layout consistency). |
 | v2.9.2 | S-3 step 2: timesheet builder → src/render/timesheet-svg.js (pure + tested). |
 | v2.9.1 | S-3 step 1: burndown builder → src/render/burndown-svg.js (pure + tested). |
 | v2.9.0 | Hat 3 foundation: deleted chart-svg.js (S-1), domain-constants.js (S-2), metrics.js tests (S-9). |
