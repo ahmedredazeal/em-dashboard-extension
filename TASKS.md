@@ -23,6 +23,9 @@ _Nothing currently in progress._
 | ~~6~~ | ~~T-P6-1~~ | ~~Splash screen with logo + animation~~ | — | Discuss style, timing, skip-on-reload when we reach this phase |
 | Charts | T-BR-1 | Bug reports charts (ideation pending) | L | Define what identifies a bug in Jira; incoming-vs-resolved, open-bug age, reopen rate, per-component; EM trend + engineer "my bugs". Planned alongside Gantt full-tab. |
 | Gantt | T-GT-1 | Open Gantt in full-tab view + export to PDF | M | Like Sprint Planner's expanded view (gantt-print.html pattern); button in the Gantt header → new tab with wide layout; "Save as PDF" via print stylesheet. Pair with T-BR-1. |
+| Distribution | T-DIST-1 | Auto-update from latest GitHub release (controlled, not every sub-version) | L | Self-update so users don't get a zip each time. KEY CONSTRAINT: only *promoted* versions reach users, not every patch. Chrome Web Store does this natively (the proper path) — or a self-hosted `update_url` manifest + a "stable channel" pointer file the extension polls. Security: must be signed/controlled so we can't be impersonated. Needs design discussion — several approaches with very different tradeoffs. |
+| UX | T-DND-1 | Drag-and-drop reorder of Insights cards | M | Let users sort the Insights sections to taste; persist order in storage. Build AFTER the S-3 render extraction + a render scheduler (S-4), since reorder needs sections to be independent, individually-rendered units — doing it before the refactor would fight the current monolithic renderInsights. |
+| Charts | T-EBD-1 | Engineer personal burndown by due dates | M | A "my burndown" for an individual engineer driven by their tickets' due dates (not sprint commitment). Reuses src/render/burndown-svg.js (already extracted) + the existing due-date data. Scope: per-engineer remaining-work line vs an ideal line derived from due dates. |
 
 ---
 
