@@ -1,5 +1,33 @@
 # Changelog
 
+## v2.10.3 (2026-06-14) — Stability S-3 step 5: extract Sentry trend card
+
+Fifth step of the incremental popup.js de-monolithing (S-3) — the largest
+builder yet (~170 lines).
+
+- **New `src/render/sentry-trend-svg.js`** exports `buildMultiTrendCardHTML` —
+  the multi-view Sentry trend card (sparkline per tracked view, clickable
+  legend with latest count + day-over-day delta, gap shading for single-line
+  views, export dropdown, no-data prompt). Made pure by taking the hidden-view
+  Set as a parameter instead of reading popup module state; the legend
+  -visibility Set stays in popup.js and is passed in. Hover/legend/export wiring
+  stays in popup.js and binds the `.trend-point` / `.trend-legend-item` /
+  `.sentry-export-*` elements the builder emits.
+- **popup.js** drops ~173 lines. Now ~3,003 — down 454 from 3,457 at the start
+  of Hat 3 (−13%).
+- **New `tests/sentry-trend-svg.test.js`** (11 tests): legend + deltas, hidden
+  -view filtering, no-data prompt, trend points, single-line gap shading,
+  export menu.
+
+Verified byte-identical vs HEAD across 4 cases (incl. hidden-line and single
+-line-gap paths). 19 suites green.
+
+Also backlogged: T-EXP-1 (scheduled auto-export of tracked Sentry views to a
+configurable destination, append/merge) — flagged the MV3 filesystem constraint
+for a design discussion.
+
+---
+
 ## v2.10.2 (2026-06-14) — Stability S-3 step 4: extract support board chart
 
 Fourth step of the incremental popup.js de-monolithing (S-3).
