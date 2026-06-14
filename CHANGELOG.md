@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.10.5 (2026-06-14) — Stability S-3 step 7: extract personal bars chart
+
+Seventh step of the incremental popup.js de-monolithing (S-3).
+
+- **New `src/render/personal-bars-svg.js`** exports `buildPersonalBarsSVG` —
+  the engineer-mode personal hours bar chart (grouped bars per period, optional
+  estimate bar + legend, 0/mid/max y-axis with unit, x-labels that thin out when
+  dense). Pure (periods + opts in → SVG out; no DOM, no external deps). Both
+  call sites (daily + quarterly engineer views) unchanged.
+- **popup.js** drops ~85 lines. Now ~2,859 — down 598 from 3,457 at the start
+  of Hat 3 (−17%).
+- **New `tests/personal-bars-svg.test.js`** (9 tests): empty guard, actual bars,
+  estimate bars + legend, y-axis unit labels, x-label thinning (keeps last),
+  custom colours/unit.
+
+Verified byte-identical vs HEAD across 5 cases (incl. dense x-label thinning +
+custom opts). 21 suites green.
+
+Remaining S-3 candidates: collapsedBoardSummary, renderTicketRow, emptyState.
+
+---
+
 ## v2.10.4 (2026-06-14) — Stability S-3 step 6: extract estimate-vs-actual card + remove dead code
 
 Sixth step of the incremental popup.js de-monolithing (S-3). popup.js drops

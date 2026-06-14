@@ -45,6 +45,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.10.5 | S-3 step 7: personal bars chart → src/render/personal-bars-svg.js (pure + tested). |
 | v2.10.4 | S-3 step 6: estimate-vs-actual card → module; removed dead buildFocusSplitCard. |
 | v2.10.3 | S-3 step 5: Sentry trend card → src/render/sentry-trend-svg.js (pure + tested). |
 | v2.10.2 | S-3 step 4: support board chart → src/render/support-board-svg.js (pure + tested). |
