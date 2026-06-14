@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.9.1 (2026-06-14) — Stability S-3 step 1: extract burndown builder
+
+First step of the incremental popup.js de-monolithing (S-3). The burndown SVG
+builder — one of the most bug-prone renderers — is now a pure, tested module.
+
+- **New `src/render/burndown-svg.js`** exports `buildBurndownSVG`, `niceStep`,
+  and `BD_COLORS`. Pure: takes the burndown data object, returns HTML; no DOM
+  access. The hover wiring (`wireBurndownHover`) stays in popup.js and binds to
+  the `.bd-point` / `.bd-tooltip` elements the builder emits — the DOM contract
+  is unchanged.
+- **popup.js** drops ~100 lines (the inline builder + `_C` + `_niceStep`) and
+  imports the module instead.
+- **New `tests/burndown-svg.test.js`** (10 tests): nice-step axis, scope-step
+  and completion tooltips, day-0 committed text, hover-target count, and the
+  no-actual-data path.
+
+Verified **byte-identical** output against the previous inline implementation
+across with-actual and no-actual cases — zero behaviour change. 14 suites green.
+
+Next S-3 step: extract the timesheet builder.
+
+---
+
 ## v2.9.0 (2026-06-14) — Stability Hat 3 foundation (S-1, S-2, S-9)
 
 First architecture pass from docs/STABILITY-AUDIT.md. All low-risk, no

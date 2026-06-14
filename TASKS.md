@@ -41,6 +41,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.9.1 | S-3 step 1: burndown builder → src/render/burndown-svg.js (pure + tested). |
 | v2.9.0 | Hat 3 foundation: deleted chart-svg.js (S-1), domain-constants.js (S-2), metrics.js tests (S-9). |
 | v2.8.8 | Gantt header button reorder; timesheet capacity label visibility + 7h/day. |
 | v2.8.7 | Stability Hat 1&2: milestone breakdown, design tokens + empty-state foundation, Gantt full-tab+PDF, timesheet capacity line. |

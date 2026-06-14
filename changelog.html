@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.9.1</div>
+      <div class="cl-desc"><strong>Stability: burndown builder extracted.</strong> Moved the burndown chart builder out of popup.js into a pure, tested src/render/burndown-svg.js module (byte-identical output, 10 new tests). First step of the incremental popup.js de-monolithing.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v2.9.0</div>
       <div class="cl-desc"><strong>Stability foundation.</strong> Deleted dead chart-svg.js; consolidated duplicated priority/status maps into one src/domain-constants.js (fixes the missing "urgent" priority dot); added a test suite for metrics.js (every alert + burndown prediction). No behaviour change — values verified byte-identical.</div>
     </div>
