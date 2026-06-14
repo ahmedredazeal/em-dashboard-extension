@@ -1,5 +1,48 @@
 # Changelog
 
+## v2.10.0 (2026-06-14) — Sentry usage telemetry (replaces Google Sheet logging)
+
+Usage telemetry now goes to the Sentry `zealer-dashboard` project instead of a
+Google Form/Sheet. Sentry gives proper querying, grouping, retention and
+dashboards, with clean first-party identity. This is internal first-party
+telemetry about team usage of an internal tool.
+
+**New `src/usage-telemetry.js`** — pure envelope builders + a thin HTTP sender.
+No Sentry SDK: the MV3 service worker + strict `script-src 'self'` CSP make the
+browser SDK unsafe to bundle, so we build Sentry's envelope format ourselves and
+POST it from background.js (the same way we already POST to Jira/Sentry APIs).
+  - `buildUsageEnvelope` — opens, feature/section views (event_type=usage)
+  - `buildErrorEnvelope` — handled failures (event_type=error)
+  - `buildTransactionEnvelope` — performance transactions (start/end, spans)
+  - `parseDsn`, `makeEventId`, `makeSpanId`, `sendEnvelope`
+
+**Events wired** (background.js):
+  - `app_opened` — once per browser session, carries identity (email/id/name),
+    release, role + squad tags.
+  - `section_viewed` — e.g. Gantt full-tab open (`section:gantt_fulltab`).
+  - `jira.fetch` transaction — Jira fetch duration as a Sentry performance txn.
+  - `track-section` / `track-timing` message handlers for the popup to report
+    feature use and timing.
+
+Because this single project holds BOTH usage and errors, every event carries an
+`event_type` tag (`usage` | `error`) — filter with `event_type:usage` in Sentry.
+Identity is attached the sanctioned way via the event `user` field (email, Jira
+accountId, display name).
+
+**Removed:** all Google Sheet logging — the Apps Script/Form `maybeLogUsage`
+path, the `usageLoggedFor` flag, and the `docs.google.com` host permission.
+**Added** host permission `https://o164516.ingest.us.sentry.io/*`.
+
+**Tests:** `tests/usage-telemetry.test.js` (15) — DSN parsing, id formats, event
+/error/transaction envelope shape, tags, identity, measurements, timing. 17
+suites green.
+
+NOTE: live ingestion can only be confirmed by loading the extension and checking
+the Sentry project (the dev sandbox blocks outbound to the ingest host); the
+envelope format is verified against Sentry's spec and unit-tested.
+
+---
+
 ## v2.9.4 (2026-06-14) — Stability S-3 step 3: extract donut + progress bar builders
 
 Third step of the incremental popup.js de-monolithing (S-3).

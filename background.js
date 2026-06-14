@@ -10,6 +10,7 @@ import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone } from './src/parsers.js';
 import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, sprintAddDay, createdDayAfterStart } from './src/changelog-parser.js';
+import { buildUsageEnvelope, buildErrorEnvelope, buildTransactionEnvelope, sendEnvelope } from './src/usage-telemetry.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
@@ -21,72 +22,83 @@ import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } fr
 // Run data migrations on service worker init (idempotent — flagged per migration)
 runMigrations().catch(err => console.warn('[background] Migration failed:', err.message));
 
-// ── Usage logging (once per user) ────────────────────────────────────────
-// Submits a single response to a Google Form the first time a user's Jira
-// identity is known. The form is linked to a private Google Sheet, so rows
-// land there automatically. Anonymous POST (the form owner unchecked the
-// getzeal.io restriction) — no credentials live in the extension.
-// Fire-and-forget; never blocks or breaks the dashboard.
-const USAGE_ENDPOINT = 'https://docs.google.com/forms/d/e/1FAIpQLSc4bCDINiVqQRabmV50oBSdAJtJUGWZ77oRC6B_TA_pnQibrg/formResponse';
-// Form entry IDs (from the pre-filled link), one per question:
-const USAGE_FORM_FIELDS = {
-  email:       'entry.470977998',
-  displayName: 'entry.841881450',
-  accountId:   'entry.1216429686',
-  role:        'entry.459638448',
-  version:     'entry.1522469348',
-  squad:       'entry.846714421',
-};
+// ── Usage + error telemetry (Sentry) ─────────────────────────────────────
+// Sends telemetry to the `zealer-dashboard` Sentry project via its HTTP
+// envelope endpoint (no SDK — see src/usage-telemetry.js for why). This project
+// holds BOTH usage and errors; every event carries an `event_type` tag so they
+// filter apart in Sentry. Identity (email) is attached the sanctioned way via
+// the event `user` field. Fire-and-forget; never blocks or breaks the dashboard.
+//
+// The DSN is a write-only PUBLIC ingestion key (safe to ship in the client).
+const SENTRY_DSN = 'https://d37912f11b66e35d67727fd9e4ddff10@o164516.ingest.us.sentry.io/4511565732773888';
 
+/** Build the Sentry `user` object from the resolved Jira identity. */
+function telemetryUser(currentUser) {
+  if (!currentUser) return undefined;
+  const u = {};
+  if (currentUser.emailAddress) u.email = currentUser.emailAddress;
+  if (currentUser.accountId)    u.id = currentUser.accountId;
+  if (currentUser.displayName)  u.username = currentUser.displayName;
+  return Object.keys(u).length ? u : undefined;
+}
+
+/** Common event context (release, environment, identity, squad/role tags). */
+function telemetryContext(currentUser, settings) {
+  return {
+    user: telemetryUser(currentUser),
+    release: chrome.runtime.getManifest().version,
+    tags: {
+      role:  settings?.role || '',
+      squad: settings?.squad?.key || '',
+    },
+  };
+}
+
+/**
+ * Fire an `app_opened` usage event the first time a user's Jira identity is
+ * known in a session. Replaces the old Google-Form/Sheet ping.
+ */
 async function maybeLogUsage(currentUser, settings) {
-  if (!USAGE_ENDPOINT) { console.log('[usage] no endpoint configured — skip'); return; }
-  // Jira may hide emailAddress (profile privacy), so don't require it — log by
-  // accountId/displayName and include the email only when Jira returns it.
   if (!currentUser?.accountId && !currentUser?.emailAddress) {
-    console.log('[usage] no Jira identity resolved yet — skip'); return;
+    console.log('[telemetry] no Jira identity resolved yet — skip'); return;
   }
   try {
-    // Endpoint-aware flag: logs once per user PER endpoint. Changing
-    // USAGE_ENDPOINT (e.g. switching from the old Apps Script to this form)
-    // re-triggers a single log per user, so nobody stays stuck against a
-    // previous/broken URL.
-    const { usageLoggedFor } = await chrome.storage.local.get('usageLoggedFor');
-    if (usageLoggedFor === USAGE_ENDPOINT) {
-      console.log('[usage] already logged for this endpoint — skip'); return;
+    // Once per browser session (cleared when the SW restarts). We intentionally
+    // log per session rather than once-ever so we can see active usage over time.
+    const { telemetrySessionLogged } = await chrome.storage.session.get('telemetrySessionLogged');
+    if (telemetrySessionLogged) return;
+
+    const ctx = telemetryContext(currentUser, settings);
+    const envelope = buildUsageEnvelope('app_opened', ctx);
+    const ok = await sendEnvelope(SENTRY_DSN, envelope);
+    if (ok) {
+      console.log('[telemetry] app_opened sent ✓ for', ctx.user?.email || ctx.user?.id);
+      chrome.storage.session.set({ telemetrySessionLogged: true });
     }
-
-    const payload = {
-      email:       currentUser.emailAddress || '',
-      displayName: currentUser.displayName  || '',
-      accountId:   currentUser.accountId    || '',
-      role:        settings?.role           || '',
-      version:     chrome.runtime.getManifest().version,
-      squad:       settings?.squad?.key     || '',
-    };
-    console.log('[usage] sending ping for', payload.email || payload.accountId, payload);
-
-    // Google Form submission: form-encoded anonymous POST to /formResponse.
-    // no-cors → opaque response; the form accepts the values and the linked
-    // Sheet gets the row. credentials:omit — fully anonymous by design.
-    const body = new URLSearchParams();
-    for (const [key, entryId] of Object.entries(USAGE_FORM_FIELDS)) {
-      body.set(entryId, payload[key]);
-    }
-
-    fetch(USAGE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body: body.toString(),
-      mode: 'no-cors',
-      credentials: 'omit',
-    })
-      .then(() => {
-        console.log('[usage] ping sent ✓ (form submission)');
-        chrome.storage.local.set({ usageLoggedFor: USAGE_ENDPOINT });
-      })
-      .catch(err => console.warn('[usage] ping failed (will retry next fetch):', err?.message));
   } catch (err) {
-    console.warn('[usage] unexpected error (ignored):', err?.message);
+    console.warn('[telemetry] app_opened error (ignored):', err?.message);
+  }
+}
+
+/** Track a feature/section view (gantt, timesheet, insights, boards). */
+async function trackSectionView(section, currentUser, settings) {
+  try {
+    const ctx = telemetryContext(currentUser, settings);
+    ctx.tags = { ...ctx.tags, section };
+    await sendEnvelope(SENTRY_DSN, buildUsageEnvelope('section_viewed', ctx));
+  } catch (err) {
+    console.warn('[telemetry] section_viewed error (ignored):', err?.message);
+  }
+}
+
+/** Capture a handled failure as a Sentry error event. */
+async function trackError(message, currentUser, settings, extra = {}) {
+  try {
+    const ctx = telemetryContext(currentUser, settings);
+    ctx.extra = extra;
+    await sendEnvelope(SENTRY_DSN, buildErrorEnvelope(message, ctx));
+  } catch (err) {
+    console.warn('[telemetry] error-capture failed (ignored):', err?.message);
   }
 }
 
@@ -189,6 +201,7 @@ async function checkDashboard() {
     }
 
     // Launch both fetches concurrently but handle each as it resolves
+    const _jiraFetchStart = Date.now();
     const jiraPromise = fetchJiraData(settings)
       .then(async data => {
         state.sprintHistory   = data.sprintHistory   || [];
@@ -199,13 +212,26 @@ async function checkDashboard() {
         if (data.currentUser) {
           state.currentUser = data.currentUser;
           await chrome.storage.local.set({ currentUser: data.currentUser });
-          maybeLogUsage(data.currentUser, settings);   // once-per-user usage ping
+          // Make identity available to telemetry message handlers (section/timing).
+          chrome.storage.session.set({ lastCurrentUser: data.currentUser });
+          maybeLogUsage(data.currentUser, settings);   // app_opened (once per session)
         } else {
           // Loud log: this was a silent skip path — if you see this, Jira's
           // /myself call failed or returned nothing, so no usage ping fires.
-          console.warn('[usage] SKIPPED — fetchJiraData returned no currentUser (getCurrentUser failed?)');
+          console.warn('[telemetry] SKIPPED — fetchJiraData returned no currentUser (getCurrentUser failed?)');
         }
         await saveAndNotify('jira');
+        // Performance: record the Jira fetch as a Sentry transaction.
+        if (data.currentUser) {
+          try {
+            const ctx = telemetryContext(data.currentUser, settings);
+            const env = buildTransactionEnvelope('jira.fetch', {
+              ...ctx, startMs: _jiraFetchStart, endMs: Date.now(),
+              spans: [{ op: 'http.client', description: 'fetchJiraData', startMs: _jiraFetchStart, endMs: Date.now() }],
+            });
+            sendEnvelope(SENTRY_DSN, env);
+          } catch (e) { console.warn('[telemetry] jira.fetch txn failed (ignored):', e?.message); }
+        }
       })
       .catch(err => console.error('[background] Jira fetch failed:', err.message));
 
@@ -992,6 +1018,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }).catch(error => {
       sendResponse({ success: false, error: error.message });
     });
+    return true;
+  }
+
+  // Telemetry: popup reports a section view (gantt/timesheet/insights/boards).
+  if (message.type === 'track-section') {
+    (async () => {
+      const { settings } = await chrome.storage.local.get('settings');
+      const { lastCurrentUser } = await chrome.storage.session.get('lastCurrentUser');
+      await trackSectionView(message.section, lastCurrentUser, settings);
+      sendResponse({ success: true });
+    })().catch(() => sendResponse({ success: false }));
+    return true;
+  }
+
+  // Telemetry: popup reports a performance transaction (e.g. render timing).
+  if (message.type === 'track-timing') {
+    (async () => {
+      const { settings } = await chrome.storage.local.get('settings');
+      const { lastCurrentUser } = await chrome.storage.session.get('lastCurrentUser');
+      const ctx = telemetryContext(lastCurrentUser, settings);
+      const env = buildTransactionEnvelope(message.name || 'ui.timing', {
+        ...ctx, startMs: message.startMs, endMs: message.endMs, spans: message.spans || [],
+      });
+      await sendEnvelope(SENTRY_DSN, env);
+      sendResponse({ success: true });
+    })().catch(() => sendResponse({ success: false }));
     return true;
   }
 });

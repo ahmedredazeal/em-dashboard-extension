@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver major">v2.10.0</div>
+      <div class="cl-desc"><strong>Sentry usage telemetry.</strong> Usage/error/performance telemetry now goes to the Sentry zealer-dashboard project (events + transactions, identity via the user field, event_type tag to split usage vs errors) instead of a Google Sheet. Built without the Sentry SDK (MV3/CSP-safe HTTP envelopes). Removed all Google Form/Sheet logging.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.9.4</div>
       <div class="cl-desc"><strong>Stability: donut + progress bar builders extracted.</strong> buildDonut and buildMiniProgressBar moved to src/render/progress-svg.js (pure, tested, byte-identical). popup.js now ~3,244 lines, down 213 from Hat 3 start.</div>
     </div>

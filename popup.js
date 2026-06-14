@@ -1488,6 +1488,7 @@ function renderInsights() {
           jiraBaseUrl: state.settings?.jira?.baseUrl || '',
         }});
         chrome.tabs.create({ url: chrome.runtime.getURL('gantt-tab.html') });
+        chrome.runtime.sendMessage({ type: 'track-section', section: 'gantt_fulltab' }).catch(() => {});
       } catch (err) {
         console.error('[popup] Failed to open Gantt tab:', err);
       }
