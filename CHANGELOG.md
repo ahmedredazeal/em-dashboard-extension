@@ -1,5 +1,35 @@
 # Changelog
 
+## v2.9.0 (2026-06-14) — Stability Hat 3 foundation (S-1, S-2, S-9)
+
+First architecture pass from docs/STABILITY-AUDIT.md. All low-risk, no
+behaviour change (priority/status outputs verified byte-identical to the
+previous inline maps).
+
+**S-1 — Deleted dead `src/chart-svg.js`.** It exported `renderBurndownChart` /
+`renderTimesheetChart` that nothing imported; popup.js has its own (and now
+more capable) builders. Removed ~210 lines of stale duplicate. Also corrected
+the false comment that claimed "popup.js cannot import src/ at runtime in MV3"
+— it imports from src/ 9 times.
+
+**S-2 — New `src/domain-constants.js` single source of truth.** Priority order,
+priority bg/fg colours, priority dot colour, status colours, and status
+-category icons lived duplicated across gantt.js, parsers.js, and popup.js — so
+adding "Urgent" meant editing three files, and they had drifted (popup's dot
+map was missing "urgent"). All three now import from one module. Fixes the
+missing-"urgent" priority dot as a side effect.
+
+**S-9 — Added `tests/metrics.test.js`.** `metrics.js` (390 lines powering every
+alert rule + the burndown predictions) had zero tests. Now covered: velocity,
+goal/carry-over rates, SLA adherence, incident frequency, growth-plan coverage,
+countWorkingDays (Sun–Thu, end-exclusive), isEarlySprint, both burndown
+predictions, and the sentry spike date|day tolerance. 13 suites total, all green.
+
+Next: S-3 (extract pure chart builders from popup.js into src/render/, one per
+version) — the larger refactor, done incrementally.
+
+---
+
 ## v2.8.8 (2026-06-14) — Gantt header layout + timesheet capacity tweaks
 
 - **Gantt header:** the expand (⤢ full-tab/PDF) button moved to the LEFT of the

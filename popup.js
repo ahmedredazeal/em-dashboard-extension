@@ -12,6 +12,7 @@ import { buildGanttSVG } from './src/gantt.js';
 import { generateMockState, MOCK_CURRENT_USER } from './src/mock-data.js';
 import { milestoneCounts } from './src/milestones.js';
 import { visibleAlerts } from './src/alerts.js';
+import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -2974,7 +2975,9 @@ function buildMultiTrendCardHTML(series) {
 }
 
 // ── Inline SVG chart builders ────────────────────────────────────────────
-// (Ported from src/chart-svg.js — popup.js cannot import src/ at runtime in MV3)
+// These build chart markup as strings (pure functions). Tracked for extraction
+// into src/render/ as part of the stability work (popup.js CAN import src/ —
+// it already imports gantt, metrics, alerts, milestones, etc.).
 
 const _C = { ideal:'#94a3b8', estimate:'#60a5fa', actual:'#34d399', week1:'#6366f1', week2:'#a78bfa', grid:'rgba(148,163,184,0.2)', text:'var(--color-text-secondary,#94a3b8)' };
 
@@ -3251,22 +3254,16 @@ function showSprintChangedBanner(oldSprintName) {
   });
 }
 
-const PRIORITY_DOT = {
-  highest: '<span title="Highest" style="color:#ef4444;font-size:9px;flex-shrink:0;">●</span>',
-  critical:'<span title="Critical" style="color:#ef4444;font-size:9px;flex-shrink:0;">●</span>',
-  high:    '<span title="High"    style="color:#f97316;font-size:9px;flex-shrink:0;">●</span>',
-  medium:  '<span title="Medium"  style="color:#f59e0b;font-size:9px;flex-shrink:0;">●</span>',
-  low:     '<span title="Low"     style="color:#60a5fa;font-size:9px;flex-shrink:0;">●</span>',
-  lowest:  '<span title="Lowest"  style="color:#94a3b8;font-size:9px;flex-shrink:0;">●</span>'
-};
-const TICKET_STATUS_COLORS = {
-  'done':'#22c55e','in progress':'#3b82f6','in review':'#8b5cf6',
-  'blocked':'#ef4444','todo':'var(--text-muted)','to do':'var(--text-muted)',
-  'qa rejected':'#f59e0b','open':'var(--text-muted)'
-};
-function ticketStatusColor(s){ return TICKET_STATUS_COLORS[(s||'').toLowerCase()]||'var(--text-muted)'; }
-function ticketStatusIcon(cat){ return ({done:'✓',indeterminate:'●',new:'○'})[cat]||'○'; }
-function priorityDot(p){ return PRIORITY_DOT[(p||'medium').toLowerCase()]||PRIORITY_DOT.medium; }
+// Priority dot built from the shared colour map (adds "urgent", which the old
+// local map was missing). Title-cases the label for the tooltip.
+function priorityDot(p) {
+  const key = (p || 'medium').toLowerCase();
+  const color = PRIORITY_DOT_COLOR[key] || PRIORITY_DOT_COLOR.medium;
+  const label = key.charAt(0).toUpperCase() + key.slice(1);
+  return `<span title="${label}" style="color:${color};font-size:9px;flex-shrink:0;">●</span>`;
+}
+function ticketStatusColor(s){ return statusColor(s); }
+function ticketStatusIcon(cat){ return statusCategoryIcon(cat); }
 
 /** Render one Jira ticket row — clickable, with priority dot */
 /**

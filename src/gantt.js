@@ -18,6 +18,8 @@
  * Engineer mode: filterMine=true shows only the engineer's own tickets.
  */
 
+import { priorityBg, priorityFg, priorityIndex } from './domain-constants.js';
+
 // ── Assignee colour palette (Sprint Planner PAL) ──────────────────────────
 const PAL = [
   { bg:'#B5D4F4', bo:'#378ADD', tx:'#0C447C' },
@@ -37,15 +39,7 @@ function gc(name) {
   return _aC[name];
 }
 
-// ── Priority colours ───────────────────────────────────────────────────────
-function priorityBg(p) {
-  const m = { urgent:'#FEE2E2',highest:'#FEE2E2',critical:'#FEE2E2',high:'#FEF3C7',medium:'#FEF9C3',low:'#DBEAFE',lowest:'#F3F4F6' };
-  return m[(p||'medium').toLowerCase()] || '#FEF9C3';
-}
-function priorityFg(p) {
-  const m = { urgent:'#991B1B',highest:'#991B1B',critical:'#991B1B',high:'#92400E',medium:'#854D0E',low:'#1E40AF',lowest:'#374151' };
-  return m[(p||'medium').toLowerCase()] || '#854D0E';
-}
+// ── Priority colours (from the shared domain-constants single source) ───────
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function esc(v) {
@@ -88,8 +82,7 @@ export function dayColIndex(dateISO, workingDayList) {
 export function fmtDay(iso) { return fmtDate(iso); }
 
 // ── Story partitioning ─────────────────────────────────────────────────────
-const PORD = { urgent:0, highest:0, critical:0, high:1, medium:2, low:3, lowest:4 };
-const priIdx = p => PORD[(p||'medium').toLowerCase()] ?? 2;
+const priIdx = priorityIndex; // shared from domain-constants
 
 /**
  * Sort stories by priority then Jira rank (lexorank asc), then split into

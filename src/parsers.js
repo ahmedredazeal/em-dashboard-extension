@@ -4,6 +4,8 @@
  * Imported by background.js and exercised by tests/parsers.test.js
  */
 
+import { isKnownPriority } from './domain-constants.js';
+
 /**
  * Parse one extra board spec into a normalized {label, id} pair.
  * Handles 3 input shapes (the same data has been stored 3 different ways
@@ -114,8 +116,7 @@ export function normalizeStory(issue, storyPointsField) {
   const priority = fields.priority?.name || 'Medium';
   
   // Log unexpected priority names so we can add them to the mapping
-  const knownPriorities = ['urgent','highest','critical','high','medium','low','lowest'];
-  if (priority !== 'Medium' && !knownPriorities.includes(priority.toLowerCase())) {
+  if (priority !== 'Medium' && !isKnownPriority(priority)) {
     console.log(`[parsers] Unknown priority: "${priority}" on ${issue.key}`);
   }
   
