@@ -41,6 +41,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.9.4 | S-3 step 3: donut + progress bar builders → src/render/progress-svg.js (pure + tested). |
 | v2.9.3 | My Tasks title moved inside card wrapper (layout consistency). |
 | v2.9.2 | S-3 step 2: timesheet builder → src/render/timesheet-svg.js (pure + tested). |
 | v2.9.1 | S-3 step 1: burndown builder → src/render/burndown-svg.js (pure + tested). |

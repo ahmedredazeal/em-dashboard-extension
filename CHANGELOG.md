@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.9.4 (2026-06-14) — Stability S-3 step 3: extract donut + progress bar builders
+
+Third step of the incremental popup.js de-monolithing (S-3).
+
+- **New `src/render/progress-svg.js`** exports `buildDonut` and
+  `buildMiniProgressBar`. Both are pure (data in, HTML/SVG out, no DOM or
+  external deps), so they are straightforwardly unit-testable. `buildDonut`
+  builds the sprint/support/milestone ring charts; `buildMiniProgressBar` builds
+  the compact inline progress bar + metric pills (done %, in-flight, unassigned,
+  risk, SLA) used by board summaries and collapsedBoardSummary.
+- **popup.js** drops another ~100 lines. Now ~3,244 lines — down 213 from 3,457
+  at the start of Hat 3 (−6%).
+- **New `tests/progress-svg.test.js`** (12 tests): donut empty-total guard,
+  arc count, centre text, custom size, full-ring arc math; progress bar
+  point-vs-count mode, in-flight/unassigned/risk/SLA pills, empty guard.
+
+Output verified byte-identical vs HEAD across 6 cases. 16 suites green.
+
+Next S-3 step: extract the support board chart + multi-trend card.
+
+---
+
 ## v2.9.3 (2026-06-14) — My Tasks title inside card (layout consistency)
 
 The "My Tasks" heading was the only section title rendered outside a card
