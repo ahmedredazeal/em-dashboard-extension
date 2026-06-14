@@ -233,7 +233,19 @@ async function checkDashboard() {
           } catch (e) { console.warn('[telemetry] jira.fetch txn failed (ignored):', e?.message); }
         }
       })
-      .catch(err => console.error('[background] Jira fetch failed:', err.message));
+      .catch(err => {
+        console.error('[background] Jira fetch failed:', err.message);
+        // Report to Sentry telemetry — a failing Jira fetch is the core data
+        // path breaking; capture it as queryable signal, not just a console log.
+        (async () => {
+          try {
+            const { lastCurrentUser } = await chrome.storage.session.get('lastCurrentUser');
+            const ctx = telemetryContext(lastCurrentUser, settings);
+            ctx.extra = { reason: err.message };
+            await sendEnvelope(SENTRY_DSN, buildErrorEnvelope('Jira fetch failed', ctx));
+          } catch { /* never let telemetry break the catch */ }
+        })();
+      });
 
     const sentryPromise = fetchSentryData(settings)
       .then(async data => {
@@ -241,7 +253,7 @@ async function checkDashboard() {
         state.sentryViews  = data.viewResults || [];
         await saveAndNotify('sentry');
       })
-      .catch(err => console.error('[background] Sentry fetch failed:', err.message));
+      .catch(err => console.warn('[background] Sentry fetch failed (non-fatal — dashboard works without Sentry):', err.message));
 
     // Wait for both to finish before running alert rules + badge
     await Promise.allSettled([jiraPromise, sentryPromise]);
@@ -615,7 +627,7 @@ async function fetchJiraData(settings) {
       console.warn('[background] Analytics computation failed (non-fatal):', analyticsErr.message);
     }
   } catch (err) {
-    console.error('[background] Failed to fetch active sprint:', err.message);
+    console.warn('[background] Failed to fetch active sprint (non-fatal — shows no-sprint state):', err.message);
   }
   
   // Sprint history
@@ -823,7 +835,18 @@ async function fetchSentryData(settings) {
       console.log(`[background] Fetching Sentry view "${label}" (${viewId}) projects:[${projectIds.join(',')}] env:${environment} period:${parsed.statsPeriod || 'all'}`);
       
       try {
-        const issues = await client.getIssuesFromView(viewId, projectIds, environment, viewParams);
+        // Retry once on transient failures (e.g. "Failed to fetch" — a dropped
+        // connection or Sentry throttle on one of several near-simultaneous
+        // view requests). A single short-backoff retry absorbs almost all of
+        // these without surfacing a Chrome extension-error badge.
+        let issues;
+        try {
+          issues = await client.getIssuesFromView(viewId, projectIds, environment, viewParams);
+        } catch (firstErr) {
+          console.warn(`[background] View ${viewId} fetch failed, retrying once:`, firstErr.message);
+          await new Promise(r => setTimeout(r, 800));
+          issues = await client.getIssuesFromView(viewId, projectIds, environment, viewParams);
+        }
         console.log(`[background] View "${label}" → ${issues.length} issues`);
         viewResults.push({ label, viewId, issues, count: issues.length });
         allIssues.push(...issues.map(i => ({ ...i, _viewId: viewId, _viewLabel: label })));
@@ -840,8 +863,22 @@ async function fetchSentryData(settings) {
           );
         }
       } catch (error) {
-        console.error(`[background] Failed view ${viewId}:`, error.message);
+        // Persistent failure (failed even after one retry). This is handled and
+        // non-fatal — the dashboard shows this view as empty and carries on — so
+        // log at warn (not error) to avoid flagging the whole extension in
+        // chrome://extensions. Report it to Sentry telemetry as a warning so a
+        // genuinely broken view is real, queryable signal rather than noise.
+        console.warn(`[background] View ${viewId} failed after retry:`, error.message);
         viewResults.push({ label, viewId, issues: [], count: 0, error: error.message });
+        try {
+          const { lastCurrentUser } = await chrome.storage.session.get('lastCurrentUser');
+          const ctx = telemetryContext(lastCurrentUser, settings);
+          ctx.extra = { viewId, label, projectIds, reason: error.message };
+          ctx.level = 'warning';
+          await sendEnvelope(SENTRY_DSN, buildErrorEnvelope(`Sentry view fetch failed: ${label} (${viewId})`, ctx));
+        } catch (telErr) {
+          console.warn('[telemetry] view-failure report skipped:', telErr?.message);
+        }
       }
     }
   } else {
@@ -850,14 +887,14 @@ async function fetchSentryData(settings) {
       viewResults.push({ label: 'Unresolved Issues', viewId: null, issues, count: issues.length });
       allIssues.push(...issues);
     } catch (error) {
-      console.error('[background] Sentry unresolved fetch failed:', error.message);
+      console.warn('[background] Sentry unresolved fetch failed (non-fatal — view shown empty):', error.message);
       viewResults.push({ label: 'Unresolved Issues', viewId: null, issues: [], count: 0, error: error.message });
     }
   }
   } catch (error) {
     // Total safety net: a single bad project/view must never reject the whole
     // Sentry fetch and blank the dashboard/trend chart. Return partial results.
-    console.error('[background] fetchSentryData unexpected error (returning partial):', error.message);
+    console.warn('[background] fetchSentryData unexpected error (non-fatal — returning partial):', error.message);
   }
 
   return { viewResults, issues: allIssues };
@@ -906,7 +943,7 @@ async function notifyHighSeverity(newAlerts, settings) {
         priority: 2
       });
     } catch (error) {
-      console.error('[background] Failed to send notification:', error);
+      console.warn('[background] Failed to send notification (non-fatal):', error);
     }
   }
 }
@@ -985,7 +1022,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         } catch (e) { /* roster update is best-effort */ }
       } catch (e) {
-        console.error('[background] Quarter worklog fetch failed:', e.message);
+        console.warn('[background] Quarter worklog fetch failed (non-fatal — popup notified):', e.message);
         chrome.runtime.sendMessage({ type: 'quarter-worklogs-error', cacheKey, error: e.message }).catch(() => {});
       }
     })();

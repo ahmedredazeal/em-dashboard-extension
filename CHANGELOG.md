@@ -1,5 +1,34 @@
 # Changelog
 
+## v2.10.1 (2026-06-14) — Sentry view retry + handled-error log-level audit (S-8)
+
+Fixes the `Failed view <id>: Failed to fetch` error that surfaced on the
+extension card in chrome://extensions. The failure was transient (a dropped
+connection / throttle on one of several near-simultaneous Sentry view requests)
+and already handled gracefully — but it logged at `console.error`, which Chrome
+treats as an extension-level error and badges the card.
+
+**Sentry view fetch:**
+- **Retry once** with an 800ms backoff on a failed view request — absorbs the
+  transient `Failed to fetch` so it self-heals.
+- A failure that persists *after* the retry now logs at `warn` (handled, non
+  -fatal — the view shows empty and the dashboard carries on) and is reported to
+  Sentry telemetry as a `warning`-level event with view id/label/projects — real
+  queryable signal instead of a Chrome error badge.
+
+**Handled-error log-level audit (stability S-8):** reviewed all 9 `console.error`
+calls in background.js. Downgraded 6 caught, non-fatal failures (where the
+dashboard continues gracefully) to `console.warn` so they no longer badge the
+extension: whole-Sentry-fetch, active-sprint fetch, Sentry-unresolved fetch, the
+fetchSentryData safety net, notification send, and quarter-worklog fetch. Kept
+3 as `error` because they are genuinely significant: the Jira fetch failure (core
+data path — now ALSO reported to Sentry telemetry), the re-throwing dashboard
+check, and the top-level refresh catch.
+
+No behaviour change to the dashboard itself; 17 suites green.
+
+---
+
 ## v2.10.0 (2026-06-14) — Sentry usage telemetry (replaces Google Sheet logging)
 
 Usage telemetry now goes to the Sentry `zealer-dashboard` project instead of a

@@ -41,6 +41,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.10.1 | Sentry view retry-once + handled-error log-level audit (S-8 partial). |
 | v2.10.0 | Sentry usage telemetry replaces Google Sheet logging (events + transactions, no SDK). |
 | v2.9.4 | S-3 step 3: donut + progress bar builders → src/render/progress-svg.js (pure + tested). |
 | v2.9.3 | My Tasks title moved inside card wrapper (layout consistency). |

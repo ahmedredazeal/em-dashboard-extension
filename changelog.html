@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.10.1</div>
+      <div class="cl-desc"><strong>Sentry view retry + error log-level audit.</strong> Transient Sentry view fetch failures now retry once and self-heal instead of badging the extension in chrome://extensions; persistent failures are reported to Sentry. Audited all background console.errors — downgraded 6 handled/non-fatal ones to warn, kept 3 genuinely significant.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver major">v2.10.0</div>
       <div class="cl-desc"><strong>Sentry usage telemetry.</strong> Usage/error/performance telemetry now goes to the Sentry zealer-dashboard project (events + transactions, identity via the user field, event_type tag to split usage vs errors) instead of a Google Sheet. Built without the Sentry SDK (MV3/CSP-safe HTTP envelopes). Removed all Google Form/Sheet logging.</div>
     </div>
