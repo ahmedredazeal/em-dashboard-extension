@@ -1201,7 +1201,7 @@ function renderInsights() {
       for (let d = new Date(start); d <= today; d.setDate(d.getDate()+1)) {
         if (wds.includes(d.getDay())) elapsed++;
       }
-      capacityHours = elapsed * 8;
+      capacityHours = elapsed * 7;
     }
     timesheetHtml = buildTimesheetSVG(timesheetMembers, capacityHours);
   } else {
@@ -1332,13 +1332,13 @@ function renderInsights() {
       <div style="display:flex;align-items:center;justify-content:space-between;
         cursor:pointer;user-select:none;" id="gantt-toggle-header">
         <div style="display:flex;align-items:center;gap:8px;">
+          <button id="gantt-expand-btn" style="background:none;border:none;color:var(--text-muted);
+            cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;" title="Open in full tab / export PDF">⤢</button>
           <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${ganttLabel}</div>
           <div style="font-size:10px;color:var(--text-muted);">${sprintRange}</div>
         </div>
         <button id="gantt-toggle-btn" style="background:none;border:none;color:var(--text-muted);
           cursor:pointer;font-size:11px;padding:2px 4px;line-height:1;" title="Toggle Gantt">▼</button>
-        <button id="gantt-expand-btn" style="background:none;border:none;color:var(--text-muted);
-          cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;" title="Open in full tab / export PDF">⤢</button>
       </div>
       <div id="gantt-container" style="overflow-x:auto;margin-top:8px;">${ganttInner}</div>
     </div>`;
@@ -3148,9 +3148,15 @@ function buildTimesheetSVG(members, capacityHours = 0) {
   // expected hours-so-far; bars/names past it are flagged ⚠ above.
   let capLine = '';
   if (capacityHours > 0) {
-    const cx = (baseX + (capacityHours / maxTotal) * PW).toFixed(1);
-    capLine = `<line x1="${cx}" y1="${PAD_TOP - 2}" x2="${cx}" y2="${H - PAD_BOT}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/>`
-            + `<text x="${cx}" y="${PAD_TOP - 4}" text-anchor="middle" fill="#f59e0b" font-size="8" font-family="system-ui">cap ${capacityHours}h</text>`;
+    const cxNum = baseX + (capacityHours / maxTotal) * PW;
+    const cx = cxNum.toFixed(1);
+    // Clamp the label's x and anchor so it never clips at the chart edge when
+    // the panels are side by side (the line can sit near the right border).
+    const nearRight = cxNum > baseX + PW * 0.75;
+    const labelAnchor = nearRight ? 'end' : 'middle';
+    const labelX = nearRight ? Math.min(cxNum + 2, W - 2) : cxNum;
+    capLine = `<line x1="${cx}" y1="${PAD_TOP - 1}" x2="${cx}" y2="${H - PAD_BOT}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/>`
+            + `<text x="${labelX.toFixed(1)}" y="${PAD_TOP - 4}" text-anchor="${labelAnchor}" fill="#f59e0b" font-size="10" font-weight="600" font-family="system-ui">cap ${capacityHours}h</text>`;
   }
   
   // Legend (up to 4 projects shown inline, rest omitted)
@@ -3170,7 +3176,7 @@ function buildTimesheetSVG(members, capacityHours = 0) {
       background:var(--surface-raised,#1f2937);border:1px solid var(--border,rgba(255,255,255,0.12));
       border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text,#e2e8f0);white-space:nowrap;
       box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:translate(-50%,-100%);"></div>
-    <svg viewBox="0 0 ${W} ${H + 6}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 -8 ${W} ${H + 12}" width="100%" xmlns="http://www.w3.org/2000/svg">
     ${grid}${ax}${capLine}${rows}${legendSvg}</svg>
   </div>`;
 }

@@ -41,6 +41,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.8.8 | Gantt header button reorder; timesheet capacity label visibility + 7h/day. |
 | v2.8.7 | Stability Hat 1&2: milestone breakdown, design tokens + empty-state foundation, Gantt full-tab+PDF, timesheet capacity line. |
 | v2.8.6 | Time Logged hover tooltip; alerts recompute on load (detail/links always show); removed privacy button. |
 | v2.8.5 | Alert redesign (snooze-to-tomorrow × button, compact+expandable, ticket links); Time Logged headroom + hover; Sentry-trend flicker fix; spike-rule date/day robustness. |

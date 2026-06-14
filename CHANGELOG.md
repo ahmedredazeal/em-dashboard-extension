@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.8.8 (2026-06-14) — Gantt header layout + timesheet capacity tweaks
+
+- **Gantt header:** the expand (⤢ full-tab/PDF) button moved to the LEFT of the
+  "Sprint Timeline" title; the collapse/expand arrow (▼/▲) is back on the right
+  by itself.
+- **Timesheet capacity line:** the "cap Nh" label is larger (10px, bold) and
+  edge-clamped so it stays visible when the Time Logged and Estimate-vs-Actual
+  charts sit side by side (it was clipping at the right border). Capacity rate
+  changed from 8h/day to **7h/day** (elapsed working days × 7h).
+
+---
+
 ## v2.8.7 (2026-06-13) — Stability phase: UX + data-rep enhancements (Hat 1 & 2)
 
 First execution pass of the stability audit (docs/STABILITY-AUDIT.md). Hat 3
