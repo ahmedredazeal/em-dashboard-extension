@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.10.4 (2026-06-14) — Stability S-3 step 6: extract estimate-vs-actual card + remove dead code
+
+Sixth step of the incremental popup.js de-monolithing (S-3). popup.js drops
+under 3,000 lines for the first time.
+
+- **New `src/render/estimate-actual-svg.js`** exports `buildEstimateVsActualCard`
+  — per-member logged-vs-estimated bars with an over/under ratio badge. Pure
+  (members + date-range label in → HTML out; no DOM, no external deps). (The
+  points-vs-hours unit caveat from the audit is preserved as-is — parked for
+  the bug-charts rework; this is a behaviour-preserving move only.)
+- **Removed dead `buildFocusSplitCard`** (~28 lines) — it was defined but never
+  called anywhere (S-1-style dead-code cleanup, verified across all files).
+- **popup.js** drops ~62 lines total. Now ~2,941 — down 516 from 3,457 at the
+  start of Hat 3 (−15%), under 3k for the first time.
+- **New `tests/estimate-actual-svg.test.js`** (8 tests): title/date-range,
+  per-member bars, total>0 filter, estimate underbar, over/under/null ratio
+  colours.
+
+Verified byte-identical vs HEAD across 3 cases. 20 suites green.
+
+Next S-3 step: extract buildPersonalBarsSVG, then collapsedBoardSummary /
+renderTicketRow / emptyState.
+
+---
+
 ## v2.10.3 (2026-06-14) — Stability S-3 step 5: extract Sentry trend card
 
 Fifth step of the incremental popup.js de-monolithing (S-3) — the largest

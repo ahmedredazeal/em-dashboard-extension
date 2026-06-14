@@ -18,6 +18,7 @@ import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
 import { buildSupportBoardChart } from './src/render/support-board-svg.js';
 import { buildMultiTrendCardHTML } from './src/render/sentry-trend-svg.js';
+import { buildEstimateVsActualCard } from './src/render/estimate-actual-svg.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -2322,70 +2323,8 @@ function formatDueDate(dateStr, statusCategory) {
 // buildSupportBoardChart extracted to src/render/support-board-svg.js (S-3 step 4, v2.10.2)
 
 // ── Estimate vs Actual card ────────────────────────────────────────────────
-function buildEstimateVsActualCard(members, dateRange) {
-  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
-  const maxVal = Math.max(...members.map(m => Math.max(m.total, m.estimated || 0)), 0.1);
-  const W = 280, NAME_W = 100, PW = W - NAME_W - 8;
-  const bw = h => Math.max(1, (h / maxVal) * PW);
-  
-  let rows = '';
-  members.filter(m => m.total > 0).forEach((m, i) => {
-    const y1 = 8 + i * 22;
-    const name = (m.name || '').length > 14 ? m.name.slice(0,13) + '…' : (m.name || '');
-    const wActual   = bw(m.total);
-    const wEstimate = m.estimated > 0 ? bw(m.estimated) : 0;
-    const ratio = m.estimateRatio;
-    const ratioColor = !ratio ? 'var(--text-muted)' : ratio > 1.3 ? '#f97316' : ratio < 0.7 ? '#22c55e' : 'var(--text-muted)';
-    const ratioTxt = ratio ? `×${ratio.toFixed(1)}` : '';
-    rows += `
-      <text x="${NAME_W-5}" y="${y1+5}" text-anchor="end" dominant-baseline="central" fill="var(--text)" font-size="9.5" font-family="system-ui">${name}</text>
-      <rect x="${NAME_W}" y="${y1}" width="${wActual.toFixed(1)}" height="6" fill="#6366f1" rx="2" opacity="0.85"/>
-      ${wEstimate > 0 ? `<rect x="${NAME_W}" y="${y1+7}" width="${wEstimate.toFixed(1)}" height="3" fill="var(--text-muted)" rx="1" opacity="0.4"/>` : ''}
-      <text x="${NAME_W+wActual+3}" y="${y1+3}" dominant-baseline="central" fill="${ratioColor}" font-size="9" font-family="system-ui">${ratioTxt}</text>`;
-  });
-  
-  const H = 8 + members.length * 22 + 20;
-  const legend = `<text x="${NAME_W}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">■ Logged</text><text x="${NAME_W+50}" y="${H-6}" fill="var(--text-muted)" font-size="9" font-family="system-ui">— Estimated</text><text x="${NAME_W+130}" y="${H-6}" fill="#f97316" font-size="9" font-family="system-ui">×1.3+ over</text><text x="${NAME_W+190}" y="${H-6}" fill="#22c55e" font-size="9" font-family="system-ui">×0.7− under</text>`;
-  
-  return `<div style="${cardStyle}">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">ESTIMATE VS ACTUAL</span>
-    </div>
-    ${dateRange ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">${dateRange}</div>` : ''}
-    <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">${rows}${legend}</svg>
-  </div>`;
-}
-
-// ── Focus split card (issue type breakdown) ────────────────────────────────
-function buildFocusSplitCard(issueTypeSplit) {
-  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-top:8px;';
-  const totalHrs = issueTypeSplit.reduce((s, x) => s + x.hours, 0);
-  if (totalHrs === 0) return '';
-  
-  const TYPE_COLORS = { Bug: '#ef4444', Story: '#6366f1', Task: '#22c55e', 'Sub-task': '#a855f7', Other: '#94a3b8' };
-  
-  const bars = issueTypeSplit.map(x => {
-    const pct = Math.round(x.hours / totalHrs * 100);
-    const color = TYPE_COLORS[x.type] || TYPE_COLORS.Other;
-    return { ...x, pct, color };
-  });
-  
-  const barHtml = bars.map(b =>
-    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-       <div style="width:80px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;">${b.type}</div>
-       <div style="flex:1;height:7px;background:var(--border);border-radius:3px;overflow:hidden;">
-         <div style="width:${b.pct}%;height:100%;background:${b.color};border-radius:3px;"></div>
-       </div>
-       <div style="width:40px;font-size:10px;color:var(--text-muted);">${b.pct}% · ${b.hours}h</div>
-     </div>`
-  ).join('');
-  
-  return `<div style="${cardStyle}">
-    <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:8px;">TEAM FOCUS</div>
-    ${barHtml}
-  </div>`;
-}
-
+// buildEstimateVsActualCard extracted to src/render/estimate-actual-svg.js (S-3 step 6, v2.10.4)
+// buildFocusSplitCard removed — dead code (defined, never called anywhere).
 // ── Sprint Progress Bar ────────────────────────────────────────────────────
 // Counts by STORY POINTS (matches the burndown chart + sprint header pt totals).
 // Falls back to ticket count if no points exist at all.
