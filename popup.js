@@ -20,6 +20,7 @@ import { buildSupportBoardChart } from './src/render/support-board-svg.js';
 import { buildMultiTrendCardHTML } from './src/render/sentry-trend-svg.js';
 import { buildEstimateVsActualCard } from './src/render/estimate-actual-svg.js';
 import { buildPersonalBarsSVG } from './src/render/personal-bars-svg.js';
+import { ticketCounts } from './src/ticket-stats.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -2680,24 +2681,7 @@ function renderTicketRow(story, jiraBaseUrl, extraMeta = '') {
     </div>`;
 }
 
-/**
- * Ticket counts — grouped by actual status names (not just category buckets).
- * Shows the real distribution from Jira, whatever the workflow is.
- */
-function ticketCounts(stories) {
-  // Group by status name, case-insensitive
-  const byStatus = {};
-  for (const s of stories) {
-    const name = s.status || 'Unknown';
-    byStatus[name] = (byStatus[name] || 0) + 1;
-  }
-  
-  // Labels for support analytics
-  const breached = stories.filter(s => s.labels?.includes('BreachedSLA')).length;
-  const blocked  = stories.filter(s => s.labels?.includes('blocked-external')).length;
-  
-  return { byStatus, breached, blocked, total: stories.length };
-}
+// ticketCounts extracted to src/ticket-stats.js (S-3 final, v2.10.6)
 
 /** Collapsed header summary — shows real status distribution */
 // ── Mini progress bar for collapsed headers ──────────────────────────────

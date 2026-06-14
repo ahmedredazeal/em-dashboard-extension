@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.10.6 (2026-06-14) — Stability S-3 complete: extract ticketCounts, close out the refactor
+
+Final step of S-3. The big self-contained SVG/chart builders are all out of
+popup.js now; this extracts the last clean pure helper and closes the item.
+
+- **New `src/ticket-stats.js`** exports `ticketCounts` — pure ticket aggregation
+  (group by status name + count BreachedSLA / blocked-external labels). Lives in
+  src/ (not src/render/) because it returns data, not HTML.
+- **popup.js** drops ~18 lines. Now ~2,843 — down 614 from 3,457 at the start of
+  Hat 3 (−18%).
+- **New `tests/ticket-stats.test.js`** (5 tests). 22 suites green.
+- **S-3 closed.** The three remaining helpers (renderTicketRow, emptyState,
+  collapsedBoardSummary) are intentionally left in popup.js: they're small and
+  tightly coupled to popup-local DOM helpers (escapeHtml, priorityDot,
+  ticketStatusColor, formatDueDate), so extracting them would add coupling for
+  no real gain. S-3's goal — getting the large, bug-prone SVG builders into
+  isolated, testable modules — is achieved.
+
+S-3 final tally: burndown, timesheet, donut+progress, support-board, sentry
+-trend, estimate-actual, personal-bars (→ src/render/) + ticketCounts (→ src/),
+plus removal of dead chart-svg.js and buildFocusSplitCard. Byte-identical
+throughout. Next stability item: S-4 (single render scheduler), which also
+unblocks T-DND-1 (drag-and-drop card reorder).
+
+---
+
 ## v2.10.5 (2026-06-14) — Stability S-3 step 7: extract personal bars chart
 
 Seventh step of the incremental popup.js de-monolithing (S-3).
