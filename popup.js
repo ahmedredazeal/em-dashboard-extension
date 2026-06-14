@@ -16,6 +16,7 @@ import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domai
 import { buildBurndownSVG } from './src/render/burndown-svg.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
+import { buildSupportBoardChart } from './src/render/support-board-svg.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -2317,79 +2318,7 @@ function formatDueDate(dateStr, statusCategory) {
 // ── Support Board Breakdown chart ─────────────────────────────────────────
 // Shows ticket count per status (excluding closed — already filtered at API level).
 // Tickets with 'blocked-external' label are shown with a ⚠ count alongside bar.
-function buildSupportBoardChart(boards) {
-  // Find first support board
-  const sb = boards.find(b => b.boardLabel?.toLowerCase().includes('support'));
-  if (!sb || !sb.stories?.length) return '';
-  
-  const stories = sb.stories;
-  const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
-  
-  // Count by status name, and track blocked-external per status
-  const byStatus = {};
-  const blockedByStatus = {};
-  for (const s of stories) {
-    const st = s.status || 'Unknown';
-    byStatus[st] = (byStatus[st] || 0) + 1;
-    if (s.labels?.includes('blocked-external')) {
-      blockedByStatus[st] = (blockedByStatus[st] || 0) + 1;
-    }
-  }
-  
-  // Sort: in-progress statuses first, open last
-  const STATUS_ORDER = ['In Progress', 'QA Testing', 'QA Rejected', 'Code Review', 'Open'];
-  const entries = Object.entries(byStatus).sort(([a], [b]) => {
-    const ia = STATUS_ORDER.indexOf(a), ib = STATUS_ORDER.indexOf(b);
-    if (ia !== -1 && ib !== -1) return ia - ib;
-    if (ia !== -1) return -1;
-    if (ib !== -1) return 1;
-    return a.localeCompare(b);
-  });
-  
-  const maxCount = Math.max(...entries.map(([,c]) => c), 1);
-  const STATUS_COLORS = {
-    'Open': '#94a3b8',
-    'In Progress': '#3b82f6',
-    'QA Testing': '#a855f7',
-    'QA Rejected': '#ef4444',
-    'QA Accepted': '#22c55e',
-    'Code Review': '#f97316',
-  };
-  
-  const totalBlocked = Object.values(blockedByStatus).reduce((s,n) => s+n, 0);
-  const rows = entries.map(([status, count]) => {
-    const color = STATUS_COLORS[status] || '#6366f1';
-    const pct = Math.round(count / maxCount * 100);
-    const blocked = blockedByStatus[status] || 0;
-    // Fixed-width right area (always reserved) — keeps bar width consistent across all rows
-    const blockedCell = blocked > 0
-      ? `<span style="font-size:10px;color:#f59e0b;white-space:nowrap;">⚠ ${blocked} blocked</span>`
-      : '';
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-      <div style="width:90px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${status}</div>
-      <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden;min-width:0;">
-        <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
-      </div>
-      <span style="font-size:10px;color:var(--text);width:18px;text-align:right;flex-shrink:0;">${count}</span>
-      <div style="width:88px;flex-shrink:0;text-align:left;">${blockedCell}</div>
-    </div>`;
-  }).join('');
-  
-  const blockedSummary = totalBlocked > 0
-    ? `<div style="margin-top:8px;padding:5px 8px;background:rgba(245,158,11,0.08);border-radius:4px;border:1px solid rgba(245,158,11,0.2);font-size:11px;color:#f59e0b;">⚠ ${totalBlocked} ticket${totalBlocked>1?'s':''} blocked-external across ${Object.keys(blockedByStatus).length} status${Object.keys(blockedByStatus).length>1?'es':''}</div>`
-    : '';
-  
-  return `<div style="${cardStyle}">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
-      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">SUPPORT BOARD BREAKDOWN</span>
-      <span style="font-size:10px;color:var(--text-muted);">${stories.length} open</span>
-    </div>
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
-      ${rows}
-      ${blockedSummary}
-    </div>
-  </div>`;
-}
+// buildSupportBoardChart extracted to src/render/support-board-svg.js (S-3 step 4, v2.10.2)
 
 // ── Estimate vs Actual card ────────────────────────────────────────────────
 function buildEstimateVsActualCard(members, dateRange) {

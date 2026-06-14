@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.10.2 (2026-06-14) — Stability S-3 step 4: extract support board chart
+
+Fourth step of the incremental popup.js de-monolithing (S-3).
+
+- **New `src/render/support-board-svg.js`** exports `buildSupportBoardChart` —
+  the Support Board Breakdown card (a horizontal bar per status with counts and
+  a blocked-external summary). Pure (boards array in → HTML out; no DOM, no
+  external deps). Its status-display-name colour map stays local (it's workflow
+  -specific, distinct from the status-category colours in domain-constants).
+- **popup.js** drops ~73 lines. Now ~3,174 — down 283 from 3,457 at the start
+  of Hat 3 (−8%).
+- **New `tests/support-board-svg.test.js`** (11 tests): board selection guards,
+  status ordering, count bars, colours, per-status + aggregate blocked-external.
+
+Output verified byte-identical vs HEAD across 4 cases. 18 suites green.
+
+Next S-3 step: extract the multi-trend card / personal bars builders.
+
+---
+
 ## v2.10.1 (2026-06-14) — Sentry view retry + handled-error log-level audit (S-8)
 
 Fixes the `Failed view <id>: Failed to fetch` error that surfaced on the
