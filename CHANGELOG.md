@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.12.4 (2026-06-15) — Check for updates on every open + pre-flight runs all tests
+
+**Update check on every app open.** The version check now runs every time the
+panel opens, instead of once a day. To stay safely within GitHub's unauthenticated
+API limit (60 requests/hour/IP — shared by everyone behind the same office IP),
+a live GitHub fetch still happens at most once per 30 minutes (`CHECK_INTERVAL_MS`);
+on opens in between, a still-valid pending banner is re-shown instantly from
+cache. So it behaves like an every-open check without the request volume — which
+matters as the audience grows toward Zeal-wide.
+
+**Pre-flight now runs the entire test suite.** Hardening prompted by the previous
+release: `pre-flight.sh` had been running only 7 hard-coded test files, so the 18
+suites added since (including timesheet-svg, update-check, render-scheduler,
+ticket-stats, engineer-burndown, and others) were never gated — which is how
+v2.12.3 shipped with two stale timesheet-svg assertions. Pre-flight now loops over
+`tests/*.test.js` and runs all 25 suites (475 tests), so no suite can ship ungated
+again. The two stale assertions (cap dash 3,2 → 4,3; pace 1,3 → 2,2) are also
+fixed.
+
+25 suites + pre-flight green.
+
+---
+
 ## v2.12.3 (2026-06-15) — Two fixes: aligned capacity lines + stale update banner
 
 **Time Logged — cap & pace lines now align.** The two reference lines already

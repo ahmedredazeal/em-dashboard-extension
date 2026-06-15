@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.12.4</div>
+      <div class="cl-desc"><strong>Update check on every open + pre-flight runs all tests.</strong> The app now checks for a newer promoted version every time it opens (with a 30-min network floor to respect GitHub rate limits). Separately, the pre-flight check now runs the full test suite (all 25 suites) instead of 7 hard-coded files, closing a gap that let v2.12.3 ship with stale tests.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.12.3</div>
       <div class="cl-desc"><strong>Fixes: capacity lines align + stale update banner.</strong> The Time Logged <em>cap</em> and <em>pace</em> lines now render at the same height with labels aligned at the top. And the "update available" banner no longer shows for the version you are already running (the cached daily re-show now re-compares against the current version).</div>
     </div>

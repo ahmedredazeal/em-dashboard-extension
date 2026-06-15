@@ -84,8 +84,18 @@ export function selectUpdate(releases, currentVersion) {
   return compareVersions(newest.version, currentVersion) > 0 ? newest : null;
 }
 
-/** Should we run a network check now? (rate-limit: once per intervalMs) */
-export function shouldCheck(lastCheckedAt, now = Date.now(), intervalMs = 24 * 60 * 60 * 1000) {
+/**
+ * Minimum gap between live GitHub fetches. The check runs on every app open,
+ * but to stay well within GitHub's unauthenticated rate limit (60 req/hour/IP —
+ * shared across everyone behind the same office IP), we only hit the network at
+ * most once per this interval. Between fetches, a still-valid cached pending
+ * banner is re-shown instantly, so it feels like an every-open check without
+ * the request volume.
+ */
+export const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+/** Should we run a live network check now? (rate-limit: once per intervalMs) */
+export function shouldCheck(lastCheckedAt, now = Date.now(), intervalMs = CHECK_INTERVAL_MS) {
   if (!lastCheckedAt) return true;
   return (now - lastCheckedAt) >= intervalMs;
 }

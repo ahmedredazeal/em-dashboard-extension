@@ -61,7 +61,7 @@ test('no capacity → no cap line, no warning', () => {
 test('capacity line drawn with label', () => {
   const html = buildTimesheetSVG(members(), 35);
   assert(html.includes('cap 35h'), 'missing capacity label');
-  assert(html.includes('stroke-dasharray="3,2"'), 'missing dashed cap line');
+  assert(html.includes('stroke-dasharray="4,3"'), 'missing dashed cap line');
 });
 test('member over capacity is flagged ⚠ + amber', () => {
   // Sara logs 41h > 35h capacity
@@ -80,8 +80,8 @@ test('object {fixed, pace} draws both lines with distinct labels', () => {
   const html = buildTimesheetSVG(members(), { fixed: 60, pace: 30 });
   assert(html.includes('cap 60h'), 'missing fixed cap label');
   assert(html.includes('pace 30h'), 'missing pace label');
-  assert(html.includes('stroke-dasharray="3,2"'), 'missing cap dash style');
-  assert(html.includes('stroke-dasharray="1,3"'), 'missing pace dot style');
+  assert(html.includes('stroke-dasharray="4,3"'), 'missing cap dash style');
+  assert(html.includes('stroke-dasharray="2,2"'), 'missing pace dot style');
 });
 test('over-capacity ⚠ keys off the FIXED cap, not pace', () => {
   // Sara=41h. Fixed cap 35 → flagged. Pace 10 is irrelevant to the flag.

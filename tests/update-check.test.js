@@ -3,7 +3,7 @@
  * Run: node tests/update-check.test.js
  */
 import {
-  parseVersion, compareVersions, isPromoted, selectUpdate, shouldCheck, isSnoozed,
+  parseVersion, compareVersions, isPromoted, selectUpdate, shouldCheck, isSnoozed, CHECK_INTERVAL_MS,
 } from '../src/update-check.js';
 
 let pass = 0, fail = 0;
@@ -64,12 +64,17 @@ test('skips drafts', () => {
   assert(u === null, 'draft must be skipped');
 });
 
-console.log('\nshouldCheck');
+console.log('\nshouldCheck (30-min network floor)');
 test('checks when never checked', () => assert(shouldCheck(null) === true));
-test('skips within interval, checks after', () => {
+test('skips within the 30-min floor, checks after', () => {
   const now = 1_000_000_000_000;
-  assert(shouldCheck(now - 1000, now) === false, 'too soon');
-  assert(shouldCheck(now - 25 * 3600 * 1000, now) === true, 'after 25h');
+  assert(shouldCheck(now - 60 * 1000, now) === false, 'within 1 min → skip');
+  assert(shouldCheck(now - 20 * 60 * 1000, now) === false, 'within 20 min → skip');
+  assert(shouldCheck(now - 31 * 60 * 1000, now) === true, 'after 31 min → check');
+  assert(shouldCheck(now - 25 * 3600 * 1000, now) === true, 'after 25h → check');
+});
+test('CHECK_INTERVAL_MS is 30 minutes', () => {
+  assert(CHECK_INTERVAL_MS === 30 * 60 * 1000, `interval ${CHECK_INTERVAL_MS}`);
 });
 
 console.log('\nisSnoozed');

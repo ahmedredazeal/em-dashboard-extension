@@ -428,7 +428,8 @@ function showErrorBanner(message) {
 /**
  * Update nudge (T-DIST-1, phase 1). Checks GitHub Releases for the newest
  * PROMOTED release (tag/name contains "promoted") newer than the running
- * version, at most once per 24h, and shows a dismissible banner. MV3 can't
+ * version, on every app open (with a short network floor so we stay within
+ * GitHub's rate limit), and shows a dismissible banner. MV3 can't
  * self-update, so this links the user to the new build; Chrome Web Store
  * auto-update is the deferred phase 2.
  */
@@ -438,8 +439,8 @@ async function checkForUpdate() {
   const uc = store.updateCheck || {};
 
   if (!shouldCheck(uc.lastCheckedAt)) {
-    // Within the daily window — re-show a known-pending banner without re-fetching,
-    // BUT only if it's still genuinely newer than what we're now running. After
+    // Within the network-floor window — re-show a known-pending banner without
+    // re-fetching, BUT only if it's still genuinely newer than what we're now running. After
     // the user installs the update, the running version catches up to (or passes)
     // the cached pendingVersion, so the stale banner must clear itself.
     if (uc.pendingVersion && compareVersions(uc.pendingVersion, currentVersion) > 0) {

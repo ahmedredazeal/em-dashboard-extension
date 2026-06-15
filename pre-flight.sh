@@ -27,68 +27,24 @@ done
 # 1c. Run unit tests
 echo ""
 echo "1c. Running unit tests..."
-if node tests/parsers.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ parsers: $SUMMARY"
-else
-  echo "   ✗ Parser tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
-
-if node tests/integration.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ integration: $SUMMARY"
-else
-  echo "   ✗ Integration tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
-
-if node tests/burndown.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ burndown: $SUMMARY"
-else
-  echo "   ✗ Burndown tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
-
-if node tests/timesheet.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ timesheet: $SUMMARY"
-else
-  echo "   ✗ Timesheet tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
-
-if node tests/sentry-trend.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ sentry-trend: $SUMMARY"
-else
-  echo "   ✗ Sentry-trend tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
-
-if node tests/worklog-aggregator.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ worklog-aggregator: $SUMMARY"
-else
-  echo "   ✗ Worklog-aggregator tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
-
-if node tests/trend-colors.test.js > /tmp/test-output.txt 2>&1; then
-  SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
-  echo "   ✓ trend-colors: $SUMMARY"
-else
-  echo "   ✗ Trend-colors tests failed:"
-  cat /tmp/test-output.txt | tail -10 | sed 's/^/      /'
-  ERRORS=$((ERRORS + 1))
-fi
+# Run EVERY test suite (loops over tests/*.test.js so newly-added suites are
+# always gated — previously these were hard-coded one by one, which let new
+# suites ship ungated; that gap shipped red tests in v2.12.3).
+TEST_TOTAL=0
+TEST_FAIL=0
+for tfile in tests/*.test.js; do
+  if node "$tfile" > /tmp/test-output.txt 2>&1; then
+    SUMMARY=$(grep -E "passed.*failed" /tmp/test-output.txt | tail -1)
+    echo "   ✓ $(basename "$tfile"): $SUMMARY"
+  else
+    echo "   ✗ $(basename "$tfile") FAILED:"
+    cat /tmp/test-output.txt | tail -8 | sed 's/^/      /'
+    ERRORS=$((ERRORS + 1))
+    TEST_FAIL=$((TEST_FAIL + 1))
+  fi
+  TEST_TOTAL=$((TEST_TOTAL + 1))
+done
+echo "   ($TEST_TOTAL suites run, $TEST_FAIL failed)"
 
 # Extra: brace balance check (catches missing closing braces that node --check misses in ES modules)
 echo ""
