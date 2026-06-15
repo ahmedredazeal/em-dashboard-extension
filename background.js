@@ -331,6 +331,39 @@ async function fetchJiraData(settings) {
   console.log(`[background] Jira fetch for project ${squadKey} (auto-discover board)`);
   
   // Always auto-discover main board from project key
+  const { currentSprint, boardId, storyPointsField } = await fetchCurrentSprint(client, settings, squadKey);
+  
+  // Sprint history
+  const sprintHistory = await fetchSprintHistory(client, boardId);
+
+  // Support tickets
+  const supportTickets = await fetchSupportTickets(client, squadKey);
+
+  // Milestones (OKRs / Dev Plans) — backlog tickets grouped by label.
+  const milestonesData = await fetchMilestones(client, settings, squadKey, storyPointsField);
+
+  // Extra boards — fetch active sprint + stories for each
+  const extraBoardsData = await fetchExtraBoards(client, settings, squadKey, storyPointsField);
+  console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
+  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, milestonesData, currentUser };
+}
+
+/**
+ * Current sprint — the core fetch: active sprint, stories, points, changelog
+ * close-dates, sprint-day geometry, committed-scope reconstruction, subtasks,
+ * burndown/timesheet analytics, roster discovery, sprint-change detection, and
+ * cache write. Returns the three values the rest of the orchestrator depends on:
+ * { currentSprint, boardId, storyPointsField }.
+ *
+ * IMPORTANT (TDZ): the internal ordering is load-bearing and unchanged from the
+ * original inline block — sprint-day geometry (totalDays etc.) MUST be computed
+ * before the committed-scope loop that clamps against it. Do not reorder.
+ *
+ * Whole body is wrapped in a non-fatal try/catch: on any failure it returns the
+ * default no-sprint values (currentSprint=null) so the dashboard shows the
+ * no-sprint state instead of dying.
+ */
+async function fetchCurrentSprint(client, settings, squadKey) {
   let currentSprint = null;
   let boardId = null;
   let storyPointsField = 'customfield_10016'; // default, overridden by board config
@@ -629,124 +662,8 @@ async function fetchJiraData(settings) {
   } catch (err) {
     console.warn('[background] Failed to fetch active sprint (non-fatal — shows no-sprint state):', err.message);
   }
-  
-  // Sprint history
-  const sprintHistory = await fetchSprintHistory(client, boardId);
 
-  // Support tickets
-  const supportTickets = await fetchSupportTickets(client, squadKey);
-
-  // Milestones (OKRs / Dev Plans) — backlog tickets grouped by label.
-  const milestonesData = await fetchMilestones(client, settings, squadKey, storyPointsField);
-
-  // Extra boards — fetch active sprint + stories for each
-  const extraBoardsData = [];
-  const rawExtraBoards = settings.squad?.extraBoards || [];
-  console.log(`[background] Extra boards config: ${JSON.stringify(rawExtraBoards)}`);
-  
-  if (rawExtraBoards.length > 0) {
-    console.log(`[background] Processing ${rawExtraBoards.length} extra board(s)`);
-    
-    for (const boardSpec of rawExtraBoards) {
-      const parsed = parseExtraBoardSpec(boardSpec);
-      if (!parsed) {
-        console.warn(`[background] Skipping invalid extra board spec:`, boardSpec);
-        continue;
-      }
-      const { label: boardLabel, id: extraBoardId } = parsed;
-      
-      try {
-        console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId}) — fetching...`);
-        
-        let boardEntry;
-        
-        try {
-          // Try as a Scrum board first (has active sprint)
-          const activeSprint = await client.getActiveSprint(extraBoardId);
-          console.log(`[background] Extra board ${extraBoardId}: scrum sprint = "${activeSprint.name}"`);
-          
-          let stories = [], totalPoints = 0, completedPoints = 0, doneCount = 0;
-          try {
-            const sprintStories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
-            stories = sprintStories.map(s => normalizeStory(s, storyPointsField));
-            const done = sprintStories.filter(isStoryDone);
-            doneCount = done.length;
-            totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
-            completedPoints = done.map(s => normalizeStory(s, storyPointsField).points).reduce((sum, p) => sum + p, 0);
-          } catch (storyErr) {
-            console.warn(`[background] Extra board ${extraBoardId} stories failed:`, storyErr.message);
-          }
-          
-          boardEntry = {
-            boardId: extraBoardId, boardLabel, boardType: 'scrum',
-            sprintName: activeSprint.name,
-            startDate: activeSprint.startDate, endDate: activeSprint.endDate,
-            totalStories: stories.length, completedStories: doneCount,
-            totalPoints, completedPoints, stories, error: null
-          };
-          
-        } catch (sprintErr) {
-          // "The board does not support sprints" → treat as Kanban board
-          const isKanban = sprintErr.message?.includes('does not support sprints') ||
-                           sprintErr.message?.includes('400');
-          
-          if (isKanban) {
-            console.log(`[background] Extra board ${extraBoardId}: Kanban board, fetching issues directly`);
-            // Filter closed at the API level for support boards — saves bandwidth
-            // and removes the need for client-side filtering
-            const isSupport = boardLabel.toLowerCase().includes('support');
-            try {
-              const kanbanIssues = await client.getKanbanBoardIssues(
-                extraBoardId, storyPointsField, { excludeClosed: isSupport }
-              );
-              const stories = kanbanIssues.map(s => normalizeStory(s, storyPointsField));
-              const done = kanbanIssues.filter(isStoryDone);
-              const totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
-              const completedPoints = done.map(s => normalizeStory(s, storyPointsField).points).reduce((sum, p) => sum + p, 0);
-              
-              boardEntry = {
-                boardId: extraBoardId, boardLabel, boardType: 'kanban',
-                sprintName: null, startDate: null, endDate: null,
-                totalStories: stories.length, completedStories: done.length,
-                totalPoints, completedPoints, stories, error: null
-              };
-              console.log(`[background] Kanban board ${extraBoardId}: ${stories.length} issues`);
-            } catch (kanbanErr) {
-              boardEntry = {
-                boardId: extraBoardId, boardLabel, boardType: 'kanban',
-                sprintName: null, stories: [],
-                totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
-                error: kanbanErr.message
-              };
-            }
-          } else {
-            // Some other error (401, 404, network)
-            boardEntry = {
-              boardId: extraBoardId, boardLabel, boardType: 'unknown',
-              sprintName: null, stories: [],
-              totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
-              error: sprintErr.message
-            };
-          }
-        }
-        
-        extraBoardsData.push(boardEntry);
-        console.log(`[background] Extra board ${extraBoardId} pushed (type=${boardEntry.boardType}, stories=${boardEntry.stories?.length})`);
-        
-      } catch (err) {
-        extraBoardsData.push({
-          boardId: extraBoardId, boardLabel, boardType: 'unknown', sprintName: null, stories: [],
-          totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
-          error: err.message
-        });
-      }
-    }
-  } else {
-    console.log('[background] No extra boards configured');
-  }
-  
-  console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
-  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, milestonesData, currentUser };
+  return { currentSprint, boardId, storyPointsField };
 }
 
 // ── fetchJiraData section helpers (S-5) ──────────────────────────────────
@@ -799,6 +716,122 @@ async function fetchMilestones(client, settings, squadKey, storyPointsField) {
   } catch (msErr) {
     console.warn('[background] Milestones fetch failed (non-fatal):', msErr.message);
     return milestoneConfigs.map(m => ({ ...m, tickets: [], error: msErr.message }));
+  }
+}
+
+/**
+ * Extra boards — fetch active sprint + stories for each configured board.
+ * Scrum boards resolve to their active sprint; boards that "do not support
+ * sprints" fall back to a Kanban issue fetch. Each board is independent and
+ * non-fatal — a failure becomes a board entry with an `error` field.
+ * @returns {Array} extraBoardsData
+ */
+async function fetchExtraBoards(client, settings, squadKey, storyPointsField) {
+  const extraBoardsData = [];
+  const rawExtraBoards = settings.squad?.extraBoards || [];
+  console.log(`[background] Extra boards config: ${JSON.stringify(rawExtraBoards)}`);
+
+  if (rawExtraBoards.length === 0) {
+    console.log('[background] No extra boards configured');
+    return extraBoardsData;
+  }
+
+  console.log(`[background] Processing ${rawExtraBoards.length} extra board(s)`);
+  for (const boardSpec of rawExtraBoards) {
+    const parsed = parseExtraBoardSpec(boardSpec);
+    if (!parsed) {
+      console.warn(`[background] Skipping invalid extra board spec:`, boardSpec);
+      continue;
+    }
+    const { label: boardLabel, id: extraBoardId } = parsed;
+    try {
+      console.log(`[background] Extra board "${boardLabel}" (id=${extraBoardId}) — fetching...`);
+      const boardEntry = await fetchOneExtraBoard(client, squadKey, storyPointsField, boardLabel, extraBoardId);
+      extraBoardsData.push(boardEntry);
+      console.log(`[background] Extra board ${extraBoardId} pushed (type=${boardEntry.boardType}, stories=${boardEntry.stories?.length})`);
+    } catch (err) {
+      extraBoardsData.push({
+        boardId: extraBoardId, boardLabel, boardType: 'unknown', sprintName: null, stories: [],
+        totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
+        error: err.message
+      });
+    }
+  }
+  return extraBoardsData;
+}
+
+/**
+ * Fetch a single extra board. Tries Scrum (active sprint) first; on "does not
+ * support sprints" falls back to a Kanban issue fetch. Returns a board entry
+ * object (with an `error` field on partial failure). Never throws for the
+ * Kanban/unknown branches — only the outer scrum-sprint call can reject, which
+ * fetchExtraBoards' loop catch handles.
+ */
+async function fetchOneExtraBoard(client, squadKey, storyPointsField, boardLabel, extraBoardId) {
+  try {
+    // Try as a Scrum board first (has active sprint)
+    const activeSprint = await client.getActiveSprint(extraBoardId);
+    console.log(`[background] Extra board ${extraBoardId}: scrum sprint = "${activeSprint.name}"`);
+
+    let stories = [], totalPoints = 0, completedPoints = 0, doneCount = 0;
+    try {
+      const sprintStories = await client.getSprintStories(activeSprint.id, squadKey, storyPointsField);
+      stories = sprintStories.map(s => normalizeStory(s, storyPointsField));
+      const done = sprintStories.filter(isStoryDone);
+      doneCount = done.length;
+      totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
+      completedPoints = done.map(s => normalizeStory(s, storyPointsField).points).reduce((sum, p) => sum + p, 0);
+    } catch (storyErr) {
+      console.warn(`[background] Extra board ${extraBoardId} stories failed:`, storyErr.message);
+    }
+
+    return {
+      boardId: extraBoardId, boardLabel, boardType: 'scrum',
+      sprintName: activeSprint.name,
+      startDate: activeSprint.startDate, endDate: activeSprint.endDate,
+      totalStories: stories.length, completedStories: doneCount,
+      totalPoints, completedPoints, stories, error: null
+    };
+  } catch (sprintErr) {
+    // "The board does not support sprints" → treat as Kanban board
+    const isKanban = sprintErr.message?.includes('does not support sprints') ||
+                     sprintErr.message?.includes('400');
+    if (isKanban) {
+      console.log(`[background] Extra board ${extraBoardId}: Kanban board, fetching issues directly`);
+      // Filter closed at the API level for support boards — saves bandwidth
+      // and removes the need for client-side filtering
+      const isSupport = boardLabel.toLowerCase().includes('support');
+      try {
+        const kanbanIssues = await client.getKanbanBoardIssues(
+          extraBoardId, storyPointsField, { excludeClosed: isSupport }
+        );
+        const stories = kanbanIssues.map(s => normalizeStory(s, storyPointsField));
+        const done = kanbanIssues.filter(isStoryDone);
+        const totalPoints = stories.reduce((sum, s) => sum + s.points, 0);
+        const completedPoints = done.map(s => normalizeStory(s, storyPointsField).points).reduce((sum, p) => sum + p, 0);
+        console.log(`[background] Kanban board ${extraBoardId}: ${stories.length} issues`);
+        return {
+          boardId: extraBoardId, boardLabel, boardType: 'kanban',
+          sprintName: null, startDate: null, endDate: null,
+          totalStories: stories.length, completedStories: done.length,
+          totalPoints, completedPoints, stories, error: null
+        };
+      } catch (kanbanErr) {
+        return {
+          boardId: extraBoardId, boardLabel, boardType: 'kanban',
+          sprintName: null, stories: [],
+          totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
+          error: kanbanErr.message
+        };
+      }
+    }
+    // Some other error (401, 404, network)
+    return {
+      boardId: extraBoardId, boardLabel, boardType: 'unknown',
+      sprintName: null, stories: [],
+      totalStories: 0, completedStories: 0, totalPoints: 0, completedPoints: 0,
+      error: sprintErr.message
+    };
   }
 }
 

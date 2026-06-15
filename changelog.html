@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.11.3</div>
+      <div class="cl-desc"><strong>fetchJiraData fully decomposed (S-5 complete).</strong> Extracted the current-sprint core (fetchCurrentSprint — TDZ ordering preserved verbatim) and extra-boards logic (fetchExtraBoards/fetchOneExtraBoard). fetchJiraData is now a 42-line orchestrator of named steps (was 476). Pure lift-and-shift; load to confirm the live path.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.11.2</div>
       <div class="cl-desc"><strong>Start splitting the fetchJiraData monolith (S-5 batch 1).</strong> Extracted sprint-history, support-tickets, and milestones into named helpers inside background.js (conservative — no module move, since this is stateful async that can't be proven byte-identical). fetchJiraData 476→443 lines. More batches to follow.</div>
     </div>

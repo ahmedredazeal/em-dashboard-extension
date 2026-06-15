@@ -1,5 +1,47 @@
 # Changelog
 
+## v2.11.3 (2026-06-15) — Stability S-5 complete: fetchJiraData fully decomposed
+
+Finishes S-5. The 476-line `fetchJiraData` orchestrator is now a **42-line**
+sequence of named steps; all the complexity lives in named, individually
+-comprehensible helper functions inside background.js.
+
+This batch extracted the two hard blocks left after v2.11.2:
+
+- **`fetchExtraBoards(client, settings, squadKey, storyPointsField)`** + a
+  per-board **`fetchOneExtraBoard(...)`** — the scrum/kanban/unknown fallback
+  logic for each configured extra board. Error routing preserved exactly (each
+  board independent + non-fatal; failures become a board entry with `error`).
+- **`fetchCurrentSprint(client, settings, squadKey)`** — the TDZ-sensitive core
+  (active sprint, stories, points, changelog close-dates, sprint-day geometry,
+  committed-scope reconstruction, subtasks, burndown/timesheet analytics, roster
+  discovery, sprint-change detection, cache write). Returns the three values the
+  rest of the orchestrator depends on: `{ currentSprint, boardId,
+  storyPointsField }`. The internal ordering is **unchanged, verbatim** — the
+  load-bearing "compute sprint-day geometry before the committed-scope loop"
+  sequence (the documented TDZ trap) is preserved exactly.
+
+`fetchJiraData` now reads: get current user → require squad → fetchCurrentSprint
+→ fetchSprintHistory → fetchSupportTickets → fetchMilestones → fetchExtraBoards →
+return. **476 → 42 lines.**
+
+Verified: each helper references only its own params + locals (no leaked state),
+the orchestrator's return references all values correctly, TDZ ordering intact,
+23 suites + pre-flight green.
+
+HONEST CAVEAT (unchanged from batch 1): this is stateful async code calling a
+live Jira client, so it can't be proven byte-identical the way the pure S-3
+builders were, and the dev sandbox can't exercise the live path. The refactor is
+pure lift-and-shift with no logic/ordering changes — but please load v2.11.3 and
+confirm the dashboard still populates the current sprint, burndown, timesheet,
+history, support, milestones, and extra boards correctly.
+
+S-5 done. Remaining stability backlog: S-6 (design-token migration), S-7
+(empty/loading/error component — partial), S-8 (popup.js catch audit — background
+done).
+
+---
+
 ## v2.11.2 (2026-06-15) — Stability S-5 (batch 1): start splitting the fetchJiraData monolith
 
 First conservative batch of S-5 — breaking the 476-line `fetchJiraData`
