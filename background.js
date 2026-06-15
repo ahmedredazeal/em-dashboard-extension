@@ -741,7 +741,7 @@ async function fetchBugReports(client, squadKey, boardId) {
 
     const [rawBugs, sprints] = await Promise.all([
       client.getBugs(squadKey, { createdAfter }),
-      boardId ? client.getSprintHistory(boardId, 6) : Promise.resolve([]),
+      boardId ? client.getRecentClosedSprints(boardId, 6) : Promise.resolve([]),
     ]);
 
     const bugs = (rawBugs || []).map(normalizeBug);

@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.14.1 | Fix: Bug Reports trend was empty (used oldest sprints + dropped active-sprint bugs). |
 | v2.14.0 | T-BR-1 phase 1: Bug Reports card (incoming-vs-resolved trend + open-bug age snapshot), EM + my-bugs scope. Reopen rate + per-component deferred to phase 2. |
 | v2.13.0 | Multi-team Sentry (editable base URL + *.sentry.io perms), Sentry-isolation audit, full README rewrite, security/privacy audit for publishing. |
 | v2.12.1 | T-DIST-1 phase 1: in-app "update available" nudge (reads GitHub promoted releases). CWS auto-update = deferred phase 2. |

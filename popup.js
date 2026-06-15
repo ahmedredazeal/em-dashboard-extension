@@ -1452,7 +1452,15 @@ function renderInsights() {
         (!b.assigneeAccountId && myName && b.assignee === myName));
     }
     if ((br.sprintWindows || []).length > 0 || bugs.length > 0) {
-      const trend = incomingVsResolved(bugs, br.sprintWindows || []);
+      // Include the active sprint as the newest window so current-sprint bugs
+      // (created after the last CLOSED sprint's end) aren't dropped from the trend.
+      let windows = br.sprintWindows || [];
+      const cs = state.currentSprint;
+      if (cs?.startDate && cs?.endDate) {
+        const already = windows.some(w => w.name === cs.name);
+        if (!already) windows = [...windows, { name: cs.name, startDate: cs.startDate, endDate: cs.endDate }];
+      }
+      const trend = incomingVsResolved(bugs, windows);
       const snap = openBugSnapshot(bugs);
       bugReportsHtml = `<div style="margin-top:8px;">${buildBugReportsCard(trend, snap, isEngineerMe ? 'Me' : 'Squad')}</div>`;
     }

@@ -70,6 +70,19 @@ test('no sprints → empty result, no crash', () => {
   const r = incomingVsResolved([{ created: '2026-04-01' }], []);
   assert(r.buckets.length === 0 && r.totals.incoming === 0, 'empty');
 });
+test('a date NEWER than the last window is dropped (caller must add active sprint)', () => {
+  // Documents the boundary: dates after the last window are neither "older" nor
+  // placed. The popup compensates by appending the active sprint as a window.
+  // S3 ends 2026-05-12, so 2026-05-20 is genuinely after the last window.
+  const r = incomingVsResolved([{ created: '2026-05-20', resolved: null }], sprints);
+  assert(r.totals.incoming === 0, 'newer-than-window not placed');
+  assert(r.olderIncoming === 0, 'newer is not counted as older');
+});
+test('appending the active sprint window captures current-sprint bugs', () => {
+  const withActive = [...sprints, { name: 'S4', startDate: '2026-05-13', endDate: '2026-05-26' }];
+  const r = incomingVsResolved([{ created: '2026-05-20', resolved: null }], withActive);
+  assert(r.buckets.length === 4 && r.buckets[3].incoming === 1, 'current-sprint bug now plotted');
+});
 test('skips sprints with missing dates', () => {
   const r = incomingVsResolved([], [{ name: 'X' }, sprints[0]]);
   assert(r.buckets.length === 1 && r.buckets[0].name === 'S1', 'only valid window kept');

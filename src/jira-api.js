@@ -496,6 +496,41 @@ export class JiraClient {
   }
 
   /**
+   * Get the MOST RECENT N closed sprints, sorted ascending by start date.
+   * The Agile sprint endpoint returns sprints oldest-first; a naive
+   * maxResults=N grabs the EARLIEST closed sprints, not the latest. This pages
+   * to the end (isLast) and returns the last N — used by the bug-reports trend,
+   * which must bucket against recent sprint windows. (T-BR-1 fix.)
+   * @param {number|string} boardId
+   * @param {number} limit
+   * @returns {Promise<Array>} recent closed sprints, oldest→newest among the N
+   */
+  async getRecentClosedSprints(boardId, limit = 6) {
+    const PAGE = 50;
+    let startAt = 0, all = [], isLast = false, guard = 0;
+    while (!isLast && guard < 20) {
+      const result = await this._get(
+        `/rest/agile/1.0/board/${boardId}/sprint?state=closed&startAt=${startAt}&maxResults=${PAGE}`
+      );
+      const values = result.values || [];
+      all = all.concat(values);
+      isLast = result.isLast === true || values.length < PAGE;
+      startAt += PAGE;
+      guard++;
+    }
+    // Sort by startDate ascending; fall back to id for sprints missing a date.
+    all.sort((a, b) => {
+      const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+      if (da !== db) return da - db;
+      return (a.id || 0) - (b.id || 0);
+    });
+    const recent = all.slice(-limit);
+    console.log(`[jira] Recent closed sprints: ${all.length} total, returning last ${recent.length}`);
+    return recent;
+  }
+
+  /**
    * Get bugs for a project (T-BR-1). Bug = issue type Bug or QA Bug.
    * @param {string} projectKey
    * @param {Object} [opts]

@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.14.1 (2026-06-15) — Fix: Bug Reports "Incoming vs Resolved" was empty
+
+The trend chart rendered empty (while the open-bug snapshot worked) because of
+two window problems:
+
+1. **Wrong sprints.** It used `getSprintHistory(boardId, 6)`, which returns the
+   *earliest* 6 closed sprints (the Agile endpoint is oldest-first and the call
+   never paged to the end). Recent bugs were being bucketed against ancient
+   sprint windows, so they all fell outside and nothing plotted. New
+   `getRecentClosedSprints(boardId, 6)` pages to the end and returns the most
+   recent 6 closed sprints, sorted by start date.
+2. **Missing the active sprint.** Bugs created in the *current* sprint fall after
+   the last *closed* sprint's window and were silently dropped. The popup now
+   appends the active sprint as the newest window, so current-sprint bugs appear.
+
+Added regression tests for both the newer-than-window boundary and the
+active-sprint-window fix (bug-reports suite now 16 cases).
+
+26 suites + pre-flight green.
+
+---
+
 ## v2.14.0 (2026-06-15) — Bug Reports card (T-BR-1, phase 1)
 
 A new **Bug Reports** card in Insights, sitting between the time charts and the

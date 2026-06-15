@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.14.1</div>
+      <div class="cl-desc"><strong>Fix: Bug Reports "Incoming vs Resolved" was empty.</strong> The trend used the oldest 6 closed sprints instead of the most recent, so recent bugs fell outside every window; it now fetches the latest 6 closed sprints and also includes the active sprint, so current bugs show.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v2.14.0</div>
       <div class="cl-desc"><strong>Bug Reports card (T-BR-1).</strong> A new Insights card (between the time charts and Gantt) for issues of type Bug / QA Bug: an <em>incoming vs resolved</em> trend over the last 6 sprints with a net-flow read-out, and an <em>open bugs by age</em> snapshot (0–7d / 8–30d / 31–90d / 90d+) with median age and priority split. EM sees the squad; engineers in Me scope see their own bugs.</div>
     </div>
