@@ -75,6 +75,35 @@ test('member under capacity is NOT flagged', () => {
   assert(!html.includes('⚠'), 'nobody should be flagged under high capacity');
 });
 
+console.log('\ndual lines: fixed cap + pace marker (T-CAP-1 v2.12.2)');
+test('object {fixed, pace} draws both lines with distinct labels', () => {
+  const html = buildTimesheetSVG(members(), { fixed: 60, pace: 30 });
+  assert(html.includes('cap 60h'), 'missing fixed cap label');
+  assert(html.includes('pace 30h'), 'missing pace label');
+  assert(html.includes('stroke-dasharray="3,2"'), 'missing cap dash style');
+  assert(html.includes('stroke-dasharray="1,3"'), 'missing pace dot style');
+});
+test('over-capacity ⚠ keys off the FIXED cap, not pace', () => {
+  // Sara=41h. Fixed cap 35 → flagged. Pace 10 is irrelevant to the flag.
+  const html = buildTimesheetSVG(members(), { fixed: 35, pace: 10 });
+  assert(html.includes('⚠ Sara'), 'Sara should be flagged vs fixed cap');
+});
+test('pace omitted/zero → only the cap line', () => {
+  const html = buildTimesheetSVG(members(), { fixed: 60, pace: 0 });
+  assert(html.includes('cap 60h'), 'cap present');
+  assert(!html.includes('pace '), 'no pace line when pace=0');
+});
+test('pace == fixed → pace line suppressed (no duplicate)', () => {
+  const html = buildTimesheetSVG(members(), { fixed: 60, pace: 60 });
+  assert(html.includes('cap 60h'), 'cap present');
+  assert(!html.includes('pace 60h'), 'pace suppressed when equal to cap');
+});
+test('legacy number form still = fixed cap only', () => {
+  const html = buildTimesheetSVG(members(), 35);
+  assert(html.includes('cap 35h'), 'number form still draws cap');
+  assert(!html.includes('pace '), 'number form draws no pace line');
+});
+
 console.log('\nescaping');
 test('ampersand in name/key is escaped (matches old behaviour)', () => {
   const html = buildTimesheetSVG([{ name: 'A & B', total: 5, byProject: { 'X&Y': 5 } }], 0);

@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.12.2 (2026-06-15) — Time Logged: fixed capacity line + pace-to-date marker
+
+Clarifies the Time Logged capacity reference. Previously there was a single
+dashed line at "elapsed working days so far × 6h" — which is a *pace* indicator,
+but was labeled "cap", so a mid-sprint value like 30h (5 working days in) read
+as if the per-person budget were 30h. It isn't.
+
+The chart now shows **two** reference lines, both at 6h/working-day:
+
+- **`cap Nh`** (dashed amber) — the FIXED full-sprint budget = total sprint
+  working days × 6h. Stays put all sprint. This is the real "capacity", and the
+  over-capacity ⚠ flag on a member now keys off THIS line.
+- **`pace Nh`** (dotted slate) — expected hours per person SO FAR = elapsed
+  working days × 6h. Moves rightward each day; a "are you keeping pace?"
+  reference only (no ⚠). Suppressed when it would coincide with the cap (e.g.
+  last day of the sprint).
+
+So for a 2-week sprint with 10 working days, `cap` sits at 60h all sprint while
+`pace` walks from 6h → 60h day by day.
+
+`buildTimesheetSVG` now accepts either a number (legacy = fixed cap only) or
+`{ fixed, pace }`; existing callers/tests are unaffected. tests/timesheet-svg
+.test.js grew 5 dual-line cases (15 total). 25 suites + pre-flight green.
+
+---
+
 ## v2.12.1 (2026-06-15) — Update-available nudge (T-DIST-1, phase 1)
 
 An in-app nudge so the team knows when a new build is ready — without a manual

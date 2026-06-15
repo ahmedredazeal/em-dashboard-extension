@@ -1203,21 +1203,34 @@ function renderInsights() {
     timesheetHtml = `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
       Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
   } else if ((timesheetMembers || []).length > 0) {
-    // Capacity reference (sprint mode only): expected hours per person so far =
-    // elapsed working days × 6h. Drives the "who's over capacity?" marker.
-    // (6h/day reflects realistic focused-work capacity after meetings/overhead.)
-    let capacityHours = 0;
+    // Capacity references (sprint mode only), both at 6h/working-day:
+    //   • fixed  = TOTAL sprint working days × 6h — the full-sprint budget (cap)
+    //   • pace   = ELAPSED working days so far × 6h — "are you keeping pace?"
+    let capFixed = 0, capPace = 0;
     if (currentMode === 'sprint' && state.currentSprint?.startDate) {
       const wds = state.settings?.ui?.workingDays || [0,1,2,3,4];
       const start = new Date(state.currentSprint.startDate.slice(0,10));
       const today = new Date(); today.setHours(0,0,0,0);
+      const end = state.currentSprint?.endDate
+        ? new Date(state.currentSprint.endDate.slice(0,10))
+        : null;
+      const RATE = 6;
+      // Pace: working days from start through today (inclusive).
       let elapsed = 0;
       for (let d = new Date(start); d <= today; d.setDate(d.getDate()+1)) {
         if (wds.includes(d.getDay())) elapsed++;
       }
-      capacityHours = elapsed * 6;
+      capPace = elapsed * RATE;
+      // Fixed budget: total working days across the whole sprint window.
+      if (end) {
+        let totalWd = 0;
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+          if (wds.includes(d.getDay())) totalWd++;
+        }
+        capFixed = totalWd * RATE;
+      }
     }
-    timesheetHtml = buildTimesheetSVG(timesheetMembers, capacityHours);
+    timesheetHtml = buildTimesheetSVG(timesheetMembers, { fixed: capFixed, pace: capPace });
   } else {
     timesheetHtml = emptyState('No worklog data yet.', '⏱', 'Open the panel daily to populate.');
   }

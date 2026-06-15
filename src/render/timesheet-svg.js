@@ -29,12 +29,25 @@ function esc(text) {
 /**
  * Build the Time Logged chart markup.
  * @param {Array}  members  [{ name, total, byProject:{KEY:hours} }]
- * @param {number} [capacityHours=0]  if > 0, draws a dashed amber capacity line
- *                 and flags members whose total exceeds it with ⚠ + amber text.
+ * @param {number|{fixed:number, pace:number}} [capacity=0]
+ *   - number (legacy): the fixed full-sprint capacity line. Members over it are
+ *     flagged ⚠ + amber.
+ *   - object: { fixed, pace } draws TWO reference lines — a solid-ish amber
+ *     "cap" line at the fixed full-sprint budget (drives the ⚠ over-capacity
+ *     flag), and a lighter dotted "pace" marker at the expected-hours-so-far.
+ *     Either may be 0/omitted to skip that line.
  * @returns {string} HTML (div.ts-wrap), or '' when there are no members.
  */
-export function buildTimesheetSVG(members, capacityHours = 0) {
+export function buildTimesheetSVG(members, capacity = 0) {
   if (!members || members.length === 0) return '';
+
+  // Normalize: a bare number means the fixed cap (legacy callers); an object
+  // carries both the fixed budget and the pace-to-date marker.
+  const fixedCap = typeof capacity === 'number' ? capacity : (capacity?.fixed || 0);
+  const paceMark = typeof capacity === 'number' ? 0          : (capacity?.pace  || 0);
+  // The ⚠ over-capacity flag keys off the fixed budget (exceeding your
+  // full-sprint capacity is the meaningful warning, not the moving pace line).
+  const capacityHours = fixedCap;
 
   // Collect all project keys across all members
   const allProjects = [...new Set(members.flatMap(m => Object.keys(m.byProject || {})))].sort();
@@ -50,9 +63,10 @@ export function buildTimesheetSVG(members, capacityHours = 0) {
   const PAD_BOT = 28;  // room for legend
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
 
-  // Scale so the longest bar OR the capacity line (whichever is larger) fits.
+  // Scale so the longest bar OR either reference line (whichever is largest) fits.
   const maxLogged = Math.max(...members.map(m => m.total || 0), 0.1);
-  const maxTotal  = capacityHours > 0 ? Math.max(maxLogged, capacityHours) : maxLogged;
+  const maxRef    = Math.max(capacityHours, paceMark);
+  const maxTotal  = maxRef > 0 ? Math.max(maxLogged, maxRef) : maxLogged;
   const bw = h => Math.max(1, (h / maxTotal) * PW);
   const baseX = NAME_W;
 
@@ -99,8 +113,8 @@ export function buildTimesheetSVG(members, capacityHours = 0) {
   }
   const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="var(--border)" stroke-width="1"/>`;
 
-  // Capacity reference line — "who's over capacity?" — dashed amber vertical at
-  // expected hours-so-far; bars/names past it are flagged ⚠ above.
+  // Capacity reference line — the FIXED full-sprint budget. Dashed amber
+  // vertical; bars/names past it are flagged ⚠ above ("over capacity").
   let capLine = '';
   if (capacityHours > 0) {
     const cxNum = baseX + (capacityHours / maxTotal) * PW;
@@ -112,6 +126,21 @@ export function buildTimesheetSVG(members, capacityHours = 0) {
     const labelX = nearRight ? Math.min(cxNum + 2, W - 2) : cxNum;
     capLine = `<line x1="${cx}" y1="${PAD_TOP - 1}" x2="${cx}" y2="${H - PAD_BOT}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/>`
             + `<text x="${labelX.toFixed(1)}" y="${PAD_TOP - 4}" text-anchor="${labelAnchor}" fill="#f59e0b" font-size="10" font-weight="600" font-family="system-ui">cap ${capacityHours}h</text>`;
+  }
+
+  // Pace-to-date marker — expected hours per person SO FAR (elapsed working days
+  // × rate). A lighter dotted slate line; reference only, no ⚠ flag. Skipped if
+  // it would coincide with the fixed cap (e.g. last day of sprint).
+  let paceLine = '';
+  if (paceMark > 0 && paceMark !== capacityHours) {
+    const pxNum = baseX + (paceMark / maxTotal) * PW;
+    const px = pxNum.toFixed(1);
+    const nearRight = pxNum > baseX + PW * 0.75;
+    const labelAnchor = nearRight ? 'end' : 'middle';
+    const labelX = nearRight ? Math.min(pxNum + 2, W - 2) : pxNum;
+    // Label sits lower (mid-chart) so it doesn't collide with the cap label up top.
+    paceLine = `<line x1="${px}" y1="${PAD_TOP - 1}" x2="${px}" y2="${H - PAD_BOT}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="1,3"/>`
+             + `<text x="${labelX.toFixed(1)}" y="${(PAD_TOP + 7).toFixed(1)}" text-anchor="${labelAnchor}" fill="#94a3b8" font-size="9" font-weight="600" font-family="system-ui">pace ${paceMark}h</text>`;
   }
 
   // Legend (up to 4 projects shown inline, rest omitted)
@@ -132,6 +161,6 @@ export function buildTimesheetSVG(members, capacityHours = 0) {
       border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text,#e2e8f0);white-space:nowrap;
       box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:translate(-50%,-100%);"></div>
     <svg viewBox="0 -8 ${W} ${H + 12}" width="100%" xmlns="http://www.w3.org/2000/svg">
-    ${grid}${ax}${capLine}${rows}${legendSvg}</svg>
+    ${grid}${ax}${paceLine}${capLine}${rows}${legendSvg}</svg>
   </div>`;
 }
