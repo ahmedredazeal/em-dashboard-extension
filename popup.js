@@ -15,6 +15,8 @@ import { visibleAlerts } from './src/alerts.js';
 import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
 import { buildBurndownSVG } from './src/render/burndown-svg.js';
 import { engineerSprintBurndown } from './src/burndown.js';
+import { incomingVsResolved, openBugSnapshot } from './src/bug-reports.js';
+import { buildBugReportsCard } from './src/render/bug-reports-svg.js';
 import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed, compareVersions } from './src/update-check.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
@@ -64,6 +66,7 @@ let state = {
   supportTickets: [],
   extraBoardsData: [],
   milestonesData: [],
+  bugReports: { bugs: [], sprintWindows: [] },
   sprintAnalytics: null,
   isLoading: false,
   mockMode: false,           // true when demo/mock mode is active (session-only)
@@ -284,7 +287,7 @@ async function loadData() {
   try {
     const cacheResult = await chrome.storage.local.get([
       'settings', 'sprintHistory', 'currentSprint', 'sentryIssues',
-      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData', 'milestonesData', 'currentUser'
+      'sentryViews', 'supportTickets', 'alerts', 'extraBoardsData', 'milestonesData', 'currentUser', 'bugReports'
     ]);
     
     // Always refresh settings so squad.extraBoards reflects latest save
@@ -299,6 +302,7 @@ async function loadData() {
     state.extraBoardsData  = cacheResult.extraBoardsData  || [];
     state.milestonesData   = cacheResult.milestonesData   || [];
     state.currentUser      = cacheResult.currentUser      || null;
+    state.bugReports       = cacheResult.bugReports       || { bugs: [], sprintWindows: [] };
 
     // viewScope: engineers respect their last chosen scope (default 'me');
     // EM is always 'squad' (DDL filter sits on top of that).
@@ -1434,6 +1438,26 @@ function renderInsights() {
     }
   }
 
+  // Bug Reports card (T-BR-1) — incoming-vs-resolved trend + open-bug snapshot.
+  // Scope mirrors the rest of insights: engineer "Me" filters to my bugs.
+  let bugReportsHtml = '';
+  {
+    const br = state.bugReports || { bugs: [], sprintWindows: [] };
+    let bugs = br.bugs || [];
+    if (isEngineerMe) {
+      const myId = state.currentUser?.accountId;
+      const myName = state.currentUser?.displayName;
+      bugs = bugs.filter(b =>
+        (myId && b.assigneeAccountId === myId) ||
+        (!b.assigneeAccountId && myName && b.assignee === myName));
+    }
+    if ((br.sprintWindows || []).length > 0 || bugs.length > 0) {
+      const trend = incomingVsResolved(bugs, br.sprintWindows || []);
+      const snap = openBugSnapshot(bugs);
+      bugReportsHtml = `<div style="margin-top:8px;">${buildBugReportsCard(trend, snap, isEngineerMe ? 'Me' : 'Squad')}</div>`;
+    }
+  }
+
   content.innerHTML = `
     ${progressHtml}
     <div style="${outerStyle}">
@@ -1461,6 +1485,7 @@ function renderInsights() {
       </div>
       <div style="${chartWrap2}">${estimateVsActualHtml}</div>
     </div>
+    ${bugReportsHtml}
     ${ganttSectionHtml}`;
 
   wireBurndownHover();

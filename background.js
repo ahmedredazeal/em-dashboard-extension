@@ -8,7 +8,7 @@
 import * as jiraAPI from './src/jira-api.js';
 import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
-import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone } from './src/parsers.js';
+import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone, normalizeBug } from './src/parsers.js';
 import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, sprintAddDay, createdDayAfterStart } from './src/changelog-parser.js';
 import { buildUsageEnvelope, buildErrorEnvelope, buildTransactionEnvelope, sendEnvelope } from './src/usage-telemetry.js';
 import { computeBurndownSeries } from './src/burndown.js';
@@ -192,7 +192,8 @@ async function checkDashboard() {
         sentryIssues: state.sentryIssues,
         sentryViews: state.sentryViews || [],
         extraBoardsData: state.extraBoardsData || [],
-        milestonesData: state.milestonesData || []
+        milestonesData: state.milestonesData || [],
+        bugReports: state.bugReports || { bugs: [], sprintWindows: [] }
       });
       // Push to popup if it is open (ignore error if not)
       chrome.runtime.sendMessage({ type: 'partial-update', source })
@@ -209,6 +210,7 @@ async function checkDashboard() {
         state.supportTickets  = data.supportTickets  || [];
         state.extraBoardsData = data.extraBoardsData || [];
         state.milestonesData  = data.milestonesData  || [];
+        state.bugReports      = data.bugReports       || { bugs: [], sprintWindows: [] };
         if (data.currentUser) {
           state.currentUser = data.currentUser;
           await chrome.storage.local.set({ currentUser: data.currentUser });
@@ -345,7 +347,11 @@ async function fetchJiraData(settings) {
   // Extra boards — fetch active sprint + stories for each
   const extraBoardsData = await fetchExtraBoards(client, settings, squadKey, storyPointsField);
   console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
-  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, milestonesData, currentUser };
+
+  // Bug reports (T-BR-1) — squad bugs + last 6 sprint windows for the trend.
+  const bugReports = await fetchBugReports(client, squadKey, boardId);
+
+  return { sprintHistory, currentSprint, supportTickets, extraBoardsData, milestonesData, currentUser, bugReports };
 }
 
 /**
@@ -716,6 +722,37 @@ async function fetchMilestones(client, settings, squadKey, storyPointsField) {
   } catch (msErr) {
     console.warn('[background] Milestones fetch failed (non-fatal):', msErr.message);
     return milestoneConfigs.map(m => ({ ...m, tickets: [], error: msErr.message }));
+  }
+}
+
+/**
+ * Bug reports (T-BR-1). Fetches the squad's bugs (issue type Bug / QA Bug) plus
+ * the last 6 closed sprint windows for the incoming-vs-resolved trend. Returns
+ * raw material; the popup computes the per-scope metrics (squad vs my bugs) and
+ * renders. Non-fatal — a failure yields an empty, render-safe shape.
+ * @returns {{ bugs: Array, sprintWindows: Array<{name,startDate,endDate}> }}
+ */
+async function fetchBugReports(client, squadKey, boardId) {
+  try {
+    // Cap volume with a created-floor well before the 6-sprint window (~9 months).
+    const floor = new Date();
+    floor.setMonth(floor.getMonth() - 9);
+    const createdAfter = floor.toISOString().slice(0, 10);
+
+    const [rawBugs, sprints] = await Promise.all([
+      client.getBugs(squadKey, { createdAfter }),
+      boardId ? client.getSprintHistory(boardId, 6) : Promise.resolve([]),
+    ]);
+
+    const bugs = (rawBugs || []).map(normalizeBug);
+    const sprintWindows = (sprints || []).map(s => ({
+      name: s.name, startDate: s.startDate, endDate: s.endDate,
+    }));
+    console.log(`[background] Bug reports: ${bugs.length} bugs, ${sprintWindows.length} sprint windows`);
+    return { bugs, sprintWindows };
+  } catch (err) {
+    console.warn('[background] Bug reports fetch failed (non-fatal):', err.message);
+    return { bugs: [], sprintWindows: [] };
   }
 }
 

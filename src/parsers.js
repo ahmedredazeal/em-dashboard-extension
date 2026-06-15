@@ -140,6 +140,32 @@ export function normalizeStory(issue, storyPointsField) {
 }
 
 /**
+ * Normalize a Jira bug issue for the Bug Reports card (T-BR-1).
+ * Captures the fields the metrics need: created, resolved, status, priority,
+ * assignee, plus a computed `done` flag from the status category.
+ * @param {Object} issue  raw Jira issue
+ * @returns {{key, summary, status, priority, assigneeAccountId, assignee,
+ *            created, resolved, done}}
+ */
+export function normalizeBug(issue) {
+  const fields = issue.fields || {};
+  const cat = fields.status?.statusCategory?.key || '';
+  const name = (fields.status?.name || '').toLowerCase();
+  const done = cat === 'done' || ['done', 'closed', 'resolved'].includes(name);
+  return {
+    key: issue.key,
+    summary: fields.summary || '',
+    status: fields.status?.name || '',
+    priority: fields.priority?.name || 'None',
+    assignee: fields.assignee?.displayName || null,
+    assigneeAccountId: fields.assignee?.accountId || null,
+    created: fields.created || null,
+    resolved: fields.resolutiondate || null,
+    done,
+  };
+}
+
+/**
  * Determine if a story is "done" — covers multiple status conventions.
  */
 export function isStoryDone(story) {

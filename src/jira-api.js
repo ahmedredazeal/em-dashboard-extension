@@ -496,6 +496,33 @@ export class JiraClient {
   }
 
   /**
+   * Get bugs for a project (T-BR-1). Bug = issue type Bug or QA Bug.
+   * @param {string} projectKey
+   * @param {Object} [opts]
+   * @param {string} [opts.assigneeAccountId]  if set, restrict to this assignee ("my bugs")
+   * @param {string} [opts.createdAfter]  optional JQL date floor (e.g. '2026-01-01') to cap volume
+   * @returns {Promise<Array>} raw Jira issues (fields: created, resolutiondate, status, priority, assignee, issuetype, summary)
+   */
+  async getBugs(projectKey, opts = {}) {
+    let jql = `project = "${projectKey}" AND issuetype in ("Bug", "QA Bug")`;
+    if (opts.assigneeAccountId) jql += ` AND assignee = "${opts.assigneeAccountId}"`;
+    if (opts.createdAfter) jql += ` AND created >= "${opts.createdAfter}"`;
+    jql += ' ORDER BY created DESC';
+    console.log(`[jira] Fetching bugs: ${jql}`);
+    try {
+      const result = await this._search({
+        jql,
+        fields: ['summary', 'status', 'priority', 'assignee', 'issuetype', 'created', 'resolutiondate'],
+        maxResults: 200,
+      });
+      return result.issues || [];
+    } catch (err) {
+      console.warn('[jira] Bug fetch failed (non-fatal):', err.message);
+      return [];
+    }
+  }
+
+  /**
    * Get support tickets for a project
    */
   async getSupportTickets(projectKey) {

@@ -1,5 +1,38 @@
 # Changelog
 
+## v2.14.0 (2026-06-15) — Bug Reports card (T-BR-1, phase 1)
+
+A new **Bug Reports** card in Insights, sitting between the time charts and the
+Gantt, with the same sprint/quarter + squad/me scope as the rest of the section.
+A bug is any issue of type **Bug** or **QA Bug**.
+
+Two charts:
+
+- **Incoming vs Resolved** — grouped bars over the last 6 sprints, bucketed by
+  each sprint's actual `[start, end)` window (from sprint history). Per sprint:
+  bugs created vs bugs resolved (by `resolutiondate`), with a net-flow read-out
+  ("backlog growing/shrinking"). Bugs older than the 6-sprint window are noted
+  but not plotted.
+- **Open bugs by age** — current open bugs in age buckets (0–7d / 8–30d /
+  31–90d / 90d+, with 90d+ highlighted red), a median-age read-out, and a
+  priority split.
+
+Scope: EM sees squad-wide bugs; an engineer in **Me** scope sees only bugs
+assigned to them.
+
+New code: `src/bug-reports.js` (pure metrics — sprint-window bucketing, age
+buckets, median, priority tally) with `tests/bug-reports.test.js` (14 cases incl.
+window-boundary edges); `src/render/bug-reports-svg.js` (both charts + card);
+`getBugs` on the Jira client (read-only `_search`); `normalizeBug` in parsers;
+`fetchBugReports` in background.js (fetches bugs + 6 sprint windows, ~9-month
+created floor to cap volume, non-fatal).
+
+Deferred to phase 2: reopen rate (needs changelog) and per-component breakdown.
+
+26 suites + pre-flight green.
+
+---
+
 ## v2.13.0 (2026-06-15) — Multi-team support + publishing prep
 
 Preparing the tool to be published to the wider team (and usable by teams
