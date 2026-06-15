@@ -15,6 +15,7 @@ import { visibleAlerts } from './src/alerts.js';
 import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
 import { buildBurndownSVG } from './src/render/burndown-svg.js';
 import { engineerSprintBurndown } from './src/burndown.js';
+import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed } from './src/update-check.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
 import { buildSupportBoardChart } from './src/render/support-board-svg.js';
@@ -206,6 +207,9 @@ async function boot() {
     console.log('[popup] Cache stale or empty — fetching fresh data...');
     refreshDashboard();
   }
+
+  // Update nudge (T-DIST-1) — fire-and-forget; never blocks the UI.
+  checkForUpdate().catch(err => console.warn('[popup] Update check skipped:', err?.message));
 }
 
 /**
@@ -421,6 +425,87 @@ function showErrorBanner(message) {
   }
 }
 
+/**
+ * Update nudge (T-DIST-1, phase 1). Checks GitHub Releases for the newest
+ * PROMOTED release (tag/name contains "promoted") newer than the running
+ * version, at most once per 24h, and shows a dismissible banner. MV3 can't
+ * self-update, so this links the user to the new build; Chrome Web Store
+ * auto-update is the deferred phase 2.
+ */
+async function checkForUpdate() {
+  const currentVersion = chrome.runtime.getManifest().version;
+  const store = await chrome.storage.local.get(['updateCheck']);
+  const uc = store.updateCheck || {};
+
+  if (!shouldCheck(uc.lastCheckedAt)) {
+    // Within the daily window — but still re-show the banner if a known update
+    // is pending and not snoozed (e.g. popup reopened same day).
+    if (uc.pendingVersion && !isSnoozed(uc.snoozedVersion, uc.snoozedUntil, uc.pendingVersion)) {
+      showUpdateBanner(uc.pendingVersion, uc.pendingUrl);
+    }
+    return;
+  }
+
+  let releases;
+  try {
+    const res = await fetch(GITHUB_RELEASES_API, { headers: { 'Accept': 'application/vnd.github+json' } });
+    if (!res.ok) { console.warn('[popup] GitHub releases fetch:', res.status); return; }
+    releases = await res.json();
+  } catch (err) {
+    console.warn('[popup] GitHub releases fetch failed:', err?.message);
+    return;
+  }
+
+  const update = selectUpdate(releases, currentVersion);
+  const next = {
+    lastCheckedAt: Date.now(),
+    pendingVersion: update ? update.version : null,
+    pendingUrl:     update ? update.htmlUrl : null,
+    snoozedVersion: uc.snoozedVersion || null,
+    snoozedUntil:   uc.snoozedUntil   || null,
+  };
+  await chrome.storage.local.set({ updateCheck: next });
+
+  if (update && !isSnoozed(next.snoozedVersion, next.snoozedUntil, update.version)) {
+    showUpdateBanner(update.version, update.htmlUrl);
+  }
+}
+
+/** Dismissible "update available" banner with a download link + remind-me-later. */
+function showUpdateBanner(version, url) {
+  const existing = document.getElementById('update-banner');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'update-banner';
+  banner.style.cssText =
+    'background:rgba(99,102,241,0.12);color:var(--text);padding:10px 14px;border-radius:6px;' +
+    'margin:12px;font-size:var(--fs-body);border:1px solid rgba(99,102,241,0.35);' +
+    'display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
+  banner.innerHTML =
+    `<span style="flex:1;min-width:140px;">✨ <strong>Version ${escapeHtml(version)}</strong> is available.</span>` +
+    `<a id="update-get" href="${escapeHtml(url || '#')}" target="_blank" rel="noopener" ` +
+      `style="color:#818cf8;font-weight:600;text-decoration:none;">Get it →</a>` +
+    `<button id="update-later" style="background:none;border:1px solid var(--border,rgba(255,255,255,0.2));` +
+      `border-radius:4px;color:var(--text-muted);font-size:var(--fs-caption);padding:3px 8px;cursor:pointer;">Remind me later</button>`;
+
+  const todayScreen = document.getElementById('screen-today');
+  if (todayScreen) todayScreen.insertBefore(banner, todayScreen.firstChild);
+
+  // "Remind me later" → snooze THIS version for 3 days.
+  banner.querySelector('#update-later')?.addEventListener('click', async () => {
+    const store = await chrome.storage.local.get(['updateCheck']);
+    const uc = store.updateCheck || {};
+    uc.snoozedVersion = version;
+    uc.snoozedUntil   = Date.now() + 3 * 24 * 60 * 60 * 1000; // 3 days
+    await chrome.storage.local.set({ updateCheck: uc });
+    banner.remove();
+  });
+}
+
+/**
+ * Show a screen
+ */
 /**
  * Show a screen
  */

@@ -1,5 +1,44 @@
 # Changelog
 
+## v2.12.1 (2026-06-15) — Update-available nudge (T-DIST-1, phase 1)
+
+An in-app nudge so the team knows when a new build is ready — without a manual
+zip hand-off for *discovery*. (True hands-off auto-update is the Chrome Web Store
+— deferred phase 2; an MV3 extension cannot replace its own files from code, so
+self-update is not possible.)
+
+**How it works.** On open, at most once per 24h, the extension fetches the GitHub
+Releases API and looks for the newest **promoted** release — a release whose tag
+or name contains the token `promoted` — that is newer than the running version.
+If found (and not snoozed), it shows a dismissible banner: *"Version X is
+available — Get it →"* plus a **Remind me later** button (snoozes that version
+for 3 days). Un-promoted releases are ignored, so only versions you've tried and
+marked reach the team.
+
+- New `src/update-check.js` (pure: parseVersion, compareVersions, isPromoted,
+  selectUpdate, shouldCheck, isSnoozed) + `tests/update-check.test.js` (11).
+- popup: `checkForUpdate()` (fire-and-forget at boot, 24h rate-limit, GitHub
+  fetch) + `showUpdateBanner()` (dismissible, remind-me-later).
+- manifest: added `https://api.github.com/*` host permission.
+
+**Maintainer workflow:** cut a GitHub Release for the version, attach the built
+zip, and once you've tried it, put `promoted` in the release tag or name. The
+team's extensions will surface the nudge within a day.
+
+25 suites + pre-flight green.
+
+HONEST CAVEATS: (1) the GitHub fetch couldn't be live-verified from the dev
+sandbox (api.github.com returns 403 on the shared egress IP — same artifact as
+the Sentry ingest block; the parsing/selection logic is unit-tested against
+real release shapes and the real extension fetches from the user's own IP).
+(2) The nudge reads GitHub *Releases*, not raw git tags — you must create a
+Release (not just push a tag) for it to appear.
+
+Phase 2 (deferred): Chrome Web Store unlisted listing → native auto-update,
+which retires this nudge.
+
+---
+
 ## v2.12.0 (2026-06-15) — Engineer personal burndown (T-EBD-1) + 6h capacity line (T-CAP-1)
 
 Two backlog features shipped together.
