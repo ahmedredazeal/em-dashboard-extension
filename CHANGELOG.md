@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.11.4 (2026-06-15) — Stability S-6, S-7, S-8 complete
+
+Closes the remaining three stability items in one pass (all low-risk,
+in-popup.js work).
+
+**S-8 — popup.js error-handling audit.** Reviewed all 6 console.error calls in
+the side-panel context (where, unlike the service worker, console.error does NOT
+badge the extension — so the concern is "is it handled + does the user get
+feedback"). Downgraded 2 cosmetic/non-fatal cases to warn (theme load → falls
+back to default; alert snooze). Kept 4 as error, and crucially **surfaced two
+previously-silent failures to the user**: a failed `loadData` and a failed
+Gantt-tab open now show an error banner instead of leaving a blank/stale view
+with no explanation.
+
+**S-7 — consistent empty states.** Migrated 3 ad-hoc inline "no data yet" divs
+(sprint analytics, point data, worklog data) to the existing `emptyState(msg,
+icon, action)` helper so they share one consistent look. (Two contextual ternary
+empty-states left inline — migrating them would contort more than it helps.)
+
+**S-6 — design-token migration.** Migrated all **79 mappable HTML inline
+font-sizes** in popup.js to the `--fs-*` design tokens established in v2.8.7
+(10px→caption, 11px→label, 12px→body, 13px→subhead, 16px→head). Verified every
+one is an HTML `style="…"` value (no SVG text remains in popup.js — it all moved
+to src/render/ during S-3), so the migration is safe; the CSS vars resolve
+natively in these contexts. Left 9px×3 and 19px×1 untouched as off-scale.
+
+23 suites + pre-flight green. **The full stability audit (S-1…S-9) is now
+complete.** Remaining audit items were S-10 (chart captions, deferred) and S-11
+(burndown projection, declined).
+
+HONEST CAVEAT: S-6/S-7 are cosmetic — the token + empty-state changes can't be
+visually verified here. They're mechanical substitutions to valid CSS-var
+references, but a quick visual pass after loading v2.11.4 is worth it.
+
+---
+
 ## v2.11.3 (2026-06-15) — Stability S-5 complete: fetchJiraData fully decomposed
 
 Finishes S-5. The 476-line `fetchJiraData` orchestrator is now a **42-line**

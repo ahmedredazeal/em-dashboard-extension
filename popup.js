@@ -216,7 +216,7 @@ async function loadAndApplyTheme() {
     const theme = result.settings?.ui?.theme || 'browser';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (error) {
-    console.error('[popup] Failed to load theme:', error);
+    console.warn('[popup] Failed to load theme (non-fatal — using default):', error);
   }
 }
 
@@ -330,6 +330,7 @@ async function loadData() {
     });
   } catch (error) {
     console.error('[popup] Failed to load data:', error);
+    showErrorBanner(`Couldn't load dashboard data: ${error.message}`);
   }
 }
 
@@ -366,7 +367,7 @@ async function refreshDashboard() {
   const spikes = document.getElementById('sentry-spikes');
   const sentryEmpty = document.getElementById('sentry-empty');
   const sentryTotal = document.getElementById('sentry-total');
-  if (spikes) spikes.innerHTML = `<div style="padding:12px;text-align:center;font-size:12px;color:var(--text-muted);">Loading…</div>`;
+  if (spikes) spikes.innerHTML = `<div style="padding:12px;text-align:center;font-size:var(--fs-body);color:var(--text-muted);">Loading…</div>`;
   if (sentryEmpty) sentryEmpty.classList.add('hidden');
   if (sentryTotal) sentryTotal.textContent = '…';
   
@@ -525,8 +526,8 @@ function renderExtraBoards() {
         <div class="section">
           <div class="section-label">${escapeHtml(board.boardLabel)}</div>
           <div style="padding:10px;border-radius:6px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);margin-top:6px;">
-            <div style="font-size:12px;color:#ef4444;">⚠ ${escapeHtml(board.error)}</div>
-            ${hint ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${hint}</div>` : ''}
+            <div style="font-size:var(--fs-body);color:#ef4444;">⚠ ${escapeHtml(board.error)}</div>
+            ${hint ? `<div style="font-size:var(--fs-label);color:var(--text-muted);margin-top:4px;">${hint}</div>` : ''}
           </div>
         </div>`;
     }
@@ -555,24 +556,24 @@ function renderExtraBoards() {
           <span>${escapeHtml(board.boardLabel)}</span>
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="section-loading-pill" id="board-loading-${idx}">Refreshing</span>
-            <span style="font-size:11px;font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + (isEngineerMe ? ' MINE' : ' OPEN') : board.totalStories + ' TOTAL'}</span>
-            <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
+            <span style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);">${isSupport ? displayStories.length + (isEngineerMe ? ' MINE' : ' OPEN') : board.totalStories + ' TOTAL'}</span>
+            <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:var(--fs-body);">&#9654;</span>
           </div>
         </div>
         <div id="${sectionId}-section-body" style="display:none;margin-top:8px;">
           ${state.settings?.role === 'engineer' ? `
           <div class="scope-filter-row board-filter-row" id="${sectionId}-filter-row">
-            <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
+            <span style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
               ${escapeHtml(board.boardLabel)}${board.sprintName ? ' · ' + escapeHtml(board.sprintName) : ''}
             </span>
             ${buildScopeToggleHtml()}
           </div>` : ''}
           <div style="padding:10px;background:var(--surface-raised);border-radius:8px;margin-bottom:6px;">
-            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(subLabel)}</div>
+            <div style="font-size:var(--fs-body);color:var(--text-muted);">${escapeHtml(subLabel)}</div>
             <div style="margin-top:3px;">${collapsedBoardSummary(displayStories, isSupport)}</div>
           </div>
           <div id="${sectionId}-body">
-            ${displayStories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">No open issues</div>'}
+            ${displayStories.map(s => renderTicketRow(s, jiraBase)).join('') || '<div style="padding:12px;color:var(--text-muted);font-size:var(--fs-body);text-align:center;">No open issues</div>'}
           </div>
         </div>
       </div>`;
@@ -627,7 +628,7 @@ function renderMilestones() {
         <div class="section">
           <div class="section-label">🎯 ${escapeHtml(ms.name || ms.label)}</div>
           <div style="padding:10px;border-radius:6px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.3);margin-top:6px;">
-            <div style="font-size:12px;color:#ef4444;">⚠ ${escapeHtml(ms.error)}</div>
+            <div style="font-size:var(--fs-body);color:#ef4444;">⚠ ${escapeHtml(ms.error)}</div>
           </div>
         </div>`;
     }
@@ -641,8 +642,8 @@ function renderMilestones() {
 
     const leapsomeHtml = ms.leapsomeUrl
       ? `<a href="${escapeHtml(ms.leapsomeUrl)}" target="_blank" rel="noopener"
-           style="font-size:11px;color:var(--primary,#6366f1);text-decoration:none;">Open in Leapsome ↗</a>`
-      : `<span style="font-size:10px;color:var(--text-muted);font-style:italic;">Remember to update Leapsome manually</span>`;
+           style="font-size:var(--fs-label);color:var(--primary,#6366f1);text-decoration:none;">Open in Leapsome ↗</a>`
+      : `<span style="font-size:var(--fs-caption);color:var(--text-muted);font-style:italic;">Remember to update Leapsome manually</span>`;
 
     const rows = tickets.map(t => {
       const badge = sprintKeys.has(t.key)
@@ -656,21 +657,21 @@ function renderMilestones() {
         <div id="${sectionId}-section-label" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
           <span>🎯 ${escapeHtml(ms.name || ms.label)}</span>
           <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;font-weight:600;color:${pct === 100 ? '#34d399' : 'var(--text-muted)'};">${done}/${total} · ${pct}%</span>
-            <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:12px;">&#9654;</span>
+            <span style="font-size:var(--fs-label);font-weight:600;color:${pct === 100 ? '#34d399' : 'var(--text-muted)'};">${done}/${total} · ${pct}%</span>
+            <span id="${sectionId}-section-chevron" style="color:var(--text-muted);font-size:var(--fs-body);">&#9654;</span>
           </div>
         </div>
         <div id="${sectionId}-section-body" style="display:none;margin-top:8px;">
           ${state.settings?.role === 'engineer' ? `
           <div class="scope-filter-row" id="${sectionId}-filter-row">
-            <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
+            <span style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
               ${escapeHtml(ms.name || ms.label)}
             </span>
             ${buildScopeToggleHtml()}
           </div>` : ''}
           <div style="padding:10px;background:var(--surface-raised);border-radius:8px;margin-bottom:6px;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div style="font-size:12px;color:var(--text-muted);">
+              <div style="font-size:var(--fs-body);color:var(--text-muted);">
                 ${done}/${total} done (${pct}%)${inSprintCount > 0 ? ` · ${inSprintCount} in current sprint` : ''}${inProg > 0 ? ` · ${inProg} in progress` : ''}
               </div>
               ${leapsomeHtml}
@@ -678,7 +679,7 @@ function renderMilestones() {
             <div style="margin-top:5px;">${collapsedBoardSummary(tickets, false)}</div>
           </div>
           <div id="${sectionId}-body">
-            ${rows || `<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">${isEngineerMe ? 'No tickets assigned to you in this milestone' : `No tickets carry the "${escapeHtml(ms.label)}" label yet`}</div>`}
+            ${rows || `<div style="padding:12px;color:var(--text-muted);font-size:var(--fs-body);text-align:center;">${isEngineerMe ? 'No tickets assigned to you in this milestone' : `No tickets carry the "${escapeHtml(ms.label)}" label yet`}</div>`}
           </div>
         </div>
       </div>`;
@@ -775,7 +776,7 @@ function renderRoleSelectScreen() {
         <img class="logo-dark"  src="icons/cap-white.png" alt="">
       </span>
       <h2 style="font-size:19px;font-weight:700;margin:0 0 8px;">Hello, Zealer! 👋</h2>
-      <p style="font-size:12px;color:var(--text-muted);margin:0;">
+      <p style="font-size:var(--fs-body);color:var(--text-muted);margin:0;">
         ${showRoleCards
           ? 'Set your default view — change it anytime in Settings.'
           : 'Connect your Jira and Sentry to get started.'}
@@ -783,7 +784,7 @@ function renderRoleSelectScreen() {
     </div>
 
     ${showRoleCards ? `
-    <p style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;text-align:center;margin-bottom:10px;">
+    <p style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;text-align:center;margin-bottom:10px;">
       What's your role?
     </p>
     <div class="role-cards">
@@ -925,8 +926,8 @@ function personalQuarterPeriods(byDate, qStart, qEnd, totalEstimate) {
 /** Render the card wrapper for a personal chart (reuses the existing card style). */
 function buildPersonalChartCard(title, subtitle, svgHtml) {
   return `<div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;box-sizing:border-box;">
-    <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${title}</div>
-    ${subtitle ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${subtitle}</div>` : ''}
+    <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${title}</div>
+    ${subtitle ? `<div style="font-size:var(--fs-caption);color:var(--text-muted);margin-top:1px;">${subtitle}</div>` : ''}
     <div style="margin-top:6px;">${svgHtml}</div>
   </div>`;
 }
@@ -941,7 +942,7 @@ function renderInsights() {
 
   const analytics = state.sprintAnalytics;
   if (!analytics) {
-    content.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No sprint analytics data yet.</div>';
+    content.innerHTML = emptyState('No sprint analytics data yet.', '📊');
     return;
   }
 
@@ -954,7 +955,7 @@ function renderInsights() {
   const bd = analytics.burndown;
   let burndownHtml = (bd && bd.ideal?.length > 0)
     ? buildBurndownSVG(bd)
-    : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No point data yet.</div>';
+    : emptyState('No point data yet.', '—');
   
   // ── Timesheet with inline member filter + quarter dropdown ───────────────
   const ts = analytics.timesheet || [];
@@ -994,7 +995,7 @@ function renderInsights() {
     )
   ].join('');
   
-  const modeDropdown = `<select id="timesheet-mode-select" style="font-size:10px;padding:2px 4px;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">${quarterOptions}</select>`;
+  const modeDropdown = `<select id="timesheet-mode-select" style="font-size:var(--fs-caption);padding:2px 4px;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer;">${quarterOptions}</select>`;
   
   // In engineer mode use the Me/Squad scope toggle; in EM mode keep the DDL filter.
   const isEngineer = state.settings?.role === 'engineer';
@@ -1004,14 +1005,14 @@ function renderInsights() {
   const memberFilterHtml = discoveredMembers.length > 0 ? `
     <div style="position:relative;display:inline-block;">
       <button id="member-filter-btn" title="Filter team members"
-        style="background:none;border:1px solid ${filterActive ? 'var(--primary,#6366f1)' : 'var(--border,rgba(255,255,255,0.1))'};border-radius:4px;padding:2px 6px;color:${filterActive ? 'var(--primary,#6366f1)' : 'var(--text-muted)'};font-size:11px;cursor:pointer;line-height:1.4;">
+        style="background:none;border:1px solid ${filterActive ? 'var(--primary,#6366f1)' : 'var(--border,rgba(255,255,255,0.1))'};border-radius:4px;padding:2px 6px;color:${filterActive ? 'var(--primary,#6366f1)' : 'var(--text-muted)'};font-size:var(--fs-label);cursor:pointer;line-height:1.4;">
         👥 ${filteredCount}/${totalCount}${filterActive ? ' ●' : ''}
       </button>
       <div id="member-filter-popover"
         style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:99;
                background:var(--surface);border:1px solid var(--border);border-radius:8px;
                padding:10px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;
+        <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);margin-bottom:8px;
                     display:flex;justify-content:space-between;align-items:center;">
           <span>Team members</span>
           <span id="member-filter-select-all" style="color:var(--primary,#6366f1);cursor:pointer;">All</span>
@@ -1020,7 +1021,7 @@ function renderInsights() {
           ${discoveredMembers.map(mem => {
             const key = memberKey(mem);
             const checked = !monitored || monitored.length === 0 || isMonitored(mem, monitored);
-            return `<label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;">
+            return `<label style="display:flex;align-items:center;gap:7px;font-size:var(--fs-body);color:var(--text);cursor:pointer;">
               <input type="checkbox" class="member-filter-cb" data-key="${escapeHtml(key)}"
                 ${checked ? 'checked' : ''}
                 style="accent-color:var(--primary,#6366f1);width:13px;height:13px;"/>
@@ -1030,7 +1031,7 @@ function renderInsights() {
         </div>
         <button id="member-filter-apply"
           style="margin-top:10px;width:100%;padding:5px;background:var(--primary,#6366f1);
-                 border:none;border-radius:4px;color:#fff;font-size:12px;cursor:pointer;">Apply</button>
+                 border:none;border-radius:4px;color:#fff;font-size:var(--fs-body);cursor:pointer;">Apply</button>
       </div>
     </div>` : '';
   // Engineer mode: scope toggle replaces the DDL filter. EM mode: DDL filter.
@@ -1090,7 +1091,7 @@ function renderInsights() {
   if (isEngineerMe) {
     // In me-mode we NEVER show the squad chart. Three sub-cases:
     if (currentMode !== 'sprint' && timesheetMembers === null) {
-      timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+      timesheetHtml = `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
         Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
     } else if (myMember?.byDate) {
       const periods = (currentMode === 'sprint')
@@ -1102,18 +1103,18 @@ function renderInsights() {
       timesheetHtml = buildPersonalBarsSVG(periods, { showEstimate: false });
     } else if (myMember) {
       // Stale cache aggregated before byDate existed — show total + refresh hint
-      timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+      timesheetHtml = `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
         You logged <strong style="color:var(--text);">${myMember.total}h</strong> this period.
-        <br><span style="font-size:11px;">Click ↻ to load the daily breakdown.</span></div>`;
+        <br><span style="font-size:var(--fs-label);">Click ↻ to load the daily breakdown.</span></div>`;
     } else {
-      timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+      timesheetHtml = `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
         No time logged by you in this period.</div>`;
     }
   } else if (isLegacyFormat) {
-    timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+    timesheetHtml = `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
       Data format updated — click ↻ to refresh and load cross-squad time data.</div>`;
   } else if (currentMode !== 'sprint' && timesheetMembers === null) {
-    timesheetHtml = `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+    timesheetHtml = `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
       Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
   } else if ((timesheetMembers || []).length > 0) {
     // Capacity reference (sprint mode only): expected hours per person so far =
@@ -1131,13 +1132,13 @@ function renderInsights() {
     }
     timesheetHtml = buildTimesheetSVG(timesheetMembers, capacityHours);
   } else {
-    timesheetHtml = '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No worklog data yet — open the panel daily to populate.</div>';
+    timesheetHtml = emptyState('No worklog data yet.', '⏱', 'Open the panel daily to populate.');
   }
   
   // Quarter cache timestamp for ↺ link
   const qCache = currentMode !== 'sprint' ? state.quarterWorklogCache?.[currentMode] : null;
   const qRefreshNote = qCache
-    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+    ? `<div style="font-size:var(--fs-caption);color:var(--text-muted);margin-top:4px;">
          Last fetched ${formatTimestamp(qCache.fetchedAt)} · 
          <span id="quarter-refresh-link" style="color:var(--primary);cursor:pointer;">↺ Refresh</span>
        </div>`
@@ -1146,13 +1147,13 @@ function renderInsights() {
   // ── Dates (declared above, before isEngineerMe) ───────────────────────
   // Helper: subtitle div for a given range string
   const dateSubtitle = (range) => range
-    ? `<div style="font-size:10px;color:var(--text-muted);margin-top:1px;">${range}</div>` : '';
+    ? `<div style="font-size:var(--fs-caption);color:var(--text-muted);margin-top:1px;">${range}</div>` : '';
   
   // Shared control bar — sits above row 2, controls BOTH Time Logged and Estimate vs Actual
   const sharedControlBar = `
     <div style="display:flex;align-items:center;justify-content:space-between;
                 margin:8px 0 4px;padding:0 2px;position:relative;">
-      <span style="font-size:10px;color:var(--text-muted);">${modeRange}</span>
+      <span style="font-size:var(--fs-caption);color:var(--text-muted);">${modeRange}</span>
       <div style="display:flex;align-items:center;gap:6px;">
         ${modeDropdown}
         ${filterControl}
@@ -1169,9 +1170,9 @@ function renderInsights() {
     if (currentMode !== 'sprint' && timesheetMembers === null) {
       estimateVsActualHtml = `
         <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">
-          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
-          <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
-          <div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
+          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
+          <div style="font-size:var(--fs-caption);color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
+          <div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
         </div>`;
     } else if (myMember?.byDate) {
       const hasEst  = (myMember.estimated || 0) > 0;
@@ -1187,25 +1188,25 @@ function renderInsights() {
         modeRange,
         svg + (hasEst
           ? ''
-          : '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">No estimates set on your assigned tickets.</div>')
+          : '<div style="font-size:var(--fs-caption);color:var(--text-muted);margin-top:4px;">No estimates set on your assigned tickets.</div>')
       );
     } else if (myMember) {
       estimateVsActualHtml = buildPersonalChartCard(
         'ESTIMATE VS ACTUAL',
         modeRange,
-        `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
+        `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
           You logged <strong style="color:var(--text);">${myMember.total}h</strong> vs
           <strong style="color:var(--text);">${myMember.estimated || 0}h</strong> estimated.
-          <br><span style="font-size:11px;">Click ↻ to load the period breakdown.</span></div>`
+          <br><span style="font-size:var(--fs-label);">Click ↻ to load the period breakdown.</span></div>`
       );
     }
     // else: no member → leave estimateVsActualHtml empty (card omitted)
   } else if (quarterPending) {
     estimateVsActualHtml = `
       <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
-        <div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
+        <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
+        <div style="font-size:var(--fs-caption);color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
+        <div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
       </div>`;
   } else if (teamForEstimate.length > 0 && teamForEstimate.some(m => m.estimated > 0)) {
     estimateVsActualHtml = buildEstimateVsActualCard(teamForEstimate, modeRange);
@@ -1259,12 +1260,12 @@ function renderInsights() {
         cursor:pointer;user-select:none;" id="gantt-toggle-header">
         <div style="display:flex;align-items:center;gap:8px;">
           <button id="gantt-expand-btn" style="background:none;border:none;color:var(--text-muted);
-            cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;" title="Open in full tab / export PDF">⤢</button>
-          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${ganttLabel}</div>
-          <div style="font-size:10px;color:var(--text-muted);">${sprintRange}</div>
+            cursor:pointer;font-size:var(--fs-body);padding:2px 4px;line-height:1;" title="Open in full tab / export PDF">⤢</button>
+          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${ganttLabel}</div>
+          <div style="font-size:var(--fs-caption);color:var(--text-muted);">${sprintRange}</div>
         </div>
         <button id="gantt-toggle-btn" style="background:none;border:none;color:var(--text-muted);
-          cursor:pointer;font-size:11px;padding:2px 4px;line-height:1;" title="Toggle Gantt">▼</button>
+          cursor:pointer;font-size:var(--fs-label);padding:2px 4px;line-height:1;" title="Toggle Gantt">▼</button>
       </div>
       <div id="gantt-container" style="overflow-x:auto;margin-top:8px;">${ganttInner}</div>
     </div>`;
@@ -1294,7 +1295,7 @@ function renderInsights() {
         { n: inProg, label: 'In Progress', color: '#3b82f6' },
         { n: open,   label: 'Open',        color: 'var(--text-muted)' },
       ].filter(r => r.n > 0).map(r => `
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.7;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:var(--fs-label);line-height:1.7;">
           <span style="width:7px;height:7px;border-radius:2px;background:${r.color};flex-shrink:0;"></span>
           <span style="color:var(--text);font-weight:600;min-width:14px;">${r.n}</span>
           <span style="color:var(--text-muted);">${r.label}</span>
@@ -1305,11 +1306,11 @@ function renderInsights() {
           border-bottom:1px solid var(--border,rgba(255,255,255,0.04));"
           title="Click to expand milestone details">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;">
-            <span style="font-size:11px;color:var(--text);flex:1;min-width:0;overflow:hidden;
+            <span style="font-size:var(--fs-label);color:var(--text);flex:1;min-width:0;overflow:hidden;
               text-overflow:ellipsis;white-space:nowrap;">🎯 ${escapeHtml(ms.name || ms.label)}</span>
-            <span style="font-size:10px;font-weight:600;color:${pctColor};flex-shrink:0;">${done}/${total} · ${pct}%</span>
+            <span style="font-size:var(--fs-caption);font-weight:600;color:${pctColor};flex-shrink:0;">${done}/${total} · ${pct}%</span>
           </div>
-          ${brk || '<div style="font-size:11px;color:var(--text-muted);">No tickets yet</div>'}
+          ${brk || '<div style="font-size:var(--fs-label);color:var(--text-muted);">No tickets yet</div>'}
         </div>`;
     }).filter(Boolean).join('');
 
@@ -1328,7 +1329,7 @@ function renderInsights() {
     <div style="${outerStyle}">
       <div style="${chartWrapStyle}">
         <div style="${cardStyle}">
-          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">BURNDOWN</div>
+          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">BURNDOWN</div>
           ${dateSubtitle(sprintOnlyRange)}
           <div style="margin-top:6px;">${burndownHtml}</div>
         </div>
@@ -1342,7 +1343,7 @@ function renderInsights() {
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">
         <div style="${cardStyle}">
-          <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${isEngineerMe ? 'MY TIME' : 'TIME LOGGED'}</div>
+          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${isEngineerMe ? 'MY TIME' : 'TIME LOGGED'}</div>
           ${dateSubtitle(modeRange)}
           <div style="margin-top:6px;">${timesheetHtml}</div>
           ${qRefreshNote}
@@ -1413,6 +1414,7 @@ function renderInsights() {
         chrome.runtime.sendMessage({ type: 'track-section', section: 'gantt_fulltab' }).catch(() => {});
       } catch (err) {
         console.error('[popup] Failed to open Gantt tab:', err);
+        showErrorBanner(`Couldn't open the Gantt tab: ${err.message}`);
       }
     });
   }
@@ -1958,7 +1960,7 @@ function renderTodayScreen() {
       filterRow.id = 'sprint-filter-row';
       filterRow.className = 'scope-filter-row';
       filterRow.innerHTML = `
-        <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
+        <span style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">
           ${escapeHtml(sp.name)} · ${escapeHtml(dateRange)}
         </span>
         ${buildScopeToggleHtml()}`;
@@ -2050,17 +2052,17 @@ function renderTodayScreen() {
                border-radius:8px;padding:14px 16px 14px;text-align:left;">
             <button id="sentry-card-close"
               style="position:absolute;top:6px;right:8px;background:none;border:none;
-                     color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;
+                     color:var(--text-muted);cursor:pointer;font-size:var(--fs-head);line-height:1;
                      padding:2px 4px;" title="Dismiss">×</button>
-            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;">
+            <div style="font-size:var(--fs-body);font-weight:600;color:var(--text);margin-bottom:4px;">
               No Sentry views configured
             </div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">
+            <div style="font-size:var(--fs-label);color:var(--text-muted);margin-bottom:10px;line-height:1.5;">
               Add Sentry views in Settings to track error trends and spike alerts for your squad.
               Not relevant to your role? You can safely dismiss this.
             </div>
             <a id="sentry-go-settings" href="#"
-              style="font-size:11px;color:var(--primary,#6366f1);text-decoration:none;">
+              style="font-size:var(--fs-label);color:var(--primary,#6366f1);text-decoration:none;">
               Go to Settings →
             </a>
           </div>`;
@@ -2105,10 +2107,10 @@ function renderTodayScreen() {
       return `
         <div class="card sentry-issue" style="cursor:pointer; margin-bottom:6px;" data-url="${escapeHtml(permalink)}">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
-            ${project ? `<span style="font-size:10px;color:var(--text-muted);">${escapeHtml(project)}</span>` : ''}
-            ${assignee ? `<span style="font-size:10px;color:var(--text-muted);">· 👤 ${escapeHtml(assignee)}</span>` : ''}
+            ${project ? `<span style="font-size:var(--fs-caption);color:var(--text-muted);">${escapeHtml(project)}</span>` : ''}
+            ${assignee ? `<span style="font-size:var(--fs-caption);color:var(--text-muted);">· 👤 ${escapeHtml(assignee)}</span>` : ''}
           </div>
-          <div class="card-title" style="font-size:13px;">${escapeHtml(issue.title || issue.culprit || 'Untitled')}</div>
+          <div class="card-title" style="font-size:var(--fs-subhead);">${escapeHtml(issue.title || issue.culprit || 'Untitled')}</div>
           <div class="card-subtitle">${ageStr} old · ${issue.count || 0} events · ${issue.userCount || 0} users</div>
         </div>`;
     }).join('');
@@ -2119,10 +2121,10 @@ function renderTodayScreen() {
         <div class="sentry-view-header" data-section="${sectionId}"
           style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
           background:var(--surface-raised,#1f2937);border-radius:6px;cursor:pointer;user-select:none;">
-          <span style="font-size:12px;font-weight:600;color:var(--text);">${escapeHtml(view.label)}</span>
+          <span style="font-size:var(--fs-body);font-weight:600;color:var(--text);">${escapeHtml(view.label)}</span>
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;font-weight:700;color:var(--primary,#60a5fa);">${view.count}</span>
-            <span class="sentry-chevron" style="font-size:10px;color:var(--text-muted);">▶</span>
+            <span style="font-size:var(--fs-body);font-weight:700;color:var(--primary,#60a5fa);">${view.count}</span>
+            <span class="sentry-chevron" style="font-size:var(--fs-caption);color:var(--text-muted);">▶</span>
           </div>
         </div>
         <div id="${sectionId}" style="margin-top:6px; display:none;">${issueCards}</div>
@@ -2241,7 +2243,7 @@ async function snoozeAlert(ruleId) {
     state.alertSnoozes = { ...(state.alertSnoozes || {}), [ruleId]: key };
     requestRender('alert-snooze', { immediate: true });
   } catch (error) {
-    console.error('[popup] Failed to snooze alert:', error);
+    console.warn('[popup] Failed to snooze alert (non-fatal):', error);
   }
 }
 
@@ -2328,7 +2330,7 @@ function buildSprintProgressBar(stories) {
   // "x pts done · y pts to go" — absolute counts the user can verify against Jira
   const toGoPts   = total - donePts;
   const ptSummary = usePoints
-    ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+    ? `<div style="font-size:var(--fs-label);color:var(--text-muted);margin-top:6px;">
         <span style="font-weight:600;color:var(--text);">${donePts} pts done</span>
         &nbsp;·&nbsp;
         <span style="font-weight:600;color:var(--text);">${toGoPts} pts to go</span>
@@ -2342,16 +2344,16 @@ function buildSprintProgressBar(stories) {
   return `
     <div style="padding:10px 12px;background:var(--surface,#11131c);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
-        <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">Sprint progress <span style="font-size:9px;color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:normal;">(by ${unit})</span></span>
-        <span style="font-size:12px;font-weight:700;color:#22c55e;">${donePct}% done</span>
+        <span style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;">Sprint progress <span style="font-size:9px;color:var(--text-muted);font-weight:normal;text-transform:none;letter-spacing:normal;">(by ${unit})</span></span>
+        <span style="font-size:var(--fs-body);font-weight:700;color:#22c55e;">${donePct}% done</span>
       </div>
       <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;gap:2px;background:rgba(148,163,184,0.1);">
         ${doneBar}${ipBar}${openBar}
       </div>
       <div style="display:flex;gap:14px;margin-top:7px;">
-        <span style="font-size:11px;"><span style="font-weight:700;color:#22c55e;">${donePct}%</span> <span style="color:var(--text-muted);">Done</span></span>
-        <span style="font-size:11px;"><span style="font-weight:700;color:#3b82f6;">${ipPct}%</span> <span style="color:var(--text-muted);">In progress</span></span>
-        <span style="font-size:11px;"><span style="font-weight:700;color:var(--text-muted);">${openPct}%</span> <span style="color:var(--text-muted);">Not started</span></span>
+        <span style="font-size:var(--fs-label);"><span style="font-weight:700;color:#22c55e;">${donePct}%</span> <span style="color:var(--text-muted);">Done</span></span>
+        <span style="font-size:var(--fs-label);"><span style="font-weight:700;color:#3b82f6;">${ipPct}%</span> <span style="color:var(--text-muted);">In progress</span></span>
+        <span style="font-size:var(--fs-label);"><span style="font-weight:700;color:var(--text-muted);">${openPct}%</span> <span style="color:var(--text-muted);">Not started</span></span>
       </div>
       ${ptSummary}
     </div>`;
@@ -2387,8 +2389,8 @@ async function renderSentryTrend(force = false) {
     card.style.display = '';
     card.innerHTML = `
       <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px;">SENTRY TREND</div>
-        <div style="font-size:12px;color:var(--text-muted);">
+        <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px;">SENTRY TREND</div>
+        <div style="font-size:var(--fs-body);color:var(--text-muted);">
           Track one or more Sentry views to see their daily issue-count trends here.<br/>
           <span style="color:var(--primary,#6366f1);">Settings → Sentry views → click Track on the views you want.</span>
         </div>
@@ -2630,7 +2632,7 @@ function wireTimesheetHover() {
         const proj = seg.getAttribute('data-ts-proj') || '';
         const hrs  = seg.getAttribute('data-ts-hrs') || '';
         tip.innerHTML = `<span style="font-weight:600;">${proj}</span> · ${hrs}h`
-          + (name ? `<div style="color:var(--text-muted);font-size:10px;">${name}</div>` : '');
+          + (name ? `<div style="color:var(--text-muted);font-size:var(--fs-caption);">${name}</div>` : '');
         tip.style.display = 'block';
         const wrapRect = wrap.getBoundingClientRect();
         const segRect  = seg.getBoundingClientRect();
@@ -2656,12 +2658,12 @@ function showSprintChangedBanner(oldSprintName) {
   
   const banner = document.createElement('div');
   banner.id = 'sprint-changed-banner';
-  banner.style.cssText = 'padding:10px 12px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;margin-bottom:8px;font-size:12px;color:var(--text);';
+  banner.style.cssText = 'padding:10px 12px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;margin-bottom:8px;font-size:var(--fs-body);color:var(--text);';
   banner.innerHTML = `
     <div style="margin-bottom:6px;">Sprint <strong>"${escapeHtml(oldSprintName)}"</strong> is no longer active. Keep its analytics for history?</div>
     <div style="display:flex;gap:8px;">
-      <button id="keep-sprint-analytics" style="padding:4px 10px;background:var(--surface-raised,#1f2937);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;cursor:pointer;">Keep</button>
-      <button id="delete-sprint-analytics" style="padding:4px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;color:#ef4444;font-size:12px;cursor:pointer;">Delete</button>
+      <button id="keep-sprint-analytics" style="padding:4px 10px;background:var(--surface-raised,#1f2937);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:var(--fs-body);cursor:pointer;">Keep</button>
+      <button id="delete-sprint-analytics" style="padding:4px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:4px;color:#ef4444;font-size:var(--fs-body);cursor:pointer;">Delete</button>
     </div>`;
   
   const screenContainer = document.getElementById('screen-container');
@@ -2722,12 +2724,12 @@ function renderTicketRow(story, jiraBaseUrl, extraMeta = '') {
     <div class="ticket-row" ${url ? `data-url="${escapeHtml(url)}"` : ''} style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));${url?'cursor:pointer;':''}">
       ${priorityDot(story.priority)}
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(story.summary)}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+        <div style="font-size:var(--fs-body);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(story.summary)}</div>
+        <div style="font-size:var(--fs-label);color:var(--text-muted);margin-top:1px;">
           ${escapeHtml(story.key)}${story.assignee?` · ${escapeHtml(story.assignee)}`:''}${story.points>0?` · ${story.points}pt`:''}${duePart?` · ${duePart}`:''}${extraMeta}
         </div>
       </div>
-      <span style="font-size:10px;color:${ticketStatusColor(story.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(story.status)}</span>
+      <span style="font-size:var(--fs-caption);color:${ticketStatusColor(story.status)};white-space:nowrap;flex-shrink:0;">${escapeHtml(story.status)}</span>
     </div>`;
 }
 

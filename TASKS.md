@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.11.4 | S-6/S-7/S-8 complete: token migration, empty-state unification, popup error audit. Full S-1..S-9 done. |
 | v2.11.3 | S-5 complete: fetchJiraData decomposed into named helpers (476→42 lines). |
 | v2.11.2 | S-5 batch 1: extracted sprint-history/support/milestones helpers from fetchJiraData. |
 | v2.11.1 | S-4 phase 2 (complete): insights renders join the scheduler (per-target timers). |
