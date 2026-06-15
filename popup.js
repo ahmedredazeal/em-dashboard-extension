@@ -14,6 +14,7 @@ import { milestoneCounts } from './src/milestones.js';
 import { visibleAlerts } from './src/alerts.js';
 import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
 import { buildBurndownSVG } from './src/render/burndown-svg.js';
+import { engineerSprintBurndown } from './src/burndown.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
 import { buildSupportBoardChart } from './src/render/support-board-svg.js';
@@ -1118,7 +1119,8 @@ function renderInsights() {
       Loading ${currentMode} data… <span id="timesheet-loading-indicator">⏳</span></div>`;
   } else if ((timesheetMembers || []).length > 0) {
     // Capacity reference (sprint mode only): expected hours per person so far =
-    // elapsed working days × 8h. Drives the "who's over capacity?" marker.
+    // elapsed working days × 6h. Drives the "who's over capacity?" marker.
+    // (6h/day reflects realistic focused-work capacity after meetings/overhead.)
     let capacityHours = 0;
     if (currentMode === 'sprint' && state.currentSprint?.startDate) {
       const wds = state.settings?.ui?.workingDays || [0,1,2,3,4];
@@ -1128,7 +1130,7 @@ function renderInsights() {
       for (let d = new Date(start); d <= today; d.setDate(d.getDate()+1)) {
         if (wds.includes(d.getDay())) elapsed++;
       }
-      capacityHours = elapsed * 7;
+      capacityHours = elapsed * 6;
     }
     timesheetHtml = buildTimesheetSVG(timesheetMembers, capacityHours);
   } else {
@@ -1637,6 +1639,25 @@ function renderEngineerProgressCircles() {
     });
   }
 
+  // ── Personal sprint burndown (T-EBD-1) ───────────────────────────
+  // Reuses the team burndown design/logic, scoped to my assigned stories.
+  // Only meaningful when I have sprint points and the sprint has a window.
+  let myBurndownHtml = '';
+  if (sprintPts > 0 && state.currentSprint?.startDate) {
+    try {
+      const bd = engineerSprintBurndown(state.currentSprint, myStories);
+      if (bd && bd.ideal?.length > 0) {
+        myBurndownHtml = `
+          <div style="margin-top:10px;">
+            <div class="section-label-std" style="margin-bottom:4px;font-size:var(--fs-caption);">My Burndown</div>
+            ${buildBurndownSVG(bd)}
+          </div>`;
+      }
+    } catch (err) {
+      console.warn('[popup] Personal burndown skipped (non-fatal):', err.message);
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────
   const makeCard = (donutSvg, label) => `
     <div class="progress-circle-card">
@@ -1658,6 +1679,7 @@ function renderEngineerProgressCircles() {
           <span class="pcl-dot" style="background:${C_OPEN}"></span>Open
         </div>
       </div>
+      ${myBurndownHtml}
     </div>`;
 }
 

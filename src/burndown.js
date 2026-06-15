@@ -181,3 +181,36 @@ export function computeBurndownSeries(sprint, stories) {
     perDayData
   };
 }
+
+/**
+ * Engineer personal burndown (T-EBD-1).
+ *
+ * Reuses the exact sprint burndown logic, scoped to ONE engineer's assigned
+ * stories. Same design (ideal guideline, due-date estimate line, actual line),
+ * just over a smaller scope: the engineer's own committed points.
+ *
+ * Unlike the team burndown, we don't reconstruct a per-engineer committed
+ * baseline from changelogs (scope-change attribution per person is an EM-level
+ * concern and noisy at the individual level). For the personal view, committed
+ * = the engineer's current total points — an honest, simple baseline. Window,
+ * day geometry, and "today" are inherited from the sprint so the personal chart
+ * lines up with the team one.
+ *
+ * @param {Object} currentSprint  the sprint object (startDate, totalDays, todayIndex/daysElapsed)
+ * @param {Array}  myStories      the engineer's assigned stories (normalized; carry points/closedDay/dueDate)
+ * @returns {Object} a burndown series consumable by buildBurndownSVG
+ */
+export function engineerSprintBurndown(currentSprint, myStories) {
+  const stories = myStories || [];
+  const myPoints = stories.reduce((sum, s) => sum + (s.points || 0), 0);
+  const sprint = {
+    startDate:       currentSprint?.startDate,
+    totalDays:       currentSprint?.totalDays || 14,
+    totalPoints:     myPoints,
+    committedPoints: myPoints,   // personal baseline = current scope (no per-person changelog reconstruction)
+    scopeByDay:      {},          // no scope-change steps in the personal view
+    todayIndex:      currentSprint?.todayIndex,
+    daysElapsed:     currentSprint?.daysElapsed,
+  };
+  return computeBurndownSeries(sprint, stories);
+}

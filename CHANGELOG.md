@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.12.0 (2026-06-15) — Engineer personal burndown (T-EBD-1) + 6h capacity line (T-CAP-1)
+
+Two backlog features shipped together.
+
+**T-EBD-1 — Engineer personal burndown.** The My Tasks card (engineer / "me"
+scope) now shows a personal sprint burndown beneath the progress donuts. It
+reuses the exact team-burndown design and logic (ideal guideline, due-date
+estimate line, actual line), scoped to the engineer's own assigned stories and
+measured in points. New `engineerSprintBurndown(currentSprint, myStories)` in
+src/burndown.js builds a sprint object scoped to the engineer's committed points
+(= their current total; no per-person changelog scope reconstruction — that's an
+EM-level concern) and delegates to the existing computeBurndownSeries, so the
+personal chart shares the sprint's window, day geometry, and "today". Rendered
+with the already-extracted buildBurndownSVG. Only appears when the engineer has
+sprint points and the sprint has a window; non-fatal if it can't compute.
+New tests/engineer-burndown.test.js (7).
+
+**T-CAP-1 — Capacity line at 6h/day.** The Time Logged chart's dashed amber
+capacity reference now uses 6h/day (was 7h since v2.8.8, originally 8h). 6h
+reflects realistic focused-work capacity after meetings/overhead. One-constant
+change; the over-capacity ⚠ marker and edge-clamp are unaffected.
+
+24 suites + pre-flight green.
+
+---
+
 ## v2.11.4 (2026-06-15) — Stability S-6, S-7, S-8 complete
 
 Closes the remaining three stability items in one pass (all low-risk,
