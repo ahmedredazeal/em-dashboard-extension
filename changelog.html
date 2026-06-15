@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver minor">v2.11.0</div>
+      <div class="cl-desc"><strong>Single render scheduler (S-4 phase 1).</strong> Screen-render triggers now funnel through one requestRender() — coalesced by default (kills panel-open flicker), immediate for direct user actions. Pure timing logic in src/render-scheduler.js (10 tests). Phase 2 will fold in the insights renders.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.10.6</div>
       <div class="cl-desc"><strong>Stability S-3 complete.</strong> Extracted ticketCounts to src/ticket-stats.js (pure, tested). popup.js now ~2,843 lines, down 614 (−18%) from Hat 3 start. All large SVG/chart builders are now isolated, testable modules; the remaining small DOM-coupled helpers intentionally stay in popup.</div>
     </div>

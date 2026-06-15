@@ -137,7 +137,7 @@ Sequenced for plan-approve-ship. Each is independently shippable; none blocks th
 | S-1 | Delete dead `chart-svg.js` + the false "cannot import" comment | 3 | S | none | clarity |
 | S-2 | One `src/domain-constants.js` (priority/status order + colors); replace the 3 duplicated maps | 3 | S | low | stops the "add a priority, touch 3 files" pain |
 | S-3 | ✅ DONE (v2.9.1–v2.10.6) Extract pure render-helpers from popup.js into `src/render/*` + unit tests | 3 | M | low | DONE: burndown, timesheet, donut+progress, support-board, sentry-trend, estimate-actual, personal-bars → src/render/; ticketCounts → src/ticket-stats. popup.js 3,457→2,843 (−18%). DOM-coupled helpers (renderTicketRow/emptyState/collapsedBoardSummary) intentionally left in popup. |
-| S-4 | Centralize rendering: one scheduler all 23 triggers go through; move fingerprint/snapshot into it | 3 | M | med | kills the flicker class structurally |
+| S-4 | 🔶 PHASE 1 DONE (v2.11.0) Single render scheduler — screen renders funnel through requestRender(reason, {immediate}); coalesced by default, immediate for direct user actions. Pure timing logic in src/render-scheduler.js (tested). PHASE 2 PENDING: fold the ~8 renderInsights() triggers in too. Centralize rendering: one scheduler all 23 triggers go through; move fingerprint/snapshot into it | 3 | M | med | kills the flicker class structurally |
 | S-5 | Split `fetchJiraData` into named (pure-where-possible) steps + tests | 3 | M | med | kills the TDZ/ordering class |
 | S-6 | Design tokens: type scale + spacing + section-header class; migrate inline styles section by section | 1 | L | low | consistent hierarchy + huge maintainability win |
 | S-7 | Consistent empty/loading/error state component | 1 | S | low | "looks broken" → "nothing to show" |

@@ -1,5 +1,39 @@
 # Changelog
 
+## v2.11.0 (2026-06-14) — Stability S-4 (phase 1): single render scheduler
+
+First phase of S-4 — consolidating the scattered screen-render triggers behind
+one scheduler, so render *timing* is decided in one place instead of at each
+call site.
+
+- **New `requestRender(reason, opts)`** in popup.js is now the single entry point
+  for screen renders. Coalesced by default (bursts collapse into one render via
+  a 250ms debounce — this is what kills the panel-open flicker when jira + sentry
+  partial-updates land back-to-back); `{ immediate:true }` renders synchronously
+  for direct user actions whose result must feel instant (scope-pill switch,
+  manual-refresh sprint-name fix, alert snooze). A `reason` tag is logged via
+  `console.debug` for local debugging — deliberately NOT sent to Sentry (renders
+  fire dozens of times a session; that would flood telemetry and bury real
+  signal).
+- **New `src/render-scheduler.js`** holds the pure timing-decision logic
+  (`planRender`, `renderReason`, `RENDER_DEBOUNCE_MS`) split out from the
+  DOM-touching scheduler so it's unit-testable; popup.js's `requestRender` uses
+  it (not a parallel copy).
+- All 5 screen-render trigger sites routed through `requestRender`; removed the
+  now-unused `scheduleCurrentScreenRender` alias (dead code).
+- **New `tests/render-scheduler.test.js`** (10 tests): immediate vs coalesced,
+  pending-timer handling, burst coalescing, reason normalisation. 23 suites.
+
+The render worker (`renderCurrentScreen`) and the fingerprint anti-flicker skips
+are untouched — this is trigger plumbing only, no change to what each screen
+renders.
+
+PHASE 2 (next): fold the ~8 `renderInsights()` triggers into the same scheduler
+(it's a second independently-triggered render target). Phase 2 is also the
+prerequisite that unblocks T-DND-1 (drag-and-drop card reorder).
+
+---
+
 ## v2.10.6 (2026-06-14) — Stability S-3 complete: extract ticketCounts, close out the refactor
 
 Final step of S-3. The big self-contained SVG/chart builders are all out of

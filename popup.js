@@ -21,6 +21,7 @@ import { buildMultiTrendCardHTML } from './src/render/sentry-trend-svg.js';
 import { buildEstimateVsActualCard } from './src/render/estimate-actual-svg.js';
 import { buildPersonalBarsSVG } from './src/render/personal-bars-svg.js';
 import { ticketCounts } from './src/ticket-stats.js';
+import { planRender, renderReason, RENDER_DEBOUNCE_MS } from './src/render-scheduler.js';
 
 /**
  * Stable identity key for a timesheet member: accountId when available,
@@ -199,7 +200,7 @@ async function boot() {
   
   if (cacheAge < CACHE_GRACE_MS) {
     console.log(`[popup] Cache is fresh (${Math.round(cacheAge / 1000)}s old), skipping fetch`);
-    renderCurrentScreen();
+    requestRender('boot:cache-fresh');
   } else {
     console.log('[popup] Cache stale or empty — fetching fresh data...');
     refreshDashboard();
@@ -851,8 +852,8 @@ function wireScopePills(container) {
       state.settings           = state.settings || {};
       state.settings.viewScope = state.viewScope;
       await chrome.storage.local.set({ settings: state.settings });
-      renderCurrentScreen();  // re-renders story list
-      renderInsights();       // re-renders time logged + estimate charts
+      requestRender('scope-change', { immediate: true });  // re-renders story list
+      renderInsights();       // re-renders time logged + estimate charts (Phase 2 will fold this in)
     });
   });
 }
@@ -1717,9 +1718,48 @@ function restoreOpenSections(map) {
 // (3) Debounce: coalesce back-to-back partial-update notifications into ONE
 //     rebuild (trailing edge, 250ms).
 let _renderDebounceTimer = null;
-function scheduleCurrentScreenRender() {
-  clearTimeout(_renderDebounceTimer);
-  _renderDebounceTimer = setTimeout(() => renderCurrentScreen(), 250);
+
+/**
+ * S-4 — single render scheduler. Every screen-render trigger funnels through
+ * here so timing is decided in one place instead of scattered across call sites.
+ *
+ * Modes:
+ *   requestRender(reason)                  → coalesced (default). Bursts in the
+ *     same tick collapse into ONE render via the 250ms debounce — this is what
+ *     kills the flicker when jira + sentry partial-updates arrive back-to-back.
+ *   requestRender(reason, { immediate:true }) → synchronous render now. For
+ *     direct user actions whose result must be visible instantly (scope pill,
+ *     manual-refresh sprint-name fix); debouncing those would read as lag.
+ *
+ * `reason` is carried only for a console.debug breadcrumb (NOT telemetry —
+ * renders fire dozens of times a session; that would flood Sentry). The
+ * fingerprint skips inside the screen renderers still suppress redundant
+ * repaints regardless of how the render was scheduled.
+ *
+ * @param {string}  reason            short tag, e.g. 'partial-update:jira'
+ * @param {Object}  [opts]
+ * @param {boolean} [opts.immediate]  render synchronously instead of coalescing
+ */
+function requestRender(reason = 'unspecified', opts = {}) {
+  const tag = renderReason(reason);
+  const plan = planRender({ immediate: !!opts.immediate, hasPending: _renderDebounceTimer !== null });
+
+  if (plan.clearPending && _renderDebounceTimer) {
+    clearTimeout(_renderDebounceTimer);
+    _renderDebounceTimer = null;
+  }
+
+  if (plan.action === 'render-now') {
+    console.debug(`[render] immediate · ${tag}`);
+    renderCurrentScreen();
+    return;
+  }
+  // action === 'queue' (coalesce folds in via clearPending+restart)
+  console.debug(`[render] queued · ${tag}`);
+  _renderDebounceTimer = setTimeout(() => {
+    _renderDebounceTimer = null;
+    renderCurrentScreen();
+  }, RENDER_DEBOUNCE_MS);
 }
 
 function renderTodayScreen() {
@@ -2189,7 +2229,7 @@ async function snoozeAlert(ruleId) {
     const t = new Date(); t.setDate(t.getDate() + 1);
     const key = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
     state.alertSnoozes = { ...(state.alertSnoozes || {}), [ruleId]: key };
-    renderCurrentScreen();
+    requestRender('alert-snooze', { immediate: true });
   } catch (error) {
     console.error('[popup] Failed to snooze alert:', error);
   }
@@ -2623,7 +2663,7 @@ function showSprintChangedBanner(oldSprintName) {
     // immediately. Without this, the stale Sprint 64 name stays until the
     // next partial-update message arrives from the background.
     await loadData();
-    renderCurrentScreen();
+    requestRender('manual-refresh:sprint-name', { immediate: true });
   });
   document.getElementById('delete-sprint-analytics')?.addEventListener('click', async () => {
     const { deleteCachedSprintData } = await import('./src/sprint-cache.js').catch(() => ({}));
@@ -2755,7 +2795,7 @@ chrome.runtime.onMessage.addListener((message) => {
     loadData().then(() => {
       // Coalesced: jira + sentry updates arriving back-to-back now produce
       // ONE rebuild instead of one each (the flicker on panel open).
-      scheduleCurrentScreenRender();
+      requestRender(`partial-update:${message.source || 'unknown'}`);
       setSectionLoading(message.source, false);
       if (message.source === 'jira') startRefreshTimer(Date.now());
       const errBanner = document.getElementById('error-banner');
