@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.13.0 (2026-06-15) — Multi-team support + publishing prep
+
+Preparing the tool to be published to the wider team (and usable by teams
+outside Zeal). Three things:
+
+**Multi-team Sentry.** The Sentry base URL field was hardcoded read-only to
+`https://zeal.sentry.io`; it is now editable, so any team can point the dashboard
+at their own `https://<org>.sentry.io`. Host permissions widened from the two
+zeal-specific entries to `https://*.sentry.io/*` so other orgs' subdomains are
+reachable. The Sentry URL parser was already host-agnostic (derives the org slug
+from the subdomain), so views from any org now work. The auth-token help text is
+now generic instead of linking to Zeal's Sentry.
+
+**Telemetry / Sentry isolation — verified and documented.** Audited and confirmed
+the two Sentry paths never intersect: (1) the tool's own usage/error telemetry
+always goes to the fixed, write-only `zealer-dashboard` ingest DSN (`credentials:
+omit`) and carries only app version, Jira identity, and role/squad tags — never
+tokens, issue contents, or configured-view data; (2) the user's configured Sentry
+views use their own org/base URL + token (Bearer, read-only) and store trend
+samples locally in `chrome.storage.sync`. So another team's *usage metrics* land
+in the maintainer's `zealer-dashboard` project while their *own Sentry views* stay
+entirely in their own account. README and in-app docs now explain this.
+
+**README fully rewritten.** It was stale (claimed v2.0.0 and documented the
+long-removed Google-Form usage tracking). Now current: dual-role features, the
+6h cap + pace lines, personal burndown, Gantt, milestones, demo mode, the update
+nudge, multi-team setup, and a full telemetry/privacy section.
+
+**Security/privacy audit (publishing essentials):** CSP is `script-src 'self'`
+(no remote scripts/eval); permissions are minimal and justified (storage, alarms,
+notifications, sidePanel, tabs — no `<all_urls>`, no `management`); tokens travel
+only in Authorization headers, never URL query strings; no secrets are logged; no
+external/CDN script loads. No issues found.
+
+25 suites + pre-flight green.
+
+---
+
 ## v2.12.4 (2026-06-15) — Check for updates on every open + pre-flight runs all tests
 
 **Update check on every app open.** The version check now runs every time the

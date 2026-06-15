@@ -1,146 +1,188 @@
 # Zealer Dashboard — Chrome Extension
 
-Engineering Manager + Engineer cockpit for Jira + Sentry. Sprint health, reliability, time tracking and alert rules in a Chrome side panel. Dual-role architecture serves both EMs and individual engineers from a single extension.
+Engineering Manager + Engineer cockpit for **Jira + Sentry**. Sprint health, reliability trends, time tracking, milestones, a sprint-timeline Gantt, and configurable alert rules — all in a Chrome MV3 side panel. A single extension serves both EMs and individual engineers via a dual-role architecture.
 
-**Current version: v2.0.0**
+**Current version: v2.13.0**
 
 ---
 
 ## Features
 
 ### Dual-role mode (EM / Engineer)
-First launch prompts you to choose your role. Role is persisted and can be changed in Settings at any time.
+First launch prompts you to choose your role. Role is persisted and changeable in Settings at any time.
 
 | Feature | EM mode | Engineer mode |
 |---|---|---|
-| Sprint tickets | Full squad, engineers DDL filter | Me / Squad toggle, "Me" default |
-| Time tracking | Full squad, engineers DDL filter | Me / Squad toggle, "Me" default |
+| Sprint tickets | Full squad, engineers dropdown filter | Me / Squad toggle, "Me" default |
+| Time tracking | Full squad, engineers dropdown filter | Me / Squad toggle, "Me" default |
 | Estimate vs Actual | Full squad | Me / Squad toggle |
 | Extra boards (support) | Full squad | Me / Squad toggle |
-| **Progress circles** | Not shown | Two personal donuts: sprint (pts by status) + support (ticket count); hidden if no assignments |
-| Burndown chart | Team — unchanged | Team — unchanged |
-| Sprint progress | Team — unchanged | Team — unchanged |
-| Sentry trend | Configured views — unchanged | Configured views — unchanged |
+| **My Tasks card** | Not shown | Personal donuts (sprint pts by status + support ticket count) **and a personal sprint burndown**; hidden if no assignments |
+| Burndown chart | Team | Team |
+| Sprint progress | Team | Team |
+| Sentry trend | Configured views | Configured views |
 
-### Alert rules — fully configurable in Settings
+### Alert rules — configurable in Settings
+Settings → Alert rules lets you enable/disable each rule, tune thresholds (scope-creep %, stalled days, Sentry spike delta/%), and toggle per-rule desktop notifications independently. A **Reset to defaults** button restores the original values.
 
-Open Settings → Alert rules to enable/disable each rule, tune thresholds (scope-creep %, stalled days, Sentry spike delta/%), and control per-rule desktop notifications independently. A Reset to defaults button restores the original hardcoded values.
-
-### Alert rules (9 — all grounded in real data)
 | Rule | Fires when |
 |---|---|
 | `sprint_goal_at_risk` | Working-day-aware burndown projects a shortfall vs committed baseline |
-| `scope_creep` | Points added after kickoff exceed 10% of committed |
-| `stalled_burndown` | No points completed in the last 2+ working days |
+| `scope_creep` | Points added after kickoff exceed the configured % of committed |
+| `stalled_burndown` | No points completed in the last N working days (early-sprint grace period applies) |
 | `due_date_risk` | Open pointed tickets are due before sprint end |
-| `unassigned_work` | Open pointed tickets have no assignee |
+| `unassigned_work` | Open pointed tickets have no assignee (severity-capped) |
 | `reopened_tickets` | A ticket that reached Done moved back to open |
-| `sentry_trend_spike` | Day-over-day count increase ≥10 issues or ≥25% in a Sentry view |
-| `velocity_drop` | >15% velocity drop for 2 consecutive sprints _(gated: needs ≥3 sprints)_ |
+| `sentry_trend_spike` | Day-over-day count increase past the configured delta/% in a tracked Sentry view |
+| `velocity_drop` | Velocity drop over consecutive sprints _(gated: needs sprint history)_ |
 | `support_sla_breach` | Support ticket past SLA _(gated: needs support board data)_ |
 
-### Analytics (Insights section)
-- **Sentry trend chart** — 7-day issue-count trend per view (above filtered charts)
-- **Burndown chart** — committed-baseline burndown with colored segments (green=done, amber=added, blue=removed) and hover tooltips
-- **Sprint progress bar** — status-breakdown mini bar with risk pills
-- **Time logged** — per-member horizontal bar chart with sprint / quarterly mode
-- **Estimate vs Actual** — hours comparison, synced to time-logged mode
+### Analytics (Insights)
+- **Sentry trend chart** — issue-count trend per tracked view.
+- **Burndown chart** — committed-baseline burndown with scope-change steps and hover tooltips.
+- **Sprint progress bar** — status-breakdown mini bar with risk pills.
+- **Time logged** — per-member horizontal bar chart (sprint / quarterly modes) with **two 6h/working-day reference lines**: a fixed full-sprint **cap** (drives the over-capacity ⚠ flag) and a moving **pace** marker (expected hours to date).
+- **Estimate vs Actual** — hours comparison, synced to the time-logged mode.
 
-### Today screen section order
-Alerts → Insights → Extra boards → Sentry Issues → Current Sprint
+### Sprint Timeline (Gantt)
+One row per parent story (sorted by priority then rank), the parent due date as a dashed marker, and child tickets as bars in per-assignee sub-lanes. Click-through to Jira; engineer Me mode shows only your rows. Opens in a full browser tab as well.
 
-### Settings
-- Role section at the top (EM / Engineer pills, saves instantly)
-- **EM mode** shows: squad member management (curated list, stops auto-discovery), extra boards config
-- **Engineer mode** hides EM-only sections
-- Time span filter shared between both roles
+### Milestones (OKRs & Dev Plans)
+Label-based tracking on backlog tickets: configure labels in Settings (`label`, `label|Display Name`, or `label|Display Name|Leapsome URL`), tag tickets in Jira, and each milestone renders a progress card (by ticket count), status breakdown, IN SPRINT badges, and a click-through listing. Me/Squad scope applies.
 
----
+### Demo / Mock Data Mode
+A session-scoped toggle in Settings populates the dashboard with mock data (amber banner while active) so you can explore every chart without live credentials — useful for demos and onboarding.
 
 ### Launch splash
+A branded splash plays once per browser session on first open, and respects your reduced-motion preference.
 
-A branded splash (navy, cap icon, water-ripple animation, then the wordmark) plays once per browser session on first open. DM Sans is bundled; to render "Zealer" in Nohemi, add a licensed `fonts/Nohemi-SemiBold.woff2` (see `fonts/README.md`).
+---
 
 ## Installation
 
-1. Clone the repo: `git clone https://github.com/ahmedredazeal/em-dashboard-extension`
+1. Download the latest release zip (or clone the repo).
 2. Open Chrome → `chrome://extensions`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked** → select the `em-dashboard-extension` folder
-5. The Zealer Dashboard icon appears in your toolbar or side panel
+3. Enable **Developer mode** (top-right).
+4. Click **Load unpacked** → select the `em-dashboard-extension` folder.
+5. Open the side panel from the toolbar icon.
+
+> **Auto-update:** Chrome MV3 extensions cannot update themselves from code. The extension shows an in-app banner when a newer **promoted** release is available on GitHub (see *Updates* below). A Chrome Web Store listing for true hands-off auto-update is planned.
 
 ## First-time setup
 
-1. Click the toolbar icon — you'll see the **Hello, Zealer!** welcome screen
-2. Pick your role (Engineering Manager or Engineer)
-3. Click **Go to Settings →** and fill in:
-   - **Jira**: base URL (`https://yourco.atlassian.net`), email, and API token
-   - **Sentry**: org slug, base URL, and auth token
-   - **Squad**: project key (e.g. `HRM`), any extra boards (format: `Name|BoardID`)
-4. Save → dashboard loads automatically
+1. Open the panel — you'll see the welcome screen.
+2. Pick your role (Engineering Manager or Engineer).
+3. Go to **Settings** and fill in:
+   - **Jira**: base URL (`https://yourco.atlassian.net`), email, API token.
+   - **Sentry** (optional): base URL (`https://your-org.sentry.io`), org slug, auth token, and one or more view URLs.
+   - **Squad**: project key (e.g. `HRM`), plus any extra boards (`Name|BoardID`).
+4. Save → the dashboard loads.
 
 API token links:
-- Jira: [id.atlassian.com/manage/api-tokens](https://id.atlassian.com/manage/api-tokens)
-- Sentry: Settings → Account → API → Auth Tokens (needs `org:read event:read`)
+- Jira: https://id.atlassian.com/manage/api-tokens
+- Sentry: your Sentry account → **Settings → Account → Auth Tokens** (needs `project:read` + `org:read`).
+
+> **Sentry is optional.** The dashboard runs Jira-only if no Sentry credentials are set.
 
 ---
 
-### Sprint Timeline (Gantt)
+## Using it across multiple teams / orgs
 
-Sprint Planner-style timeline: one row per parent story (sorted by priority then rank), the parent due date as a dashed marker, and child tickets (subtasks) as bars within the row in per-assignee sub-lanes. Childless stories show their own bar; orphan subtasks get a synthetic parent row. Click-through to Jira; engineer Me mode shows only your rows/children.
+The extension is not hard-wired to Zeal. Any team can point it at their own systems:
 
-### Milestones (OKRs & Dev Plans)
+- **Jira** — set your own `*.atlassian.net` base URL, email, and token.
+- **Sentry** — the **base URL is editable**; enter your own `https://<your-org>.sentry.io`. Views are parsed from any `*.sentry.io` URL and the org slug is derived from the subdomain. Your Sentry **auth token is sent only to your own Sentry base URL** (Bearer auth) and is never transmitted anywhere else.
 
-Label-based milestone tracking on backlog tickets: configure labels in Settings (`label|Display Name|Leapsome URL`), tag tickets in Jira, and each milestone renders a progress card (ticket count), status breakdown, IN SPRINT badges, and a click-through listing. Me/Squad scope applies. New module: `src/milestones.js`.
+Each team's Jira/Sentry data stays entirely within that team's own accounts.
 
-### Usage logging
+---
 
-The extension submits a single once-per-user response (Jira email, display name, accountId, role, version, squad) to a Google Form linked to a private Google Sheet, so the admin can track adoption. The POST is anonymous (`credentials: omit`) — no Google credentials are stored in the extension. The form URL is the `USAGE_ENDPOINT` constant in `background.js`; per-question IDs live in `USAGE_FORM_FIELDS`.
+## Updates
+
+The extension checks GitHub Releases on every open (with a 30-minute network floor to respect GitHub's rate limit) for the newest release marked **promoted** — a release whose tag or name contains the token `promoted` — that is newer than the running version. If found, a dismissible banner appears with a link to the release and a "Remind me later" option. Un-promoted releases are ignored, so only versions the maintainer has tried and marked reach the team.
+
+**Maintainer workflow to promote a build:** create a GitHub *Release* (not just a tag), attach the built zip, and put `promoted` in the tag or release name once you've verified it.
+
+---
+
+## Telemetry & privacy
+
+The extension reports a small amount of **usage and error telemetry** to a fixed Sentry project (`zealer-dashboard`) via a hardcoded, write-only DSN, so the maintainer can see adoption and catch failures across all teams using the tool.
+
+What telemetry contains:
+- An `app_opened` event (once per browser session) and `section_viewed` events.
+- Performance timings (e.g. Jira/Sentry fetch duration).
+- Handled error/warning reports (e.g. "a Sentry view failed to fetch", with the view id/label — **not** its contents).
+- Identity tags from your Jira profile (email, accountId, display name) and `role` / `squad` tags.
+
+What telemetry **never** contains: your Jira or Sentry **auth tokens**, your Sentry **issue contents**, or your **configured Sentry view data**. The telemetry path and the user-configured Sentry path are completely separate code paths and never intersect:
+
+- **Telemetry** → always the hardcoded `zealer-dashboard` ingest DSN (write-only), `credentials: omit`.
+- **Your Sentry views** → your own org/base URL, authenticated with your own token, fetched read-only and rendered locally. Trend samples are stored in `chrome.storage.sync` on your machine.
+
+This means: if another team uses the tool, their *usage metrics* show up in the maintainer's `zealer-dashboard` Sentry project, while their *own Sentry views* remain entirely within their own Sentry account. The two never cross.
+
+---
 
 ## Architecture
 
 ```
 manifest.json          # MV3, CSP, side panel, host permissions
-background.js          # service worker: data fetching, alert engine, getCurrentUser
-popup.html / popup.js  # side panel UI, screen routing, rendering, scope filtering
-settings.html / .js    # role toggle, credentials, squad config, member management
+background.js          # service worker: data fetch orchestration, alert engine,
+                       #   getCurrentUser, Sentry usage/error/timing telemetry
+popup.html / popup.js  # side panel UI: routing, rendering, scope filtering,
+                       #   update-check banner
+settings.html / .js    # role toggle, credentials, squad config, member mgmt,
+                       #   alert-rule config, demo-mode toggle
 src/
-  jira-api.js          # Jira REST v3 + Agile v1.0 client; getCurrentUser()
-  sentry-api.js        # Sentry Issues API client
-  metrics.js           # burndown prediction, countWorkingDays, sentryDayOverDaySpike
-  alerts.js            # 9 alert rules, checkAlerts(), mergeAlerts()
-  burndown.js          # committed-baseline burndown series computation
-  changelog-parser.js  # Jira changelog → close timestamps + sprint-start estimates
-  worklog-aggregator.js# per-member worklog hours aggregation
-  parsers.js           # normalizeStory (incl. assigneeAccountId)
-  sentry-trend.js      # per-view trend sample recording + retrieval
-  sprint-cache.js      # sprint analytics keyed by sprint name
-  migrations.js        # storage schema migrations
-  privacy-mode.js      # screen-share privacy toggle
-tests/                 # 9 suites, ~100+ tests
-pre-flight.sh          # runs all suites, validates manifest+changelog version sync
+  jira-api.js            # Jira REST v3 + Agile v1.0 client; getCurrentUser()
+  sentry-api.js          # Sentry Issues API client (user-configured org)
+  usage-telemetry.js     # telemetry envelope builders + sendEnvelope (the DSN path)
+  update-check.js        # promoted-release discovery (version compare + selection)
+  metrics.js             # burndown projection, working-day counting, spike detection
+  alerts.js              # alert rules, checkAlerts(), mergeAlerts()
+  burndown.js            # committed-baseline burndown + engineerSprintBurndown
+  changelog-parser.js    # Jira changelog → close timestamps + sprint-start estimates
+  worklog-aggregator.js  # per-member worklog aggregation
+  parsers.js             # normalizeStory, parseSentryUrl, parseExtraBoardSpec
+  sentry-trend.js        # per-view trend sample recording/retrieval (chrome.storage.sync)
+  ticket-stats.js        # ticket count tallies
+  render-scheduler.js    # single coalesced render scheduler
+  render/                # pure SVG/HTML builders (burndown, timesheet, progress,
+                         #   support-board, sentry-trend, estimate-actual, personal-bars)
+  milestones.js          # label-based milestone data
+  gantt.js               # sprint timeline layout
+  mock-data.js           # demo/mock mode dataset
+  sprint-cache.js        # sprint analytics keyed by sprint name
+  migrations.js          # storage schema migrations
+gantt-tab.html / .js    # full-tab Gantt view
+print.html / .js        # Sentry trend export view
+docs.html               # in-app help
+tests/                  # 25 suites (475+ tests)
+pre-flight.sh           # syntax, brace balance, CSP, element-ID audit, version
+                       #   sync, and the FULL test suite — run before every tag
 ```
 
 ### Data flow
 ```
-chrome.alarms (5 min) → saveAndNotify()
-  → fetchJiraData()    → state.currentSprint, state.sprintHistory
-                       → state.currentUser (GET /rest/api/3/myself)
-  → fetchSentryData()  → state.sentryViews
-  → enrichState()      → state.sentryTrendSamples, state.settings
-  → checkAlerts()      → mergeAlerts() → chrome.storage.local
-  → notifyPopup()
+chrome.alarms / panel open → fetchJiraData()  → current sprint, history, support,
+                                                 milestones, extra boards, current user
+                           → fetchSentryData() → configured view results + trend samples
+                           → checkAlerts()     → mergeAlerts() → chrome.storage.local
+                           → notify popup (per-source partial updates)
 
-popup.js (on open)    → loadData() → renderCurrentScreen()
-                      → renderTodayScreen() + renderInsights()
+popup.js → loadData() → requestRender() → renderTodayScreen() + renderInsights()
+         → checkForUpdate() (fire-and-forget; promoted-release nudge)
 ```
 
 ### Critical API notes
-- **Jira boards/sprints**: `/rest/agile/1.0/` NOT `/rest/api/3/` (returns 404)
-- **Jira search**: POST `/rest/api/3/search/jql` with cursor pagination
-- **Jira current user**: GET `/rest/api/3/myself` → `accountId` used for "me" scope
-- **Day bucketing**: always use `setHours(0,0,0,0)` calendar-date comparison (sprint starts mid-afternoon)
-- **Sentry views**: pass `project` IDs explicitly
+- **Jira boards/sprints**: `/rest/agile/1.0/`, not `/rest/api/3/`.
+- **Jira search**: POST `/rest/api/3/search/jql` with cursor pagination; `expand` goes inside the body (`{ expand: 'changelog' }`).
+- **Jira current user**: GET `/rest/api/3/myself` → `accountId` drives "me" scope.
+- **Story points** in Zeal's instance: `customfield_10039`; **start date**: `customfield_10015`.
+- **Kanban/support boards**: read the board's own filter JQL, then append `status != "Closed"` — never sprint-based JQL.
+- **Day bucketing**: always `setHours(0,0,0,0)` calendar-date comparison (sprints start mid-afternoon).
+- **Sentry views**: pass `project` IDs explicitly; the view URL also carries query/sort/statsPeriod.
 
 ---
 
@@ -148,7 +190,7 @@ popup.js (on open)    → loadData() → renderCurrentScreen()
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [GUIDELINES.md](GUIDELINES.md).
 
-Run tests before any commit:
+Run the full pre-flight before any commit or tag:
 ```bash
 bash pre-flight.sh
 ```

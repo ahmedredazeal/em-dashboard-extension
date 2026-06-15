@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver minor">v2.13.0</div>
+      <div class="cl-desc"><strong>Multi-team support + publishing prep.</strong> The Sentry base URL is now editable and host permissions cover any <code>*.sentry.io</code> org, so other teams can use their own Sentry. Verified and documented that the tool's own telemetry (to the maintainer's zealer-dashboard project) is fully separate from your configured Sentry views (your own org/token, stored locally) — the two never cross. README fully rewritten; security/privacy audit passed.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.12.4</div>
       <div class="cl-desc"><strong>Update check on every open + pre-flight runs all tests.</strong> The app now checks for a newer promoted version every time it opens (with a 30-min network floor to respect GitHub rate limits). Separately, the pre-flight check now runs the full test suite (all 25 suites) instead of 7 hard-coded files, closing a gap that let v2.12.3 ship with stale tests.</div>
     </div>

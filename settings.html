@@ -98,8 +98,8 @@
 
       <div class="field">
         <label for="sentry-url">Sentry base URL</label>
-        <input type="url" id="sentry-url" value="https://zeal.sentry.io" readonly/>
-        <span class="field-hint">Your Sentry instance URL</span>
+        <input type="url" id="sentry-url" value="https://zeal.sentry.io" placeholder="https://your-org.sentry.io" autocomplete="off"/>
+        <span class="field-hint">Your Sentry instance URL — e.g. <code style="font-size:10px;">https://your-org.sentry.io</code> (Zeal users: leave as is)</span>
       </div>
 
       <div class="field">
@@ -132,8 +132,8 @@
         <label for="sentry-token">Auth token</label>
         <input type="password" id="sentry-token" placeholder="Paste your Sentry auth token here" autocomplete="off"/>
         <span class="field-hint">
-          Create one at
-          <a href="https://zeal.sentry.io/settings/account/api/auth-tokens/" target="_blank">Sentry → Settings → Auth Tokens</a>
+          Create one in your Sentry account under
+          <strong>Settings → Account → Auth Tokens</strong> (needs <code style="font-size:10px;">project:read</code> + <code style="font-size:10px;">org:read</code>).
         </span>
       </div>
 

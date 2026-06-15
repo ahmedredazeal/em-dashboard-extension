@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.13.0 | Multi-team Sentry (editable base URL + *.sentry.io perms), Sentry-isolation audit, full README rewrite, security/privacy audit for publishing. |
 | v2.12.1 | T-DIST-1 phase 1: in-app "update available" nudge (reads GitHub promoted releases). CWS auto-update = deferred phase 2. |
 | v2.12.0 | T-CAP-1 (capacity line 6h/day) + T-EBD-1 (engineer personal burndown in My Tasks card). |
 | v2.11.4 | S-6/S-7/S-8 complete: token migration, empty-state unification, popup error audit. Full S-1..S-9 done. |
