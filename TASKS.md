@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.15.1 | Fix: reopen rate 0% — bulk search does not return changelog; now fetched per-issue (bounded). |
 | v2.15.0 | T-BR-1 phase 2: reopen rate (changelog, 6-sprint window) + open-bugs-by-App breakdown (App Name field). T-BR-1 complete. |
 | v2.14.1 | Fix: Bug Reports trend was empty (used oldest sprints + dropped active-sprint bugs). |
 | v2.14.0 | T-BR-1 phase 1: Bug Reports card (incoming-vs-resolved trend + open-bug age snapshot), EM + my-bugs scope. Reopen rate + per-component deferred to phase 2. |

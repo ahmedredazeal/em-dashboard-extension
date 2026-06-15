@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.15.1 (2026-06-15) — Fix: reopen rate always 0%
+
+Reopen rate read 0% for everyone because the changelog never arrived. The bulk
+`/rest/api/3/search/jql` endpoint does **not** reliably return changelog via
+`expand=changelog` (unlike the deprecated `/search`), so every bug came back
+without history and every `reopenCount` was 0.
+
+Fix: fetch changelog **per issue** via the dedicated
+`/rest/api/3/issue/{key}/changelog` endpoint (new `getIssueChangelog` on the
+client), but only for bugs created within the 6-sprint window (capped at 80
+calls) so it stays bounded. The freshly-fetched changelog is run through the
+same `countReopens` used by the metrics and tests (single source of truth), and
+`getBugs` no longer requests the ineffective bulk `expand`.
+
+The reopen *logic* was already correct — verified that with a real changelog it
+reports the right rate; the problem was purely that the data was not being
+fetched. 26 suites + pre-flight green.
+
+---
+
 ## v2.15.0 (2026-06-15) — Bug Reports phase 2: reopen rate + per-App breakdown (T-BR-1)
 
 Extends the Bug Reports card with two quality signals.

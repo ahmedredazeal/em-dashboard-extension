@@ -581,13 +581,30 @@ export class JiraClient {
         fields,
         maxResults: 200,
       };
-      // changelog needed for reopen detection (Done → not-Done transitions).
-      if (opts.withChangelog) body.expand = 'changelog';
       const result = await this._search(body);
       return result.issues || [];
     } catch (err) {
       console.warn('[jira] Bug fetch failed (non-fatal):', err.message);
       return [];
+    }
+  }
+
+  /**
+   * Fetch the changelog for a single issue. The bulk /search/jql endpoint does
+   * not reliably return changelog via expand, so reopen detection fetches it
+   * per-issue via the dedicated changelog endpoint. (T-BR-1 reopen fix.)
+   * @param {string} issueKey
+   * @returns {Promise<{histories: Array}>} changelog-shaped object ({histories})
+   */
+  async getIssueChangelog(issueKey) {
+    try {
+      // Paginated changelog endpoint: /issue/{key}/changelog → { values: [...] }
+      const result = await this._get(`/rest/api/3/issue/${issueKey}/changelog?maxResults=100`);
+      // Normalize to the {histories:[...]} shape the parser/metrics expect.
+      return { histories: result.values || [] };
+    } catch (err) {
+      console.warn(`[jira] Changelog fetch failed for ${issueKey} (non-fatal):`, err.message);
+      return { histories: [] };
     }
   }
 

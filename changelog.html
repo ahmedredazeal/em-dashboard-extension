@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.15.1</div>
+      <div class="cl-desc"><strong>Fix: reopen rate always showed 0%.</strong> The bulk Jira search endpoint does not return changelog via expand, so reopen history never arrived. Now fetched per-issue (bounded to the 6-sprint window) so reopen rate computes correctly.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v2.15.0</div>
       <div class="cl-desc"><strong>Bug Reports phase 2: reopen rate + per-App breakdown.</strong> The card now shows the share of bugs reopened over the last 6 sprints (from the Jira changelog) and a breakdown of open bugs by App Name (resolved automatically, since Component is mostly empty). Completes T-BR-1.</div>
     </div>

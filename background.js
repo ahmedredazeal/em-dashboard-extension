@@ -15,6 +15,7 @@ import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { buildMilestoneData } from './src/milestones.js';
+import { countReopens } from './src/bug-reports.js';
 import { runMigrations } from './src/migrations.js';
 import { recordTrendSample, getTrendSamples } from './src/sentry-trend.js';
 import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } from './src/worklog-aggregator.js';
@@ -745,8 +746,10 @@ async function fetchBugReports(client, squadKey, boardId) {
     const appNameFieldId = await client.findFieldIdByName('App Name');
 
     const [rawBugs, sprints] = await Promise.all([
-      // withChangelog enables reopen-rate detection (Done → not-Done transitions).
-      client.getBugs(squadKey, { createdAfter, appNameFieldId, withChangelog: true }),
+      // Note: the bulk /search/jql endpoint does NOT reliably return changelog
+      // via expand, so we fetch changelog per-issue below (bounded to in-window
+      // bugs) rather than relying on withChangelog here.
+      client.getBugs(squadKey, { createdAfter, appNameFieldId }),
       boardId ? client.getRecentClosedSprints(boardId, 6) : Promise.resolve([]),
     ]);
 
@@ -754,6 +757,31 @@ async function fetchBugReports(client, squadKey, boardId) {
     const sprintWindows = (sprints || []).map(s => ({
       name: s.name, startDate: s.startDate, endDate: s.endDate,
     }));
+
+    // Reopen detection: fetch changelog per-issue, but ONLY for bugs created
+    // within the sprint-window range (keeps the call count bounded — the whole
+    // reason reopen rate is scoped to the last 6 sprints). If there are no
+    // windows yet, skip (reopen rate needs a window anyway).
+    if (sprintWindows.length > 0) {
+      const starts = sprintWindows.map(w => new Date(w.startDate).getTime()).filter(n => !isNaN(n));
+      const ends = sprintWindows.map(w => new Date(w.endDate).getTime()).filter(n => !isNaN(n));
+      const lo = Math.min(...starts), hi = Math.max(...ends);
+      const inWindow = bugs.filter(b => {
+        const t = b.created ? new Date(b.created).getTime() : NaN;
+        return !isNaN(t) && t >= lo && t <= hi;
+      });
+      // Safety cap so a huge window can't fan out into hundreds of calls.
+      const CAP = 80;
+      const toEnrich = inWindow.slice(0, CAP);
+      console.log(`[background] Bug reopen: fetching changelog for ${toEnrich.length} in-window bug(s)${inWindow.length > CAP ? ` (capped from ${inWindow.length})` : ''}`);
+      await Promise.all(toEnrich.map(async (b) => {
+        const cl = await client.getIssueChangelog(b.key);
+        // Recompute reopenCount from the freshly-fetched changelog (single source
+        // of truth: the same countReopens used by the metrics + tests).
+        b.reopenCount = countReopens(cl);
+      }));
+    }
+
     console.log(`[background] Bug reports: ${bugs.length} bugs, ${sprintWindows.length} sprint windows, appNameField=${appNameFieldId || 'none'}`);
     return { bugs, sprintWindows };
   } catch (err) {
