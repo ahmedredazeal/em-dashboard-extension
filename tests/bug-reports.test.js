@@ -155,6 +155,29 @@ test('countReopens counts Done → not-Done status transitions', () => {
   ]};
   assert(countReopens(changelog) === 2, `got ${countReopens(changelog)}`);
 });
+test('countReopens detects resolution-cleared regardless of status name (workflow-independent)', () => {
+  // A non-standard done status ("QA Passed") would be missed by status-name
+  // matching, but the resolution-cleared signal catches it.
+  const changelog = { histories: [
+    { items: [{ field: 'resolution', from: '10000', fromString: 'Done', to: null, toString: null }] },
+  ]};
+  assert(countReopens(changelog) === 1, `got ${countReopens(changelog)}`);
+});
+test('countReopens does not double-count when both signals fire in one entry', () => {
+  const changelog = { histories: [
+    { items: [
+      { field: 'resolution', fromString: 'Done', toString: null },
+      { field: 'status', fromString: 'Done', toString: 'In Progress' },
+    ] },
+  ]};
+  assert(countReopens(changelog) === 1, `got ${countReopens(changelog)}`);
+});
+test('countReopens ignores resolution being SET (resolve, not reopen)', () => {
+  const changelog = { histories: [
+    { items: [{ field: 'resolution', from: null, fromString: null, to: '10000', toString: 'Done' }] },
+  ]};
+  assert(countReopens(changelog) === 0, `got ${countReopens(changelog)}`);
+});
 test('countReopens handles missing/empty changelog', () => {
   assert(countReopens(null) === 0 && countReopens({}) === 0, 'safe');
 });

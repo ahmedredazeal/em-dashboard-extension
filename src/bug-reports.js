@@ -188,18 +188,41 @@ export function reopenRate(bugs, windows) {
 }
 
 /** Count Done→not-Done status transitions in a raw Jira changelog object. */
+/**
+ * Count reopens in a raw Jira changelog. A reopen is detected two ways, and the
+ * stronger (workflow-independent) signal is preferred:
+ *
+ *  1. RESOLUTION CLEARED — a `resolution` field change whose new value is empty
+ *     (Jira sets resolution when an issue is resolved and clears it on reopen).
+ *     This does NOT depend on status names, so it works for any workflow.
+ *  2. STATUS Done→not-Done — a `status` change out of a done-ish display name.
+ *     Fallback for workflows that reopen without a resolution field.
+ *
+ * To avoid double-counting a single reopen that fires both signals in the same
+ * history entry, each history entry contributes at most one reopen.
+ */
 export function countReopens(changelog) {
   const histories = changelog?.histories;
   if (!Array.isArray(histories)) return 0;
   let n = 0;
   for (const h of histories) {
     if (!Array.isArray(h.items)) continue;
+    let entryReopened = false;
     for (const it of h.items) {
-      if (it.field !== 'status') continue;
-      const from = (it.fromString || '').toLowerCase().trim();
-      const to = (it.toString || '').toLowerCase().trim();
-      if (DONE_NAMES.has(from) && !DONE_NAMES.has(to)) n++;
+      // Signal 1: resolution cleared (set → empty). Workflow-independent.
+      if (it.field === 'resolution') {
+        const hadResolution = !!(it.from || it.fromString);
+        const nowEmpty = !it.to && !it.toString;
+        if (hadResolution && nowEmpty) { entryReopened = true; break; }
+      }
+      // Signal 2: status moved out of a done-ish name.
+      if (it.field === 'status') {
+        const from = (it.fromString || '').toLowerCase().trim();
+        const to = (it.toString || '').toLowerCase().trim();
+        if (DONE_NAMES.has(from) && !DONE_NAMES.has(to)) { entryReopened = true; break; }
+      }
     }
+    if (entryReopened) n++;
   }
   return n;
 }

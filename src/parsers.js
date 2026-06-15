@@ -5,6 +5,7 @@
  */
 
 import { isKnownPriority } from './domain-constants.js';
+import { countReopens } from './bug-reports.js';
 
 /**
  * Parse one extra board spec into a normalized {label, id} pair.
@@ -166,21 +167,9 @@ export function normalizeBug(issue, opts = {}) {
     else if (raw.name) appName = raw.name;
   }
 
-  // Reopen count from changelog (Done → not-Done status transitions), if expanded.
-  let reopenCount = 0;
-  const histories = issue.changelog?.histories;
-  if (Array.isArray(histories)) {
-    const DONE = new Set(['done', 'closed', 'resolved', 'qa accepted', 'complete', 'completed']);
-    for (const h of histories) {
-      if (!Array.isArray(h.items)) continue;
-      for (const it of h.items) {
-        if (it.field !== 'status') continue;
-        const from = (it.fromString || '').toLowerCase().trim();
-        const to = (it.toString || '').toLowerCase().trim();
-        if (DONE.has(from) && !DONE.has(to)) reopenCount++;
-      }
-    }
-  }
+  // Reopen count from changelog (resolution-cleared or Done→open), if expanded.
+  // Delegates to the shared countReopens so the logic stays in one place.
+  const reopenCount = countReopens(issue.changelog);
 
   return {
     key: issue.key,

@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.15.2</div>
+      <div class="cl-desc"><strong>Bug Reports: 2×2 grid redesign + better reopen detection.</strong> The four charts are now a uniform grid of equal panels with consistent colours, spacing, and aligned bars. Reopen rate now also detects reopens via the resolution field being cleared, so it works regardless of your "done" status name (the likely cause of the 0%).</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.15.1</div>
       <div class="cl-desc"><strong>Fix: reopen rate always showed 0%.</strong> The bulk Jira search endpoint does not return changelog via expand, so reopen history never arrived. Now fetched per-issue (bounded to the 6-sprint window) so reopen rate computes correctly.</div>
     </div>

@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.15.2 (2026-06-15) — Bug Reports UI rebuild + more robust reopen detection
+
+**UI.** The four bug charts were inconsistent — different sizes, colours, and
+spacing. Rebuilt as a uniform **2×2 grid** of equal panels with one shared design
+system: a single panel shell (same padding, header, min-height), one horizontal
+-bar-row builder so label widths / bar heights / count columns line up across the
+age and app panels, a shared semantic palette (red = incoming, green = resolved,
+indigo = neutral counts, amber/red for severity), fixed gaps via the --space-*
+tokens, a scope badge, and a shared legend. The reopen rate is now a clean big
+-number stat panel.
+
+**Reopen detection — likely the cause of the 0%.** Reopen counting matched only
+status *display names* against a fixed done-ish set, so a workflow whose "done"
+status is named something else (e.g. "QA Passed", "Verified") would never
+register a reopen. countReopens now ALSO detects the workflow-independent signal:
+a `resolution` field cleared (set → empty), which Jira records whenever an issue
+is reopened regardless of status names. Both signals are de-duplicated so a single
+reopen counts once. normalizeBug now delegates to the shared countReopens (one
+source of truth).
+
+bug-reports suite grew to 27 cases (resolution-cleared, no-double-count,
+resolution-set-is-not-a-reopen). 26 suites + pre-flight green.
+
+---
+
 ## v2.15.1 (2026-06-15) — Fix: reopen rate always 0%
 
 Reopen rate read 0% for everyone because the changelog never arrived. The bulk

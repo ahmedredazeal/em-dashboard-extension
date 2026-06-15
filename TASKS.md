@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.15.2 | Bug Reports UI rebuilt as a 2x2 grid; reopen detection now also uses resolution-cleared (workflow-independent). |
 | v2.15.1 | Fix: reopen rate 0% — bulk search does not return changelog; now fetched per-issue (bounded). |
 | v2.15.0 | T-BR-1 phase 2: reopen rate (changelog, 6-sprint window) + open-bugs-by-App breakdown (App Name field). T-BR-1 complete. |
 | v2.14.1 | Fix: Bug Reports trend was empty (used oldest sprints + dropped active-sprint bugs). |
