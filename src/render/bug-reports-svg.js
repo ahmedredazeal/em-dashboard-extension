@@ -122,15 +122,66 @@ export function buildBugSnapshotSVG(snap) {
 }
 
 /**
+ * Phase-2 row — reopen rate + App Name breakdown, side by side.
+ * @param {{total,reopened,rate}} reopen  result of reopenRate()
+ * @param {Array<{label,count}>} apps      result of byAppName()
+ */
+export function buildBugQualityRow(reopen, apps) {
+  // Reopen rate read-out
+  const pct = reopen && reopen.total > 0 ? Math.round(reopen.rate * 100) : null;
+  const rateColor = pct == null ? C_MUTED : (pct >= 20 ? C_INCOMING : (pct >= 10 ? '#f59e0b' : C_RESOLVED));
+  const reopenHtml = pct == null
+    ? `<div style="font-size:var(--fs-caption);color:${C_MUTED};">No bugs in the window.</div>`
+    : `<div style="display:flex;align-items:baseline;gap:6px;">
+         <span style="font-size:var(--fs-head);font-weight:700;color:${rateColor};">${pct}%</span>
+         <span style="font-size:var(--fs-caption);color:${C_MUTED};">reopened (${reopen.reopened}/${reopen.total})</span>
+       </div>`;
+
+  // App Name breakdown — top apps as labeled bars
+  const top = (apps || []).slice(0, 6);
+  const maxApp = Math.max(1, ...top.map(a => a.count));
+  const appRows = top.map(a => {
+    const w = (a.count / maxApp) * 100;
+    return `
+      <div style="display:flex;align-items:center;gap:6px;margin:2px 0;">
+        <span style="width:88px;font-size:var(--fs-caption);color:${C_MUTED};text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(a.label)}">${esc(a.label)}</span>
+        <div style="flex:1;background:var(--surface-raised,rgba(255,255,255,0.05));border-radius:3px;height:11px;">
+          <div style="width:${w.toFixed(0)}%;background:var(--primary,#6366f1);height:100%;border-radius:3px;min-width:2px;"></div>
+        </div>
+        <span style="width:20px;font-size:var(--fs-caption);color:${C_TEXT};">${a.count}</span>
+      </div>`;
+  }).join('');
+  const appHtml = top.length === 0
+    ? `<div style="font-size:var(--fs-caption);color:${C_MUTED};">No App Name data.</div>`
+    : appRows;
+
+  return `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:120px;">
+        <div style="font-size:var(--fs-caption);color:${C_MUTED};margin-bottom:2px;">Reopen rate · last 6 sprints</div>
+        ${reopenHtml}
+      </div>
+      <div style="flex:2;min-width:160px;">
+        <div style="font-size:var(--fs-caption);color:${C_MUTED};margin-bottom:2px;">Open bugs by App</div>
+        ${appHtml}
+      </div>
+    </div>`;
+}
+
+/**
  * Full Bug Reports card: header + both charts.
  * @param {Object} trend  result of incomingVsResolved()
  * @param {Object} snap   result of openBugSnapshot()
  * @param {string} scopeLabel  'Squad' | 'Me' — shown in the header
+ * @param {Object} [quality]  optional phase-2 data: { reopen, apps }
  */
-export function buildBugReportsCard(trend, snap, scopeLabel = '') {
+export function buildBugReportsCard(trend, snap, scopeLabel = '', quality = null) {
   const card = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;gap:8px;';
   const scopeBadge = scopeLabel
     ? `<span style="font-size:var(--fs-caption);color:${C_MUTED};margin-left:auto;">${esc(scopeLabel)}</span>`
+    : '';
+  const qualityHtml = quality
+    ? `<div>${buildBugQualityRow(quality.reopen, quality.apps)}</div>`
     : '';
   return `
     <div style="${card}">
@@ -145,5 +196,6 @@ export function buildBugReportsCard(trend, snap, scopeLabel = '') {
         <div style="font-size:var(--fs-caption);color:${C_MUTED};margin-bottom:2px;">Open bugs by age</div>
         ${buildBugSnapshotSVG(snap)}
       </div>
+      ${qualityHtml}
     </div>`;
 }

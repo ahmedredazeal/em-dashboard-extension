@@ -21,7 +21,7 @@ _Nothing currently in progress._
 | ~~Alert settings~~ | ~~T-AS-2~~ | Per-rule threshold config (scope creep %, stalled days, spike delta) | M | Input fields per rule in Settings alerts section; read in each rule |
 | ~~Alert settings~~ | ~~T-AS-3~~ | Per-rule desktop notification override | S | `notifyDesktop: boolean` per rule; read in `notifyHighSeverity` |
 | ~~6~~ | ~~T-P6-1~~ | ~~Splash screen with logo + animation~~ | — | Discuss style, timing, skip-on-reload when we reach this phase |
-| Charts | T-BR-1 🔶 | Bug reports charts (ideation pending) | L | Define what identifies a bug in Jira; incoming-vs-resolved, open-bug age, reopen rate, per-component; EM trend + engineer "my bugs". Planned alongside Gantt full-tab. |
+| ~~Charts~~ | ~~T-BR-1~~ ✅ | Bug reports charts (ideation pending) | L | Define what identifies a bug in Jira; incoming-vs-resolved, open-bug age, reopen rate, per-component; EM trend + engineer "my bugs". Planned alongside Gantt full-tab. |
 | Gantt | T-GT-1 | Open Gantt in full-tab view + export to PDF | M | Like Sprint Planner's expanded view (gantt-print.html pattern); button in the Gantt header → new tab with wide layout; "Save as PDF" via print stylesheet. Pair with T-BR-1. |
 | Distribution | T-DIST-1 🔶 | Auto-update from latest GitHub release (controlled, not every sub-version) | L | Self-update so users don't get a zip each time. KEY CONSTRAINT: only *promoted* versions reach users, not every patch. Chrome Web Store does this natively (the proper path) — or a self-hosted `update_url` manifest + a "stable channel" pointer file the extension polls. Security: must be signed/controlled so we can't be impersonated. Needs design discussion — several approaches with very different tradeoffs. |
 | UX | T-DND-1 | Drag-and-drop reorder of Insights cards | M | Let users sort the Insights sections to taste; persist order in storage. Build AFTER the S-3 render extraction + a render scheduler (S-4), since reorder needs sections to be independent, individually-rendered units — doing it before the refactor would fight the current monolithic renderInsights. |
@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.15.0 | T-BR-1 phase 2: reopen rate (changelog, 6-sprint window) + open-bugs-by-App breakdown (App Name field). T-BR-1 complete. |
 | v2.14.1 | Fix: Bug Reports trend was empty (used oldest sprints + dropped active-sprint bugs). |
 | v2.14.0 | T-BR-1 phase 1: Bug Reports card (incoming-vs-resolved trend + open-bug age snapshot), EM + my-bugs scope. Reopen rate + per-component deferred to phase 2. |
 | v2.13.0 | Multi-team Sentry (editable base URL + *.sentry.io perms), Sentry-isolation audit, full README rewrite, security/privacy audit for publishing. |

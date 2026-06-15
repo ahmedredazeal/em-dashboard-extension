@@ -531,6 +531,34 @@ export class JiraClient {
   }
 
   /**
+   * Find a custom field's id by its display name (case-insensitive exact match,
+   * then a contains fallback). Caches per client instance. Used to resolve
+   * fields like "App Name" without hardcoding a customfield id. (T-BR-1 ph2.)
+   * @param {string} name  e.g. "App Name"
+   * @returns {Promise<string|null>} customfield id or null if not found
+   */
+  async findFieldIdByName(name) {
+    this._fieldCache = this._fieldCache || null;
+    const want = String(name || '').toLowerCase().trim();
+    if (!want) return null;
+    try {
+      if (!this._fieldCache) this._fieldCache = await this._get('/rest/api/3/field');
+      const fields = this._fieldCache || [];
+      const exact = fields.find(f => (f.name || '').toLowerCase().trim() === want);
+      const hit = exact || fields.find(f => (f.name || '').toLowerCase().includes(want));
+      if (hit) {
+        console.log(`[jira] Resolved field "${name}" → ${hit.id}`);
+        return hit.id;
+      }
+      console.warn(`[jira] Field "${name}" not found among ${fields.length} fields`);
+      return null;
+    } catch (err) {
+      console.warn(`[jira] Field lookup for "${name}" failed:`, err.message);
+      return null;
+    }
+  }
+
+  /**
    * Get bugs for a project (T-BR-1). Bug = issue type Bug or QA Bug.
    * @param {string} projectKey
    * @param {Object} [opts]
@@ -544,12 +572,18 @@ export class JiraClient {
     if (opts.createdAfter) jql += ` AND created >= "${opts.createdAfter}"`;
     jql += ' ORDER BY created DESC';
     console.log(`[jira] Fetching bugs: ${jql}`);
+    const fields = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'created', 'resolutiondate', 'components'];
+    // App Name (or any extra grouping field) — resolved by name elsewhere and passed in.
+    if (opts.appNameFieldId) fields.push(opts.appNameFieldId);
     try {
-      const result = await this._search({
+      const body = {
         jql,
-        fields: ['summary', 'status', 'priority', 'assignee', 'issuetype', 'created', 'resolutiondate'],
+        fields,
         maxResults: 200,
-      });
+      };
+      // changelog needed for reopen detection (Done → not-Done transitions).
+      if (opts.withChangelog) body.expand = 'changelog';
+      const result = await this._search(body);
       return result.issues || [];
     } catch (err) {
       console.warn('[jira] Bug fetch failed (non-fatal):', err.message);

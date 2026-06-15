@@ -2,7 +2,8 @@
  * tests/bug-reports.test.js — src/bug-reports.js (T-BR-1)
  * Run: node tests/bug-reports.test.js
  */
-import { incomingVsResolved, openBugSnapshot, median, AGE_BUCKETS } from '../src/bug-reports.js';
+import { incomingVsResolved, openBugSnapshot, median, AGE_BUCKETS, reopenRate, countReopens, byAppName } from '../src/bug-reports.js';
+import { normalizeBug } from '../src/parsers.js';
 
 let pass = 0, fail = 0;
 function test(name, fn) {
@@ -142,6 +143,69 @@ test('odd / even / empty', () => {
   assert(median([3, 1, 2]) === 2, 'odd');
   assert(median([1, 2, 3, 4]) === 3, 'even rounds (2.5→3)');
   assert(median([]) === 0, 'empty');
+});
+
+console.log('\nreopenRate / countReopens (phase 2)');
+test('countReopens counts Done → not-Done status transitions', () => {
+  const changelog = { histories: [
+    { items: [{ field: 'status', fromString: 'In Progress', toString: 'Done' }] },     // close (not a reopen)
+    { items: [{ field: 'status', fromString: 'Done', toString: 'In Progress' }] },     // reopen ✓
+    { items: [{ field: 'assignee', fromString: 'A', toString: 'B' }] },                // non-status
+    { items: [{ field: 'status', fromString: 'Closed', toString: 'Reopened' }] },      // reopen ✓ (Closed→Reopened, Reopened not done)
+  ]};
+  assert(countReopens(changelog) === 2, `got ${countReopens(changelog)}`);
+});
+test('countReopens handles missing/empty changelog', () => {
+  assert(countReopens(null) === 0 && countReopens({}) === 0, 'safe');
+});
+test('reopenRate counts only in-window bugs, uses reopenCount', () => {
+  const windows = sprints; // S1..S3, 2026-04-01 → 2026-05-12
+  const bugs = [
+    { key: 'B1', created: '2026-04-03', reopenCount: 1 },  // in window, reopened
+    { key: 'B2', created: '2026-04-20', reopenCount: 0 },  // in window, not
+    { key: 'B3', created: '2026-04-21', reopenCount: 2 },  // in window, reopened
+    { key: 'B4', created: '2026-01-01', reopenCount: 1 },  // BEFORE window → excluded
+  ];
+  const r = reopenRate(bugs, windows);
+  assert(r.total === 3, `total ${r.total}`);
+  assert(r.reopened === 2, `reopened ${r.reopened}`);
+  assert(Math.abs(r.rate - 2 / 3) < 1e-9, `rate ${r.rate}`);
+  assert(r.reopenedKeys.join(',') === 'B1,B3', r.reopenedKeys.join(','));
+});
+test('reopenRate empty windows → zeros', () => {
+  const r = reopenRate([{ created: '2026-04-03', reopenCount: 1 }], []);
+  assert(r.total === 0 && r.rate === 0, 'empty');
+});
+
+console.log('\nbyAppName (phase 2)');
+test('groups by appName desc, openOnly filters resolved', () => {
+  const bugs = [
+    { appName: 'Payments', done: false },
+    { appName: 'Payments', done: false },
+    { appName: 'Onboarding', done: false },
+    { appName: 'Payments', done: true },   // resolved → excluded under openOnly
+  ];
+  const r = byAppName(bugs, { openOnly: true });
+  assert(r[0].label === 'Payments' && r[0].count === 2, JSON.stringify(r));
+  assert(r.some(a => a.label === 'Onboarding' && a.count === 1), 'onboarding');
+});
+test('missing appName → Unspecified', () => {
+  const r = byAppName([{ done: false }], { openOnly: true });
+  assert(r[0].label === 'Unspecified' && r[0].count === 1, JSON.stringify(r));
+});
+
+console.log('\nnormalizeBug phase-2 fields');
+test('extracts appName from string / {value} / array custom field shapes', () => {
+  const f = 'customfield_99';
+  assert(normalizeBug({ key: 'X', fields: { [f]: 'Payments', status: {} } }, { appNameFieldId: f }).appName === 'Payments', 'string');
+  assert(normalizeBug({ key: 'X', fields: { [f]: { value: 'Onboarding' }, status: {} } }, { appNameFieldId: f }).appName === 'Onboarding', 'object');
+  assert(normalizeBug({ key: 'X', fields: { [f]: [{ value: 'A' }, { value: 'B' }], status: {} } }, { appNameFieldId: f }).appName === 'A, B', 'array');
+});
+test('extracts reopenCount from changelog', () => {
+  const issue = { key: 'X', fields: { status: {} }, changelog: { histories: [
+    { items: [{ field: 'status', fromString: 'Done', toString: 'Open' }] },
+  ]}};
+  assert(normalizeBug(issue).reopenCount === 1, 'reopen counted');
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

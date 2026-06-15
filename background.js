@@ -739,16 +739,22 @@ async function fetchBugReports(client, squadKey, boardId) {
     floor.setMonth(floor.getMonth() - 9);
     const createdAfter = floor.toISOString().slice(0, 10);
 
+    // Resolve the "App Name" field id (components are unreliable; App Name is
+    // always filled). Discovered by display name; null if not found → grouping
+    // falls back to "Unspecified".
+    const appNameFieldId = await client.findFieldIdByName('App Name');
+
     const [rawBugs, sprints] = await Promise.all([
-      client.getBugs(squadKey, { createdAfter }),
+      // withChangelog enables reopen-rate detection (Done → not-Done transitions).
+      client.getBugs(squadKey, { createdAfter, appNameFieldId, withChangelog: true }),
       boardId ? client.getRecentClosedSprints(boardId, 6) : Promise.resolve([]),
     ]);
 
-    const bugs = (rawBugs || []).map(normalizeBug);
+    const bugs = (rawBugs || []).map(b => normalizeBug(b, { appNameFieldId }));
     const sprintWindows = (sprints || []).map(s => ({
       name: s.name, startDate: s.startDate, endDate: s.endDate,
     }));
-    console.log(`[background] Bug reports: ${bugs.length} bugs, ${sprintWindows.length} sprint windows`);
+    console.log(`[background] Bug reports: ${bugs.length} bugs, ${sprintWindows.length} sprint windows, appNameField=${appNameFieldId || 'none'}`);
     return { bugs, sprintWindows };
   } catch (err) {
     console.warn('[background] Bug reports fetch failed (non-fatal):', err.message);

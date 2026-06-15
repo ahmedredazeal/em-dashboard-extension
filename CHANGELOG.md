@@ -1,5 +1,34 @@
 # Changelog
 
+## v2.15.0 (2026-06-15) — Bug Reports phase 2: reopen rate + per-App breakdown (T-BR-1)
+
+Extends the Bug Reports card with two quality signals.
+
+- **Reopen rate** (last 6 sprints) — the share of bugs that were moved back from
+  a Done-ish status to an open one at least once. Computed from each bug's Jira
+  changelog (a `Done → not-Done` status transition is a reopen), over the same
+  6-sprint window as the trend so the changelog fetch stays bounded. Colour-coded
+  (green <10%, amber 10–20%, red ≥20%).
+- **Open bugs by App** — bugs grouped by the **App Name** field instead of
+  Component. Components are unreliable/mostly empty in our Jira, but App Name is
+  always set, so it's the meaningful grouping. The field id is resolved by display
+  name at fetch time (no hardcoded customfield id); if it can't be found, the
+  grouping falls back to "Unspecified".
+
+Implementation: `getBugs` now fetches with `expand=changelog` and the resolved
+App Name field; new `findFieldIdByName` on the Jira client discovers the field id
+by name (mirroring the existing story-points discovery, cached per client).
+`normalizeBug` gained `appName` (handles string / {value} / array field shapes)
+and `reopenCount`. New pure metrics `reopenRate`, `countReopens`, `byAppName` in
+src/bug-reports.js; new `buildBugQualityRow` in the render module. Bug-reports
+test suite grew to 24 cases.
+
+26 suites + pre-flight green.
+
+T-BR-1 is now complete (phase 1 trend + snapshot, phase 2 reopen rate + per-App).
+
+---
+
 ## v2.14.1 (2026-06-15) — Fix: Bug Reports "Incoming vs Resolved" was empty
 
 The trend chart rendered empty (while the open-bug snapshot worked) because of

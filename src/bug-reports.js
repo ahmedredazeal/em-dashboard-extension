@@ -145,3 +145,82 @@ export function median(nums) {
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
 }
+
+/** Done-ish status names for reopen detection (display-name heuristic). */
+const DONE_NAMES = new Set(['done', 'closed', 'resolved', 'qa accepted', 'complete', 'completed']);
+
+/**
+ * Reopen rate (T-BR-1 ph2) — share of bugs that were moved Done → not-Done at
+ * least once, among bugs whose created date falls within the given windows.
+ *
+ * A "reopen" = a status-change history item whose fromString is a done-ish
+ * status and whose toString is not. Requires bugs fetched with changelog.
+ *
+ * @param {Array} bugs  normalized bugs; each may carry `reopenCount` (precomputed
+ *                      from changelog by the fetch layer) OR raw `changelog`.
+ * @param {Array} windows  sprint windows (same shape as incomingVsResolved)
+ * @returns {{ total, reopened, rate, reopenedKeys: string[] }}
+ *   rate is 0..1 (reopened / total). total counts in-window bugs only.
+ */
+export function reopenRate(bugs, windows) {
+  const wins = (windows || [])
+    .map(w => ({ start: day(w.startDate), end: day(w.endDate) }))
+    .filter(w => w.start && w.end)
+    .sort((a, b) => a.start - b.start);
+  if (wins.length === 0) return { total: 0, reopened: 0, rate: 0, reopenedKeys: [] };
+
+  const earliest = wins[0].start;
+  const latest = wins[wins.length - 1].end;
+  const inWindow = (d) => d && d >= earliest && d <= latest;
+
+  let total = 0, reopened = 0;
+  const reopenedKeys = [];
+  for (const b of bugs || []) {
+    const cd = day(b.created);
+    if (!inWindow(cd)) continue;
+    total++;
+    const count = typeof b.reopenCount === 'number'
+      ? b.reopenCount
+      : countReopens(b.changelog);
+    if (count > 0) { reopened++; reopenedKeys.push(b.key); }
+  }
+  return { total, reopened, rate: total ? reopened / total : 0, reopenedKeys };
+}
+
+/** Count Done→not-Done status transitions in a raw Jira changelog object. */
+export function countReopens(changelog) {
+  const histories = changelog?.histories;
+  if (!Array.isArray(histories)) return 0;
+  let n = 0;
+  for (const h of histories) {
+    if (!Array.isArray(h.items)) continue;
+    for (const it of h.items) {
+      if (it.field !== 'status') continue;
+      const from = (it.fromString || '').toLowerCase().trim();
+      const to = (it.toString || '').toLowerCase().trim();
+      if (DONE_NAMES.has(from) && !DONE_NAMES.has(to)) n++;
+    }
+  }
+  return n;
+}
+
+/**
+ * Group bugs by a string attribute (e.g. App Name), descending by count.
+ * @param {Array} bugs  normalized bugs carrying `appName`
+ * @param {Object} [opts]
+ * @param {boolean} [opts.openOnly=false]  count only open bugs
+ * @param {string}  [opts.emptyLabel='Unspecified']
+ * @returns {Array<{label, count}>}
+ */
+export function byAppName(bugs, opts = {}) {
+  const { openOnly = false, emptyLabel = 'Unspecified' } = opts;
+  const map = new Map();
+  for (const b of bugs || []) {
+    if (openOnly && b.done) continue;
+    const label = (b.appName && String(b.appName).trim()) || emptyLabel;
+    map.set(label, (map.get(label) || 0) + 1);
+  }
+  return [...map.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+}

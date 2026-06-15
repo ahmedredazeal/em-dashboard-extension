@@ -15,7 +15,7 @@ import { visibleAlerts } from './src/alerts.js';
 import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
 import { buildBurndownSVG } from './src/render/burndown-svg.js';
 import { engineerSprintBurndown } from './src/burndown.js';
-import { incomingVsResolved, openBugSnapshot } from './src/bug-reports.js';
+import { incomingVsResolved, openBugSnapshot, reopenRate, byAppName } from './src/bug-reports.js';
 import { buildBugReportsCard } from './src/render/bug-reports-svg.js';
 import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed, compareVersions } from './src/update-check.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
@@ -1462,7 +1462,10 @@ function renderInsights() {
       }
       const trend = incomingVsResolved(bugs, windows);
       const snap = openBugSnapshot(bugs);
-      bugReportsHtml = `<div style="margin-top:8px;">${buildBugReportsCard(trend, snap, isEngineerMe ? 'Me' : 'Squad')}</div>`;
+      // Phase 2: reopen rate (over the same 6-sprint window) + App Name breakdown.
+      const reopen = reopenRate(bugs, windows);
+      const apps = byAppName(bugs, { openOnly: true });
+      bugReportsHtml = `<div style="margin-top:8px;">${buildBugReportsCard(trend, snap, isEngineerMe ? 'Me' : 'Squad', { reopen, apps })}</div>`;
     }
   }
 

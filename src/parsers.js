@@ -142,16 +142,46 @@ export function normalizeStory(issue, storyPointsField) {
 /**
  * Normalize a Jira bug issue for the Bug Reports card (T-BR-1).
  * Captures the fields the metrics need: created, resolved, status, priority,
- * assignee, plus a computed `done` flag from the status category.
+ * assignee, plus a computed `done` flag from the status category. Phase 2 also
+ * captures `appName` (from a resolved custom-field id) and `reopenCount` (from
+ * the changelog, when expanded).
  * @param {Object} issue  raw Jira issue
- * @returns {{key, summary, status, priority, assigneeAccountId, assignee,
- *            created, resolved, done}}
+ * @param {Object} [opts]
+ * @param {string} [opts.appNameFieldId]  custom field id holding "App Name"
+ * @returns {Object}
  */
-export function normalizeBug(issue) {
+export function normalizeBug(issue, opts = {}) {
   const fields = issue.fields || {};
   const cat = fields.status?.statusCategory?.key || '';
   const name = (fields.status?.name || '').toLowerCase();
   const done = cat === 'done' || ['done', 'closed', 'resolved'].includes(name);
+
+  // App Name: custom fields can be a string, an object {value}, or an array of either.
+  let appName = null;
+  if (opts.appNameFieldId && fields[opts.appNameFieldId] != null) {
+    const raw = fields[opts.appNameFieldId];
+    if (typeof raw === 'string') appName = raw;
+    else if (Array.isArray(raw)) appName = raw.map(v => (v && v.value) || v).filter(Boolean).join(', ');
+    else if (raw.value) appName = raw.value;
+    else if (raw.name) appName = raw.name;
+  }
+
+  // Reopen count from changelog (Done → not-Done status transitions), if expanded.
+  let reopenCount = 0;
+  const histories = issue.changelog?.histories;
+  if (Array.isArray(histories)) {
+    const DONE = new Set(['done', 'closed', 'resolved', 'qa accepted', 'complete', 'completed']);
+    for (const h of histories) {
+      if (!Array.isArray(h.items)) continue;
+      for (const it of h.items) {
+        if (it.field !== 'status') continue;
+        const from = (it.fromString || '').toLowerCase().trim();
+        const to = (it.toString || '').toLowerCase().trim();
+        if (DONE.has(from) && !DONE.has(to)) reopenCount++;
+      }
+    }
+  }
+
   return {
     key: issue.key,
     summary: fields.summary || '',
@@ -162,6 +192,8 @@ export function normalizeBug(issue) {
     created: fields.created || null,
     resolved: fields.resolutiondate || null,
     done,
+    appName,
+    reopenCount,
   };
 }
 
