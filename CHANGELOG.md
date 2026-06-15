@@ -1,5 +1,32 @@
 # Changelog
 
+## v2.11.2 (2026-06-15) — Stability S-5 (batch 1): start splitting the fetchJiraData monolith
+
+First conservative batch of S-5 — breaking the 476-line `fetchJiraData`
+orchestrator into named helper functions *inside* background.js (deliberately
+NOT moved to separate modules: this is stateful async code with documented TDZ
+ordering traps and live-API calls that can't be proven byte-identical the way
+the pure S-3 builders were, so relocation risk isn't justified).
+
+- Extracted the three safest, self-contained sections into named async helpers:
+  `fetchSprintHistory(client, boardId)`, `fetchSupportTickets(client, squadKey)`,
+  and `fetchMilestones(client, settings, squadKey, storyPointsField)`. Each is a
+  self-contained non-fatal fetch; behaviour is identical to the previous inline
+  blocks (same try/catch, same fallbacks, same return shapes).
+- `fetchJiraData` drops from 476 → 443 lines and now reads as a sequence of
+  named steps for these sections instead of inline walls.
+- Verified: the orchestrator's final return still references all three values
+  (now assigned once from the helpers); no leftover/duplicate declarations; 23
+  suites + pre-flight green.
+
+This is intentionally a small, verified batch — the riskiest file in the
+codebase gets changed incrementally. REMAINING for S-5: the large current-sprint
+block (stories/points/changelog/geometry/scope/subtasks/analytics/roster) and
+the extra-boards block. Those share more local state and need equally careful,
+separately-verified batches.
+
+---
+
 ## v2.11.1 (2026-06-15) — Stability S-4 (phase 2): insights renders join the scheduler
 
 Completes S-4. The insights render target now funnels through the same

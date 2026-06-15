@@ -47,6 +47,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.11.2 | S-5 batch 1: extracted sprint-history/support/milestones helpers from fetchJiraData. |
 | v2.11.1 | S-4 phase 2 (complete): insights renders join the scheduler (per-target timers). |
 | v2.11.0 | S-4 phase 1: single render scheduler (requestRender) + pure src/render-scheduler.js. |
 | v2.10.6 | S-3 COMPLETE: ticketCounts → src/ticket-stats.js; refactor closed out. |

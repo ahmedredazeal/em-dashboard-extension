@@ -631,46 +631,13 @@ async function fetchJiraData(settings) {
   }
   
   // Sprint history
-  let sprintHistory = [];
-  if (boardId) {
-    try {
-      sprintHistory = await client.getSprintHistory(boardId, 5);
-    } catch (err) {
-      console.warn('[background] Failed to fetch sprint history:', err.message);
-    }
-  }
-  
+  const sprintHistory = await fetchSprintHistory(client, boardId);
+
   // Support tickets
-  let supportTickets = [];
-  try {
-    supportTickets = await client.getSupportTickets(squadKey);
-  } catch (err) {
-    console.warn('[background] Failed to fetch support tickets:', err.message);
-  }
-  
+  const supportTickets = await fetchSupportTickets(client, squadKey);
+
   // Milestones (OKRs / Dev Plans) — backlog tickets grouped by label.
-  // One JQL for all configured labels; progress is by ticket count.
-  let milestonesData = [];
-  const milestoneConfigs = settings.milestones || [];
-  if (milestoneConfigs.length > 0) {
-    try {
-      const labelList = milestoneConfigs.map(m => `"${m.label}"`).join(',');
-      const jql = `project = "${squadKey}" AND labels in (${labelList}) AND issuetype not in subTaskIssueTypes() ORDER BY created ASC`;
-      const result = await client._search({
-        jql,
-        fields: ['summary','status','assignee','issuetype','priority',
-                 storyPointsField,'customfield_10016','customfield_10026',
-                 'duedate','labels'],
-        maxResults: 200,
-      });
-      const msTickets = (result.issues || []).map(i => normalizeStory(i, storyPointsField));
-      milestonesData = buildMilestoneData(milestoneConfigs, msTickets);
-      console.log(`[background] Milestones: ${milestonesData.length} configured, ${msTickets.length} labelled tickets`);
-    } catch (msErr) {
-      console.warn('[background] Milestones fetch failed (non-fatal):', msErr.message);
-      milestonesData = milestoneConfigs.map(m => ({ ...m, tickets: [], error: msErr.message }));
-    }
-  }
+  const milestonesData = await fetchMilestones(client, settings, squadKey, storyPointsField);
 
   // Extra boards — fetch active sprint + stories for each
   const extraBoardsData = [];
@@ -780,6 +747,59 @@ async function fetchJiraData(settings) {
   
   console.log(`[background] fetchJiraData returning with ${extraBoardsData.length} extra board(s)`);
   return { sprintHistory, currentSprint, supportTickets, extraBoardsData, milestonesData, currentUser };
+}
+
+// ── fetchJiraData section helpers (S-5) ──────────────────────────────────
+// Extracted from the fetchJiraData orchestrator to keep each concern named and
+// readable. Each is a self-contained fetch with its own non-fatal try/catch;
+// behaviour is identical to the previous inline blocks.
+
+/** Recent closed sprints for the history view (non-fatal). */
+async function fetchSprintHistory(client, boardId) {
+  if (!boardId) return [];
+  try {
+    return await client.getSprintHistory(boardId, 5);
+  } catch (err) {
+    console.warn('[background] Failed to fetch sprint history:', err.message);
+    return [];
+  }
+}
+
+/** Support tickets for the squad (non-fatal). */
+async function fetchSupportTickets(client, squadKey) {
+  try {
+    return await client.getSupportTickets(squadKey);
+  } catch (err) {
+    console.warn('[background] Failed to fetch support tickets:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Milestones (OKRs / Dev Plans) — backlog tickets grouped by configured label.
+ * One JQL for all labels; progress is by ticket count. Non-fatal.
+ */
+async function fetchMilestones(client, settings, squadKey, storyPointsField) {
+  const milestoneConfigs = settings.milestones || [];
+  if (milestoneConfigs.length === 0) return [];
+  try {
+    const labelList = milestoneConfigs.map(m => `"${m.label}"`).join(',');
+    const jql = `project = "${squadKey}" AND labels in (${labelList}) AND issuetype not in subTaskIssueTypes() ORDER BY created ASC`;
+    const result = await client._search({
+      jql,
+      fields: ['summary','status','assignee','issuetype','priority',
+               storyPointsField,'customfield_10016','customfield_10026',
+               'duedate','labels'],
+      maxResults: 200,
+    });
+    const msTickets = (result.issues || []).map(i => normalizeStory(i, storyPointsField));
+    const milestonesData = buildMilestoneData(milestoneConfigs, msTickets);
+    console.log(`[background] Milestones: ${milestonesData.length} configured, ${msTickets.length} labelled tickets`);
+    return milestonesData;
+  } catch (msErr) {
+    console.warn('[background] Milestones fetch failed (non-fatal):', msErr.message);
+    return milestoneConfigs.map(m => ({ ...m, tickets: [], error: msErr.message }));
+  }
 }
 
 /**
