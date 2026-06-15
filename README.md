@@ -191,6 +191,8 @@ popup.js → loadData() → requestRender() → renderTodayScreen() + renderInsi
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [GUIDELINES.md](GUIDELINES.md).
 
+Design decisions and the reasoning behind backlog items are logged in [docs/DECISIONS.md](docs/DECISIONS.md).
+
 Run the full pre-flight before any commit or tag:
 ```bash
 bash pre-flight.sh
