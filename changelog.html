@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver patch">v2.11.1</div>
+      <div class="cl-desc"><strong>Insights renders join the scheduler (S-4 complete).</strong> requestRender now takes a target ('screen'|'insights') with per-target debounce timers; all 7 renderInsights triggers routed through it. The resize-observer layout flip now coalesces. S-4 done — one scheduler for every render; unblocks drag-and-drop card reorder.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v2.11.0</div>
       <div class="cl-desc"><strong>Single render scheduler (S-4 phase 1).</strong> Screen-render triggers now funnel through one requestRender() — coalesced by default (kills panel-open flicker), immediate for direct user actions. Pure timing logic in src/render-scheduler.js (10 tests). Phase 2 will fold in the insights renders.</div>
     </div>

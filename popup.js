@@ -853,7 +853,7 @@ function wireScopePills(container) {
       state.settings.viewScope = state.viewScope;
       await chrome.storage.local.set({ settings: state.settings });
       requestRender('scope-change', { immediate: true });  // re-renders story list
-      renderInsights();       // re-renders time logged + estimate charts (Phase 2 will fold this in)
+      requestRender('scope-change:insights', { immediate: true, target: 'insights' });
     });
   });
 }
@@ -1437,7 +1437,7 @@ function renderInsights() {
           });
         }
       }
-      renderInsights();
+      requestRender('quarter-select', { immediate: true, target: 'insights' });
     });
   }
   
@@ -1456,7 +1456,7 @@ function renderInsights() {
       year: qDef.year, q: qDef.q, accountIds,
       startDate: qDef.start, endDate: qDef.end, cacheKey
     });
-    renderInsights();
+    requestRender('quarter-refresh', { immediate: true, target: 'insights' });
   });
   
   // ── Wire member filter popover ────────────────────────────────────────
@@ -1511,7 +1511,7 @@ function renderInsights() {
 
       popover.style.display = 'none';
       document.removeEventListener('click', closeOnOutsideClick);
-      renderInsights();
+      requestRender('timesheet-mode-change', { immediate: true, target: 'insights' });
     });
   }
   
@@ -1526,7 +1526,7 @@ function renderInsights() {
         const currentLayout = el.dataset.layout === 'row';
         if (shouldBeSideBySide !== currentLayout) {
           el.dataset.layout = shouldBeSideBySide ? 'row' : 'col';
-          renderInsights();
+          requestRender('insights-resize-layout', { target: 'insights' });
         }
       });
     });
@@ -1716,8 +1716,8 @@ function restoreOpenSections(map) {
 }
 
 // (3) Debounce: coalesce back-to-back partial-update notifications into ONE
-//     rebuild (trailing edge, 250ms).
-let _renderDebounceTimer = null;
+//     rebuild (trailing edge, 250ms). Per-target timers live in _renderTimers
+//     (declared with the scheduler below).
 
 /**
  * S-4 — single render scheduler. Every screen-render trigger funnels through
@@ -1740,25 +1740,35 @@ let _renderDebounceTimer = null;
  * @param {Object}  [opts]
  * @param {boolean} [opts.immediate]  render synchronously instead of coalescing
  */
-function requestRender(reason = 'unspecified', opts = {}) {
-  const tag = renderReason(reason);
-  const plan = planRender({ immediate: !!opts.immediate, hasPending: _renderDebounceTimer !== null });
+// One debounce timer per render target so a queued screen render and a queued
+// insights render don't clobber each other.
+const _renderTimers = { screen: null, insights: null };
+const _renderWorkers = {
+  screen:   () => renderCurrentScreen(),
+  insights: () => renderInsights(),
+};
 
-  if (plan.clearPending && _renderDebounceTimer) {
-    clearTimeout(_renderDebounceTimer);
-    _renderDebounceTimer = null;
+function requestRender(reason = 'unspecified', opts = {}) {
+  const tag    = renderReason(reason);
+  const target = opts.target === 'insights' ? 'insights' : 'screen';
+  const worker = _renderWorkers[target];
+  const plan   = planRender({ immediate: !!opts.immediate, hasPending: _renderTimers[target] !== null });
+
+  if (plan.clearPending && _renderTimers[target]) {
+    clearTimeout(_renderTimers[target]);
+    _renderTimers[target] = null;
   }
 
   if (plan.action === 'render-now') {
-    console.debug(`[render] immediate · ${tag}`);
-    renderCurrentScreen();
+    console.debug(`[render] immediate · ${target} · ${tag}`);
+    worker();
     return;
   }
   // action === 'queue' (coalesce folds in via clearPending+restart)
-  console.debug(`[render] queued · ${tag}`);
-  _renderDebounceTimer = setTimeout(() => {
-    _renderDebounceTimer = null;
-    renderCurrentScreen();
+  console.debug(`[render] queued · ${target} · ${tag}`);
+  _renderTimers[target] = setTimeout(() => {
+    _renderTimers[target] = null;
+    worker();
   }, RENDER_DEBOUNCE_MS);
 }
 
@@ -2005,7 +2015,7 @@ function renderTodayScreen() {
   }
   
   // Insights (open by default) — render charts
-  renderInsights();
+  requestRender('today:initial-insights', { immediate: true, target: 'insights' });
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');
@@ -2781,7 +2791,7 @@ chrome.runtime.onMessage.addListener((message) => {
       if (r[key]) {
         if (!state.quarterWorklogCache) state.quarterWorklogCache = {};
         state.quarterWorklogCache[state.timesheetMode] = r[key];
-        renderInsights();
+        requestRender('quarter-cache-ready', { target: 'insights' });
       }
     });
     return;

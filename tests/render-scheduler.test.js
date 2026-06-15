@@ -65,5 +65,29 @@ test('debounce window is a positive number', () => {
   assert(typeof RENDER_DEBOUNCE_MS === 'number' && RENDER_DEBOUNCE_MS > 0);
 });
 
+console.log('\nmulti-target (S-4 phase 2) — targets queue independently');
+test('two targets each track their own pending state', () => {
+  // Simulate the popup's _renderTimers: { screen, insights } — planRender is
+  // called per-target with that target's own hasPending, so a queued screen
+  // render never suppresses an insights render (and vice-versa).
+  const timers = { screen: false, insights: false };
+  const fire = (target, immediate = false) => {
+    const p = planRender({ immediate, hasPending: timers[target] });
+    if (p.action === 'queue') timers[target] = true;   // a timer now lives for this target
+    if (p.action === 'render-now') timers[target] = false;
+    return p;
+  };
+  // queue a screen render
+  eq(fire('screen'), { action: 'queue', clearPending: false });
+  // an insights render must still queue (its own target is empty), not coalesce into screen's
+  eq(fire('insights'), { action: 'queue', clearPending: false });
+  // a second screen render coalesces into the pending screen timer
+  eq(fire('screen'), { action: 'queue', clearPending: true });
+  // an immediate insights render runs now + clears only the insights timer
+  eq(fire('insights', true), { action: 'render-now', clearPending: true });
+  // screen timer is untouched by the insights immediate
+  assert(timers.screen === true, 'screen timer should survive an insights immediate render');
+});
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail > 0 ? 1 : 0);

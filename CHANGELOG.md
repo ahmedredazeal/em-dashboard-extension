@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.11.1 (2026-06-15) — Stability S-4 (phase 2): insights renders join the scheduler
+
+Completes S-4. The insights render target now funnels through the same
+`requestRender` scheduler as screen renders.
+
+- **`requestRender(reason, opts)`** gained a `target` option (`'screen'` default
+  or `'insights'`), with a **per-target debounce timer** (`_renderTimers`) so a
+  queued screen render and a queued insights render never clobber each other.
+- All 7 `renderInsights()` trigger sites routed through it with the right mode:
+  immediate for direct user actions (scope change, timesheet-mode change,
+  quarter select/refresh, initial paint), coalesced for high-frequency / data
+  triggers (the resize-observer layout flip, async quarter-cache arrival).
+- The resize-observer layout flip in particular benefits — it can fire rapidly
+  during a drag-resize, and now coalesces into a single insights rebuild.
+- **`tests/render-scheduler.test.js`** gains a multi-target independence test
+  (a pending screen render must not suppress an insights render, and an
+  immediate insights render must not cancel a queued screen render). 11 tests
+  in that suite; 23 suites total green.
+
+S-4 is now complete: every render trigger in popup.js — both targets — goes
+through one scheduler. This is also the prerequisite that unblocks T-DND-1
+(drag-and-drop card reorder), since the insights sections can now be re-rendered
+through a single, predictable path.
+
+---
+
 ## v2.11.0 (2026-06-14) — Stability S-4 (phase 1): single render scheduler
 
 First phase of S-4 — consolidating the scattered screen-render triggers behind
