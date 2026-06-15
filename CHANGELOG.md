@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.12.3 (2026-06-15) — Two fixes: aligned capacity lines + stale update banner
+
+**Time Logged — cap & pace lines now align.** The two reference lines already
+shared the same vertical span in code, but the pace line used a faint dotted
+pattern and its label sat mid-chart, so it *looked* shorter and lower than the
+cap line. Both lines now use the same height explicitly, a denser dash, and both
+labels sit at the top at the same level (the pace label stacks one line up only
+when the two lines are close enough to overlap). They now read as equal-height
+verticals.
+
+**Update banner no longer shows for the version you are already on.** The daily
+check has a 24h rate-limit; within that window it re-showed the last known
+pending version from storage — but it was not re-comparing that cached version to
+the *current running* version. So after you installed the promoted build, the
+banner kept appearing for the version you were now running. The cached re-show
+now re-checks pendingVersion > currentVersion and clears the stale pending state
+once you have caught up.
+
+25 suites + pre-flight green.
+
+---
+
 ## v2.12.2 (2026-06-15) — Time Logged: fixed capacity line + pace-to-date marker
 
 Clarifies the Time Logged capacity reference. Previously there was a single

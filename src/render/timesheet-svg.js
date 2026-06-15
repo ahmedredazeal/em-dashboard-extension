@@ -113,34 +113,43 @@ export function buildTimesheetSVG(members, capacity = 0) {
   }
   const ax = `<line x1="${baseX}" y1="${PAD_TOP}" x2="${baseX}" y2="${H - PAD_BOT}" stroke="var(--border)" stroke-width="1"/>`;
 
+  // Reference lines share the SAME vertical extent (PAD_TOP-1 → H-PAD_BOT) and
+  // the SAME label level (top), so cap and pace read as equal-height verticals.
+  const LINE_Y1 = (PAD_TOP - 1).toFixed(1);
+  const LINE_Y2 = (H - PAD_BOT).toFixed(1);
+  const LABEL_Y = PAD_TOP - 4;
+
+  const cxNum = capacityHours > 0 ? baseX + (capacityHours / maxTotal) * PW : null;
+  const pxNum = (paceMark > 0 && paceMark !== capacityHours) ? baseX + (paceMark / maxTotal) * PW : null;
+
   // Capacity reference line — the FIXED full-sprint budget. Dashed amber
   // vertical; bars/names past it are flagged ⚠ above ("over capacity").
   let capLine = '';
-  if (capacityHours > 0) {
-    const cxNum = baseX + (capacityHours / maxTotal) * PW;
+  if (cxNum !== null) {
     const cx = cxNum.toFixed(1);
-    // Clamp the label's x and anchor so it never clips at the chart edge when
-    // the panels are side by side (the line can sit near the right border).
     const nearRight = cxNum > baseX + PW * 0.75;
     const labelAnchor = nearRight ? 'end' : 'middle';
     const labelX = nearRight ? Math.min(cxNum + 2, W - 2) : cxNum;
-    capLine = `<line x1="${cx}" y1="${PAD_TOP - 1}" x2="${cx}" y2="${H - PAD_BOT}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/>`
-            + `<text x="${labelX.toFixed(1)}" y="${PAD_TOP - 4}" text-anchor="${labelAnchor}" fill="#f59e0b" font-size="10" font-weight="600" font-family="system-ui">cap ${capacityHours}h</text>`;
+    capLine = `<line x1="${cx}" y1="${LINE_Y1}" x2="${cx}" y2="${LINE_Y2}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3"/>`
+            + `<text x="${labelX.toFixed(1)}" y="${LABEL_Y}" text-anchor="${labelAnchor}" fill="#f59e0b" font-size="10" font-weight="600" font-family="system-ui">cap ${capacityHours}h</text>`;
   }
 
   // Pace-to-date marker — expected hours per person SO FAR (elapsed working days
-  // × rate). A lighter dotted slate line; reference only, no ⚠ flag. Skipped if
-  // it would coincide with the fixed cap (e.g. last day of sprint).
+  // × rate). Slate dashed line, same height as the cap; reference only, no ⚠.
+  // Suppressed when it coincides with the cap (e.g. last day of the sprint).
   let paceLine = '';
-  if (paceMark > 0 && paceMark !== capacityHours) {
-    const pxNum = baseX + (paceMark / maxTotal) * PW;
+  if (pxNum !== null) {
     const px = pxNum.toFixed(1);
     const nearRight = pxNum > baseX + PW * 0.75;
     const labelAnchor = nearRight ? 'end' : 'middle';
     const labelX = nearRight ? Math.min(pxNum + 2, W - 2) : pxNum;
-    // Label sits lower (mid-chart) so it doesn't collide with the cap label up top.
-    paceLine = `<line x1="${px}" y1="${PAD_TOP - 1}" x2="${px}" y2="${H - PAD_BOT}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="1,3"/>`
-             + `<text x="${labelX.toFixed(1)}" y="${(PAD_TOP + 7).toFixed(1)}" text-anchor="${labelAnchor}" fill="#94a3b8" font-size="9" font-weight="600" font-family="system-ui">pace ${paceMark}h</text>`;
+    // Both labels live at the top; if the two lines are close enough that the
+    // labels would overlap, stack the pace label one line higher instead of
+    // dropping it mid-chart (which made the pace line look "shorter").
+    const close = cxNum !== null && Math.abs(cxNum - pxNum) < 44;
+    const paceLabelY = close ? LABEL_Y - 9 : LABEL_Y;
+    paceLine = `<line x1="${px}" y1="${LINE_Y1}" x2="${px}" y2="${LINE_Y2}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="2,2"/>`
+             + `<text x="${labelX.toFixed(1)}" y="${paceLabelY.toFixed(1)}" text-anchor="${labelAnchor}" fill="#94a3b8" font-size="9" font-weight="600" font-family="system-ui">pace ${paceMark}h</text>`;
   }
 
   // Legend (up to 4 projects shown inline, rest omitted)

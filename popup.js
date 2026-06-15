@@ -15,7 +15,7 @@ import { visibleAlerts } from './src/alerts.js';
 import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
 import { buildBurndownSVG } from './src/render/burndown-svg.js';
 import { engineerSprintBurndown } from './src/burndown.js';
-import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed } from './src/update-check.js';
+import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed, compareVersions } from './src/update-check.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
 import { buildSupportBoardChart } from './src/render/support-board-svg.js';
@@ -438,10 +438,19 @@ async function checkForUpdate() {
   const uc = store.updateCheck || {};
 
   if (!shouldCheck(uc.lastCheckedAt)) {
-    // Within the daily window — but still re-show the banner if a known update
-    // is pending and not snoozed (e.g. popup reopened same day).
-    if (uc.pendingVersion && !isSnoozed(uc.snoozedVersion, uc.snoozedUntil, uc.pendingVersion)) {
-      showUpdateBanner(uc.pendingVersion, uc.pendingUrl);
+    // Within the daily window — re-show a known-pending banner without re-fetching,
+    // BUT only if it's still genuinely newer than what we're now running. After
+    // the user installs the update, the running version catches up to (or passes)
+    // the cached pendingVersion, so the stale banner must clear itself.
+    if (uc.pendingVersion && compareVersions(uc.pendingVersion, currentVersion) > 0) {
+      if (!isSnoozed(uc.snoozedVersion, uc.snoozedUntil, uc.pendingVersion)) {
+        showUpdateBanner(uc.pendingVersion, uc.pendingUrl);
+      }
+    } else if (uc.pendingVersion) {
+      // We've caught up — drop the stale pending state so it never re-appears.
+      await chrome.storage.local.set({
+        updateCheck: { ...uc, pendingVersion: null, pendingUrl: null },
+      });
     }
     return;
   }
