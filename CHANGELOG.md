@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.17.0 (2026-06-16) - Usage analytics: feature tracking + session duration
+
+Fills the gaps in the existing Sentry usage telemetry so the tool is ready for a
+team-wide rollout, and adds a setup guide for reading it.
+
+- **Feature tracking now fires for all major sections.** Previously only the
+  full-tab Gantt reported a `section_viewed` event; now opening Insights, Sprint,
+  Sentry, the Monthly Report, and the full-tab Gantt each report one (deduped per
+  section per session). This makes the "which features are used" analytics real.
+- **Session duration.** The panel sends an `app.session` transaction (start to
+  close) when it is hidden/closed, for sessions longer than 1 second, so you can
+  see engagement, not just opens.
+- **Demo/Mock mode is suppressed** for both - sample sessions never pollute real
+  usage analytics.
+- **New guide:** `docs/USAGE-ANALYTICS.md` - how to read active users, per-person
+  frequency, version adoption, feature usage, and session length from Sentry
+  (Discover queries + a dashboard), plus the disclosure note for rollout.
+
+No new data categories beyond what was already sent (Jira identity, role, squad,
+version); this widens coverage of section events and adds session timing. Usage
+remains identified and MUST be disclosed in the rollout message.
+
+28 suites + pre-flight green.
+
+---
+
 ## v2.16.1 (2026-06-16) - Monthly Report: bug counts are squad-level
 
 Refines how the monthly report attributes bugs. Bug counts (opened / resolved /

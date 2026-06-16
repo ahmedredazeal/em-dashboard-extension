@@ -152,6 +152,28 @@ async function maybeRunSplash() {
 async function boot() {
   console.log('[popup] Booting Zealer Dashboard...');
 
+  // Session duration telemetry: mark start, send an app.session transaction when
+  // the panel is hidden/closed. Suppressed in demo mode (set later once state
+  // loads — guarded in the handler). Best-effort; never blocks the UI.
+  const _sessionStartMs = Date.now();
+  let _sessionSent = false;
+  const endSession = () => {
+    if (_sessionSent || state.mockMode) return;
+    _sessionSent = true;
+    const endMs = Date.now();
+    // Only meaningful sessions (>1s) — avoids noise from quick open/close flicker.
+    if (endMs - _sessionStartMs < 1000) return;
+    try {
+      chrome.runtime.sendMessage({
+        type: 'track-timing', name: 'app.session',
+        startMs: _sessionStartMs, endMs,
+      }).catch(() => {});
+    } catch { /* ignore */ }
+  };
+  // Side panels fire visibilitychange/pagehide when closed or navigated away.
+  document.addEventListener('visibilitychange', () => { if (document.hidden) endSession(); });
+  window.addEventListener('pagehide', endSession);
+
   // Phase 6: launch splash — show once per browser session, then fade out
   maybeRunSplash();
 
@@ -231,6 +253,19 @@ async function loadAndApplyTheme() {
 /**
  * Setup event handlers
  */
+// Fire a usage event when a user opens a section/feature. Deduped per section
+// per session (a Set), and suppressed in demo/mock mode so sample sessions don't
+// pollute real usage analytics. Best-effort — never throws into the UI.
+const _trackedSections = new Set();
+function trackSection(section) {
+  try {
+    if (state.mockMode) return;                 // don't report demo sessions
+    if (!section || _trackedSections.has(section)) return;
+    _trackedSections.add(section);
+    chrome.runtime.sendMessage({ type: 'track-section', section }).catch(() => {});
+  } catch { /* ignore */ }
+}
+
 function setupEventHandlers() {
   // Gantt: click any [data-jira-key] row to open the ticket in Jira
   document.getElementById('insights-content')?.addEventListener('click', e => {
@@ -262,6 +297,7 @@ function setupEventHandlers() {
   // Monthly report button (T-RPT-1)
   const reportBtn = document.getElementById('report-btn');
   if (reportBtn) reportBtn.addEventListener('click', () => {
+    trackSection('monthly_report');
     const url = state.mockMode ? 'report.html?demo=1' : 'report.html';
     window.open(url, '_blank');
   });
@@ -2162,6 +2198,7 @@ function renderTodayScreen() {
       const open = body.style.display !== 'none';
       body.style.display  = open ? 'none' : '';
       chevron.textContent = open ? '▶' : '▼';
+      if (!open) trackSection('insights');
     });
   }
   const sprintSecHeader = document.getElementById('sprint-section-header');
@@ -2174,6 +2211,7 @@ function renderTodayScreen() {
       const open = body.style.display !== 'none';
       body.style.display  = open ? 'none' : '';
       chevron.textContent = open ? '▶' : '▼';
+      if (!open) trackSection('sprint');
     });
   }
   const sentrySecHeader = document.getElementById('sentry-section-header');
@@ -2186,11 +2224,13 @@ function renderTodayScreen() {
       const open = body.style.display !== 'none';
       body.style.display  = open ? 'none' : '';
       chevron.textContent = open ? '▶' : '▼';
+      if (!open) trackSection('sentry');
     });
   }
   
   // Insights (open by default) — render charts
   requestRender('today:initial-insights', { immediate: true, target: 'insights' });
+  trackSection('insights');  // insights is expanded by default → counts as viewed
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');

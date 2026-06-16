@@ -49,6 +49,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.17.0 | Usage analytics: section_viewed fires for all major views + app.session duration; docs/USAGE-ANALYTICS.md setup guide. Rollout-readiness. |
 | v2.16.1 | Monthly Report: bug counts squad-level (not per-engineer); per-engineer hours retained. |
 | v2.16.0 | T-RPT-1 Monthly Report: self-building monthly report (delivery/bugs/support/hours, squad+me), in-app viewer + JSON/HTML export, optional auto-download, 12-month retention with advance warning, demo-mode data. |
 | v2.15.2 | Bug Reports UI rebuilt as a 2x2 grid; reopen detection now also uses resolution-cleared (workflow-independent). |

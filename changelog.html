@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver minor">v2.17.0</div>
+      <div class="cl-desc"><strong>Usage analytics: feature tracking + session duration.</strong> Opening any major section (Insights, Sprint, Sentry, Monthly Report, Gantt) now reports a usage event, and the panel reports session length on close - so the existing Sentry telemetry can answer who uses the tool, how often, which features, and for how long. New setup guide in docs/USAGE-ANALYTICS.md. Demo mode is excluded. Usage is identified and must be disclosed at rollout.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver patch">v2.16.1</div>
       <div class="cl-desc"><strong>Monthly Report: bug counts are squad-level.</strong> Bugs opened/resolved/net are no longer attributed per engineer - the assignee changes as a bug moves dev to QA to done, so it reflects workflow position, not ownership. Per-engineer hours (from worklogs) are unchanged. In Me scope, hours are yours but bug/support counts stay squad-wide.</div>
     </div>
