@@ -10,7 +10,31 @@ constraint discovered.
 
 ---
 
-## T-RPT-1 — Monthly report (DESIGN COMPLETE, pending build)
+## T-SLA-1 — Support-ticket SLA tracking (PARKED, reference data captured)
+**Status:** backlog; design discussion before build. The valuable artifact right
+now is the SLA matrix itself (from the team SLA doc), recorded here so it isn't
+lost:
+
+| Priority | CS Response | Tech Response | Resolution SLA | Release Time |
+|---|---|---|---|---|
+| Urgent | 1 hour | 1 hour | 4 hours | Same day |
+| High | 2 hours | 4 hours | 8 hours | 2 business days |
+| Medium | 1 business day | 3 business days | 7 business days | Periodic sprint release |
+| Low | 1 business day | 5 business days | 14 business days | Periodic sprint release |
+
+**Key implementation note (don't lose this):** the matrix mixes **clock hours**
+(Urgent/High response + resolution) with **business days** (Medium/Low, and every
+Release-time cell). Any SLA elapsed-time calculation must therefore respect
+business hours/days and the team **work week (Sun–Thu at Zeal)** — a naive
+wall-clock diff will over-count by including weekends/off-hours. Also needs:
+ticket created / first-response / resolved timestamps (first-response likely
+requires per-issue changelog or a status-transition signal — same machinery as the
+bug reopen detection), and a mapping of support statuses → responded / resolved /
+released. Overlaps the existing support-board fetch and the bug-reports changelog
+work. Idea: surface breaches + at-risk in the support board view and roll SLA
+attainment into the monthly report (T-RPT-1).
+
+
 **Status:** full business + technical plan written → `docs/T-RPT-1-PLAN.md`.
 Design locked; ready to build on approval.
 **Decisions:**
