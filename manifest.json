@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zealer Dashboard",
-  "version": "2.15.2",
+  "version": "2.16.0",
   "description": "Engineering delivery cockpit \u2014 sprint health, reliability alerts, and time tracking, in a Chrome side panel.",
   "author": "Zeal",
   "icons": {
@@ -31,7 +31,8 @@
     "alarms",
     "notifications",
     "sidePanel",
-    "tabs"
+    "tabs",
+    "downloads"
   ],
   "host_permissions": [
     "https://*.atlassian.net/*",

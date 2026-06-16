@@ -1,5 +1,39 @@
 # Changelog
 
+## v2.16.0 (2026-06-16) — Monthly Report (T-RPT-1)
+
+A monthly report that builds itself from dashboard data, accumulates locally so
+history is never lost, and finalizes automatically at month end. Open it from the
+new report button in the header.
+
+- **Builds from existing data** — no new per-fetch network calls. Each time the
+  dashboard refreshes, the current month accumulates; when the month rolls over
+  (detected by comparing the stored month to today on the next refresh), the prior
+  month is finalized into history.
+- **Contents** — delivery (sprints closed, velocity, completion %), bugs
+  (opened/resolved/net, open count + median age, per engineer), support
+  (opened/closed), and hours logged (total + per engineer, computed at finalize
+  from a month-bounded worklog read).
+- **Squad and Me scope** — engineers can view their own monthly footprint.
+- **Both formats** — JSON (data of record) + a standalone HTML view. Manual export
+  is permission-free; optional auto-download of each finalized month can be enabled
+  in Settings (uses the new downloads permission).
+- **12-month retention with an advance warning** — you are warned one month before
+  the oldest month is pruned, so you can export it first. Pruning is never silent.
+- **Demo mode** — the report is fully populated with sample history when Demo/Mock
+  Data Mode is on.
+
+Architecture: a pure, tested core (`src/monthly-report.js` — reducer registry,
+rollover, finalize, retention) + a palette-injected HTML builder
+(`src/report-html.js`), a single-writer background accumulator (in-flight lock,
+persist-before-download), and a thin viewer (`report.html`/`report.js`). 28 test
+suites (+2 new, 29 cases across the two new modules) + pre-flight green.
+
+NOTE: adding the `downloads` permission may prompt Chrome to re-enable the
+extension on update for some users.
+
+---
+
 ## v2.15.2 (2026-06-15) — Bug Reports UI rebuild + more robust reopen detection
 
 **UI.** The four bug charts were inconsistent — different sizes, colours, and

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zealer Dashboard — Monthly Report</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: var(--bg, #0b0d14); color: var(--text, #e2e8f0); }
+    .topbar { display:flex; align-items:center; gap:12px; padding:12px 16px;
+              border-bottom:1px solid var(--border, #2e3044); position:sticky; top:0;
+              background: var(--bg, #0b0d14); z-index:5; flex-wrap:wrap; }
+    .topbar h1 { font-size:16px; margin:0; flex:0 0 auto; }
+    .topbar .spacer { flex:1; }
+    select, button { font: inherit; }
+    select { background: var(--surface-raised, #1f2937); color: var(--text, #e2e8f0);
+             border:1px solid var(--border, #2e3044); border-radius:6px; padding:6px 8px; }
+    .btn { background: var(--primary, #2563eb); color:#fff; border:none; border-radius:6px;
+           padding:6px 12px; cursor:pointer; }
+    .btn.secondary { background: var(--surface-raised, #1f2937); color: var(--text, #e2e8f0);
+                     border:1px solid var(--border, #2e3044); }
+    .scope-toggle { display:flex; gap:0; border:1px solid var(--border, #2e3044); border-radius:6px; overflow:hidden; }
+    .scope-toggle button { background:transparent; color:var(--text-muted,#94a3b8); border:none; padding:6px 12px; cursor:pointer; }
+    .scope-toggle button.active { background: var(--primary, #2563eb); color:#fff; }
+    .warn { background:#7c2d12; color:#fed7aa; border:1px solid #ea580c; border-radius:8px;
+            padding:8px 12px; margin:12px 16px; font-size:13px; }
+    .demo-pill { background:#92400e; color:#fde68a; border-radius:10px; padding:2px 10px; font-size:11px; }
+    #frameWrap { padding:16px; }
+    iframe { width:100%; min-height: calc(100vh - 120px); border:1px solid var(--border, #2e3044);
+             border-radius:8px; background:#fff; }
+    .empty { padding:48px 16px; text-align:center; color: var(--text-muted, #94a3b8); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>📊 Monthly Report</h1>
+    <span id="demoPill" class="demo-pill" style="display:none;">DEMO DATA</span>
+    <select id="monthSelect" title="Select month"></select>
+    <div class="scope-toggle" id="scopeToggle" style="display:none;">
+      <button data-scope="squad" class="active">Squad</button>
+      <button data-scope="me">Me</button>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn secondary" id="exportJson">Export JSON</button>
+    <button class="btn" id="exportHtml">Export HTML</button>
+  </div>
+  <div id="warnSlot"></div>
+  <div id="frameWrap">
+    <div class="empty" id="emptyMsg">No report data yet. The report builds itself as you use the dashboard; the first month finalizes when the month rolls over.</div>
+    <iframe id="reportFrame" style="display:none;" title="Monthly report"></iframe>
+  </div>
+  <script type="module" src="report.js"></script>
+</body>
+</html>

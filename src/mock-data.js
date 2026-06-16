@@ -237,3 +237,67 @@ export function generateMockState(settings) {
 }
 
 export { TEAM as MOCK_TEAM };
+
+// ── Monthly report demo data (T-RPT-1) ───────────────────────────────────────
+// A few finalized months + an in-progress current month, so the report viewer
+// is fully demoable in Demo/Mock Mode.
+export function generateMockReportStore() {
+  const ENG = {
+    'mock-acc-ahmed': 'Ahmed Reda',
+    'mock-acc-sara':  'Sara Hassan',
+    'mock-acc-omar':  'Omar Farouk',
+    'mock-acc-nour':  'Nour Khalil',
+  };
+  function finalized(month, seed) {
+    const byEngineer = {};
+    Object.keys(ENG).forEach((acc, i) => {
+      byEngineer[acc] = {
+        bugsOpened: (seed + i) % 4,
+        bugsResolved: (seed + i + 1) % 4,
+        hours: 110 + ((seed * 7 + i * 13) % 50),
+      };
+    });
+    const bugsOpened = Object.values(byEngineer).reduce((a, e) => a + e.bugsOpened, 0) + 4;
+    const bugsResolved = Object.values(byEngineer).reduce((a, e) => a + e.bugsResolved, 0) + 5;
+    const totalHours = Object.values(byEngineer).reduce((a, e) => a + e.hours, 0);
+    return {
+      month, partial: false, squad: 'HRM', observedDays: 20,
+      finalizedAt: `${month}-28T18:00:00.000Z`, hoursAvailable: true,
+      appVersion: 'demo',
+      sprintsClosed: [
+        { name: `Sprint ${seed * 2 + 40}`, committedPts: 34, completedPts: 30 + (seed % 5), velocity: 30 + (seed % 5), completionPct: Math.round(((30 + (seed % 5)) / 34) * 100) },
+        { name: `Sprint ${seed * 2 + 41}`, committedPts: 38, completedPts: 33 + (seed % 4), velocity: 33 + (seed % 4), completionPct: Math.round(((33 + (seed % 4)) / 38) * 100) },
+      ],
+      derived: {
+        totalHours, hoursAvailable: true,
+        perEngineerHours: Object.fromEntries(Object.entries(byEngineer).map(([a, e]) => [a, e.hours])),
+        bugsOpened, bugsResolved, netBugFlow: bugsOpened - bugsResolved,
+        byEngineer,
+        supportOpened: 12 + (seed % 6), supportClosed: 11 + (seed % 7),
+        openBugsStart: 18 - seed, openBugsEnd: 16 - seed, medianBugAgeEnd: 6 + (seed % 5),
+        velocityAvg: 31 + (seed % 4), completionPctAvg: 86 + (seed % 8), sprintCount: 2,
+      },
+    };
+  }
+  // Build last 4 finalized months relative to "now".
+  const now = new Date();
+  const history = {};
+  for (let back = 4; back >= 1; back--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    history[key] = finalized(key, back);
+  }
+  const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const current = {
+    month: curKey, partial: false, squad: 'HRM', observedDays: Math.max(1, now.getDate() - 1),
+    startedAt: `${curKey}-01T09:00:00.000Z`, appVersion: 'demo',
+    daily: {
+      [`${curKey}-02`]: { bugsOpened: 2, bugsResolved: 1, supportOpened: 1, supportClosed: 2, byEngineer: { 'mock-acc-ahmed': { bugsOpened: 1, bugsResolved: 0 }, 'mock-acc-sara': { bugsOpened: 1, bugsResolved: 1 } } },
+      [`${curKey}-03`]: { bugsOpened: 1, bugsResolved: 3, supportOpened: 0, supportClosed: 1, byEngineer: { 'mock-acc-omar': { bugsOpened: 1, bugsResolved: 2 } } },
+    },
+    stateFirst: { openBugs: 15, medianBugAge: 7, capturedAt: `${curKey}-02T09:00:00.000Z` },
+    stateLatest: { openBugs: 13, medianBugAge: 8, capturedAt: `${curKey}-03T09:00:00.000Z` },
+    sprintsClosed: [],
+  };
+  return { schemaVersion: 1, currentMonth: curKey, current, history, retentionMonths: 12 };
+}

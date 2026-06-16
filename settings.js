@@ -348,6 +348,9 @@ function getTrackedViewIds() {
     document.getElementById('jira-email').value = settings.jira.email || '';
     document.getElementById('jira-token').value = settings.jira.token || '';
   }
+  // Monthly report (T-RPT-1)
+  const reportAuto = document.getElementById('report-autodownload');
+  if (reportAuto) reportAuto.checked = !!(settings.report && settings.report.autoDownload);
 
   // ── Role-specific section visibility ───────────────────────────────
   function applyRoleToSettings(role) {
@@ -632,6 +635,10 @@ function getTrackedViewIds() {
           monitoredMembers: freshAnalytics.monitoredMembers ?? settings.analytics?.monitoredMembers ?? []
         },
         milestones: parseMilestoneLines(document.getElementById('squad-milestones')?.value || ''),
+        report: {
+          autoDownload: document.getElementById('report-autodownload')?.checked || false,
+          retentionMonths: 12
+        },
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',
         viewScope: settings.viewScope || (settings.role === 'engineer' ? 'me' : 'squad')

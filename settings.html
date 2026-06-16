@@ -199,6 +199,16 @@
     </div>
 
     <!-- Alert rules -->
+    <div class="settings-section" id="report-section">
+      <h2>📊 Monthly report</h2>
+      <p class="hint">A monthly report builds itself from your dashboard data and is kept inside the extension (open it from the 📊 button). It finalizes automatically when the month rolls over.</p>
+      <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
+        <input type="checkbox" id="report-autodownload"/>
+        <span>Also auto-download each finalized month (JSON + HTML) to your Downloads folder</span>
+      </label>
+      <p class="hint" style="margin-top:4px;">History is kept for <strong>12 months</strong>. You'll be warned one month before the oldest is removed, so you can export it first. Manual export is always available in the report view.</p>
+    </div>
+
     <div class="settings-section" id="alerts-section">
       <h2>Alert rules</h2>
       <p class="hint">Enable or disable each rule, tune thresholds, and control which ones trigger desktop notifications (🔔).</p>

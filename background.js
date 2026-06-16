@@ -16,6 +16,10 @@ import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/t
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { buildMilestoneData } from './src/milestones.js';
 import { countReopens } from './src/bug-reports.js';
+import {
+  emptyBucket, buildSnapshot, updateBucket, shouldRollover,
+  finalizeMonth, pruneHistory, monthKey, DEFAULT_RETENTION_MONTHS,
+} from './src/monthly-report.js';
 import { runMigrations } from './src/migrations.js';
 import { recordTrendSample, getTrendSamples } from './src/sentry-trend.js';
 import { extractWorklogsFromIssues, aggregateWorklogs, aggregateByIssueType } from './src/worklog-aggregator.js';
@@ -224,6 +228,11 @@ async function checkDashboard() {
           console.warn('[telemetry] SKIPPED — fetchJiraData returned no currentUser (getCurrentUser failed?)');
         }
         await saveAndNotify('jira');
+        // Monthly report (T-RPT-1): accumulate this fetch into the current-month
+        // bucket; finalize on rollover. Non-fatal — wrapped so a report error
+        // never breaks the dashboard data path.
+        try { await accumulateMonthlyReport(settings); }
+        catch (e) { console.warn('[report] accumulate failed (ignored):', e?.message); }
         // Performance: record the Jira fetch as a Sentry transaction.
         if (data.currentUser) {
           try {
@@ -788,6 +797,114 @@ async function fetchBugReports(client, squadKey, boardId) {
     console.warn('[background] Bug reports fetch failed (non-fatal):', err.message);
     return { bugs: [], sprintWindows: [] };
   }
+}
+
+// ── Monthly report accumulator (T-RPT-1) ─────────────────────────────────────
+// Single-writer, serialized via _reportLock: accumulate the current fetch into
+// the in-progress month; on month rollover, finalize the prior month, persist
+// history FIRST, then (if enabled) auto-download, then start a fresh bucket.
+let _reportLock = Promise.resolve();
+async function accumulateMonthlyReport(settings) {
+  // Serialize: chain onto the in-flight lock so two fetches can't interleave a
+  // read-modify-write of the store (F6).
+  _reportLock = _reportLock.then(() => _accumulateMonthlyReportInner(settings)).catch(e => {
+    console.warn('[report] accumulate inner failed (ignored):', e?.message);
+  });
+  return _reportLock;
+}
+
+async function _accumulateMonthlyReportInner(settings) {
+  const now = new Date();
+  const squad = (settings && settings.squad && settings.squad.key) || (settings && settings.squad) || null;
+  const retentionMonths = (settings && settings.report && settings.report.retentionMonths) || DEFAULT_RETENTION_MONTHS;
+
+  const { reportStore: stored } = await chrome.storage.local.get('reportStore');
+  let store = stored || {
+    schemaVersion: 1,
+    currentMonth: monthKey(now),
+    current: emptyBucket(monthKey(now), squad),
+    history: {},
+    retentionMonths,
+  };
+
+  // Build the snapshot from current dashboard state (+ app version + squad).
+  const snapshot = buildSnapshot(
+    { ...state, settings, appVersion: chrome.runtime.getManifest().version },
+    now
+  );
+
+  // Rollover BEFORE applying today's snapshot, so the new month's first point
+  // lands in the fresh bucket (not the one being finalized).
+  if (shouldRollover(store.currentMonth, now)) {
+    const closingMonth = store.currentMonth;
+    let hoursResult = null;
+    try { hoursResult = await fetchMonthHours(settings, closingMonth); }
+    catch (e) { console.warn('[report] month-hours read failed (month finalizes without hours):', e?.message); }
+
+    const finalized = finalizeMonth(store.current, hoursResult);
+    store.history = store.history || {};
+    store.history[closingMonth] = finalized;
+    store.history = pruneHistory(store.history, retentionMonths);
+    store.currentMonth = monthKey(now);
+    store.current = emptyBucket(monthKey(now), squad);
+
+    // PERSIST FIRST (F6) — finalized data is safe before the fallible download.
+    await chrome.storage.local.set({ reportStore: store });
+
+    if (settings && settings.report && settings.report.autoDownload) {
+      try { await downloadMonthlyReport(finalized); }
+      catch (e) { console.warn('[report] auto-download failed (ignored):', e?.message); }
+    }
+    chrome.runtime.sendMessage({ type: 'report-month-finalized', month: closingMonth }).catch(() => {});
+    console.log(`[report] Finalized ${closingMonth}; started ${store.currentMonth}`);
+  }
+
+  // Always accumulate the current month.
+  store.current = updateBucket(store.current, snapshot, now);
+  store.retentionMonths = retentionMonths;
+  await chrome.storage.local.set({ reportStore: store });
+}
+
+// finalizeQuery for hours: a date-bounded worklog read for the closing month.
+// Returns { total, perEngineer } or null if unavailable. Kept defensive — the
+// report records null hours rather than guessing if this fails.
+async function fetchMonthHours(settings, month) {
+  try {
+    const jira = settings && settings.jira;
+    if (!jira || !jira.baseUrl || !jira.email || !jira.token) return null;
+    const [y, m] = month.split('-').map(Number);
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0); // last day of month
+    const client = new jiraAPI.JiraClient(jira.baseUrl, jira.email, jira.token);
+    const squadKey = (settings.squad && settings.squad.key) || settings.squad;
+    if (typeof client.getMonthWorklogTotals !== 'function') return null;
+    return await client.getMonthWorklogTotals(squadKey, fmtDate(start), fmtDate(end));
+  } catch (e) {
+    console.warn('[report] fetchMonthHours error:', e?.message);
+    return null;
+  }
+}
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Auto-download a finalized month as JSON + HTML (model B). Needs the downloads
+// permission; only invoked when settings.report.autoDownload is on.
+async function downloadMonthlyReport(finalized) {
+  const { buildReportJSON, buildReportHTML } = await import('./src/report-html.js');
+  const month = finalized.month;
+  const json = buildReportJSON(finalized);
+  const html = buildReportHTML(finalized);
+  await triggerDownload(`zealer-report-${month}.json`, 'application/json', json);
+  await triggerDownload(`zealer-report-${month}.html`, 'text/html', html);
+}
+async function triggerDownload(filename, mime, text) {
+  if (!chrome.downloads || !chrome.downloads.download) {
+    console.warn('[report] downloads API unavailable; skipping', filename);
+    return;
+  }
+  const url = `data:${mime};base64,` + btoa(unescape(encodeURIComponent(text)));
+  await chrome.downloads.download({ url, filename, saveAs: false });
 }
 
 /**

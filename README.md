@@ -2,7 +2,7 @@
 
 Engineering Manager + Engineer cockpit for **Jira + Sentry**. Sprint health, reliability trends, time tracking, milestones, a sprint-timeline Gantt, and configurable alert rules — all in a Chrome MV3 side panel. A single extension serves both EMs and individual engineers via a dual-role architecture.
 
-**Current version: v2.15.2**
+**Current version: v2.16.0**
 
 ---
 
@@ -148,6 +148,8 @@ src/
   sentry-trend.js        # per-view trend sample recording/retrieval (chrome.storage.sync)
   ticket-stats.js        # ticket count tallies
   bug-reports.js         # bug trend + open-bug snapshot metrics (T-BR-1)
+  monthly-report.js      # monthly report core: reducers, rollover, finalize (T-RPT-1)
+  report-html.js         # standalone JSON + HTML report builders (T-RPT-1)
   render-scheduler.js    # single coalesced render scheduler
   render/                # pure SVG/HTML builders (burndown, timesheet, progress,
                          #   support-board, sentry-trend, estimate-actual, personal-bars)

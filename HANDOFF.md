@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.15.2
+## Current version: v2.16.0
 | docs | Added docs/DECISIONS.md — running design-decisions/backlog-context log (the "why" behind TASKS.md items, previously only in chat). Seeded with T-BR-1, T-DIST-1, multi-team Sentry, capacity-line, stability decisions. Added backlog item T-RPT-1 (monthly report, local storage, Settings-configurable destination; overlaps T-EXP-1; design discussion deferred). NEW PRACTICE: when a design discussion happens, record the decision in docs/DECISIONS.md so it is tracked in the repo, not just in conversation. |
 
 ## Last session: Ahmed + Claude — 2026-06-04

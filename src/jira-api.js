@@ -238,6 +238,37 @@ export class JiraClient {
   }
 
   /**
+   * Month-bounded worklog totals for the monthly report (T-RPT-1 finalizeQuery).
+   * Returns { total, perEngineer:{accountId:hours} } in HOURS, counting only
+   * worklog entries whose `started` falls within [startDate, endDate] inclusive.
+   * @param {string} projectKey
+   * @param {string} startDate YYYY-MM-DD
+   * @param {string} endDate   YYYY-MM-DD
+   */
+  async getMonthWorklogTotals(projectKey, startDate, endDate) {
+    const issues = await this.getProjectWorklogs(projectKey, startDate, endDate);
+    const startMs = new Date(startDate + 'T00:00:00').getTime();
+    const endMs = new Date(endDate + 'T23:59:59').getTime();
+    let totalSec = 0;
+    const perEngineerSec = {};
+    for (const issue of issues) {
+      const wls = issue.fields?.worklog?.worklogs || [];
+      for (const w of wls) {
+        const t = w.started ? new Date(w.started).getTime() : NaN;
+        if (isNaN(t) || t < startMs || t > endMs) continue;
+        const sec = w.timeSpentSeconds || 0;
+        totalSec += sec;
+        const acc = w.author?.accountId || w.author?.displayName || 'unknown';
+        perEngineerSec[acc] = (perEngineerSec[acc] || 0) + sec;
+      }
+    }
+    const toHours = (s) => Math.round((s / 3600) * 10) / 10;
+    const perEngineer = {};
+    for (const [acc, sec] of Object.entries(perEngineerSec)) perEngineer[acc] = toHours(sec);
+    return { total: toHours(totalSec), perEngineer };
+  }
+
+  /**
    * Shared worklog-issue fetch (used by getTeamWorklogs + getProjectWorklogs):
    * cursor pagination plus a backfill pass for issues whose embedded worklog
    * list Jira truncates to ≤20 (common over long date ranges like a quarter).

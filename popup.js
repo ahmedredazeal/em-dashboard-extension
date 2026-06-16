@@ -258,6 +258,13 @@ function setupEventHandlers() {
   document.getElementById('docs-btn').addEventListener('click', () => {
     window.open('docs.html', '_blank');
   });
+
+  // Monthly report button (T-RPT-1)
+  const reportBtn = document.getElementById('report-btn');
+  if (reportBtn) reportBtn.addEventListener('click', () => {
+    const url = state.mockMode ? 'report.html?demo=1' : 'report.html';
+    window.open(url, '_blank');
+  });
   
   // Context bar back button
   document.getElementById('context-back').addEventListener('click', () => {
