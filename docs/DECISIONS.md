@@ -10,6 +10,21 @@ constraint discovered.
 
 ---
 
+## Bug attribution — squad-level, not per-engineer (DECIDED v2.16.1)
+The monthly report (and bug metrics generally) count bugs at the SQUAD level. We
+deliberately do NOT attribute opened/resolved bugs to an individual.
+**Why:** a bug's assignee changes as it moves through the workflow (developer →
+QA engineer during testing → done), so the assignee at any moment is workflow
+position, not ownership or cause. Attributing to the current assignee was
+misleading and unstable (same bug → different people on different days). The
+reporter field is usually QA/PM, so it can't attribute cause either. Bug volume
+is a property of the squad + codebase.
+**What stays per-engineer:** HOURS (from authored worklogs — genuinely
+individual). In the report's "Me" scope, hours are personal but bug/support
+counts are squad-wide, with a note saying so.
+This reversed the earlier T-RPT-1 "F3 per-engineer bug flow" design after it
+shipped in v2.16.0; removed in v2.16.1.
+
 ## T-SLA-1 — Support-ticket SLA tracking (PARKED, reference data captured)
 **Status:** backlog; design discussion before build. The valuable artifact right
 now is the SLA matrix itself (from the team SLA doc), recorded here so it isn't

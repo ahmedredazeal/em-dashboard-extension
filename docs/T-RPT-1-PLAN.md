@@ -222,12 +222,11 @@ MonthBucket = {
                                       //   (F1 — report shows "data for N of M days")
   // FLOW — keyed by local date, each value is that day's PER-DAY DELTA
   // (sumDailyDelta reducer). Latest-wins per day → idempotent re-fetch.
+  // SQUAD-LEVEL counts only — bugs are NOT attributed per engineer (see note below).
   daily: {
     "2026-06-01": {
       bugsOpened: 2, bugsResolved: 1,
-      supportOpened: 0, supportClosed: 3,
-      // per-engineer bug flow (F3) — enables the engineer "my report":
-      byEngineer: { "<accId>": { bugsOpened: 1, bugsResolved: 1 }, ... }
+      supportOpened: 0, supportClosed: 3
     },
     ...
   },
@@ -247,8 +246,8 @@ FinalizedMonth = MonthBucket + {
   hoursAvailable: true,               // false if the finalize worklog read failed
   derived: {                          // the FROZEN contract both renderers consume
     totalHours, perEngineerHours,     // from finalizeQuery (null if unavailable)
-    bugsOpened, bugsResolved, netBugFlow,
-    byEngineer: { "<accId>": { bugsOpened, bugsResolved, hours } },  // F3
+    bugsOpened, bugsResolved, netBugFlow,   // SQUAD-LEVEL (not per engineer)
+    byEngineer: { "<accId>": { hours } },   // HOURS ONLY — bugs are not attributed
     supportOpened, supportClosed,
     openBugsEnd, medianBugAgeEnd, openBugsStart,   // from stateLatest/stateFirst
     reopenRate,                       // computed over the month's bugs (changelog)
@@ -592,3 +591,13 @@ The rest are hardening. Recommend updating Part 2 to reflect F1–F3, then build
 > seam), F6 (in-flight lock + persist-before-download), F8 (palette-injected,
 > self-contained HTML) are reflected in 2.4/2.5. Sections 2.1–2.7 are now the
 > authoritative, internally-consistent design. **The plan is ready to build.**
+
+> **UPDATE 2026-06-16 (v2.16.1) — F3 REVERSED.** After shipping, the per-engineer
+> bug flow (F3) was removed. A bug's assignee changes through the workflow
+> (developer → QA engineer during testing → done), so attributing bug counts to
+> the current assignee measured workflow position, not ownership, and was unstable
+> across fetches. The reporter is usually QA/PM, so it can't attribute either.
+> **Bug counts (opened/resolved/net) are now squad-level only.** Per-engineer
+> HOURS remain (worklogs are genuinely authored by individuals). `byEngineer` in
+> the model is hours-only; the daily record has no per-engineer bug fields. The
+> data-model snippets above have been corrected to match.
