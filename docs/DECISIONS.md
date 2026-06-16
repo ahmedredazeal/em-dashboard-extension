@@ -10,20 +10,40 @@ constraint discovered.
 
 ---
 
-## T-RPT-1 — Monthly report, stored locally, configurable destination (PROPOSED, not yet designed)
-**Status:** backlog; needs a design discussion at its time.
-**Ask:** generate a report on a monthly cadence, persist it locally so history
-accumulates, and let the user pick the destination/path from Settings.
-**Known constraint (carried from T-EXP-1):** MV3 extensions can't silently write
-to an arbitrary filesystem path. `chrome.downloads` can't append or overwrite a
-chosen file; the File System Access API needs a user-granted, persisted directory
-handle and may re-prompt per session. So "pick a destination once and keep writing
-there monthly" has to be designed around those limits — candidates: a persisted
-FS Access directory handle, a cloud destination (Drive/Sheets), or timestamped
-monthly files.
-**Open:** report contents (which metrics), exact storage mechanism, destination
-model, monthly trigger (chrome.alarms). Heavy overlap with T-EXP-1 — likely design
-them together.
+## T-RPT-1 — Monthly report (DESIGN COMPLETE, pending build)
+**Status:** full business + technical plan written → `docs/T-RPT-1-PLAN.md`.
+Design locked; ready to build on approval.
+**Decisions:**
+- **Storage = C + B.** In-extension accumulation is the source of truth (model C,
+  "never lose this data"); optional auto-download of timestamped monthly files
+  (model B) toggled in Settings. Folder-picking (model A, File System Access) is
+  deferred to phase 2 — its per-session re-prompt caveat makes it wrong to gate v1
+  on. v1 writes to Downloads.
+- **Capture = accumulate continuously, roll up at month end.** Background updates
+  an in-progress month bucket each fetch; rollover detected by comparing stored
+  month key to today's (robust to the worker sleeping — not a wall-clock timer);
+  on rollover the prior month is finalized into history.
+- **Per-metric model = mixed.** Flow metrics (hours, bugs in/out, support in/out)
+  → daily points, summed; state metrics (open bug count, median age, velocity,
+  completion %) → month-end snapshot (+ first-of-month); derived (reopen rate, net
+  flow) → computed at finalize. Daily flow stored as cumulative-to-date so
+  re-fetches are idempotent (no double count).
+- **Format = both** JSON (data of record) + HTML (readable view).
+- **Contents = broad** ("everything initially"): sprint/delivery, bugs, time,
+  support, meta. Trimming/selection is later.
+- **Scope = squad AND engineer "me"** in v1 (per-engineer flow tracked by
+  accountId so a "my report" can be sliced at finalize).
+- **Entry point = header button** next to Settings.
+- **Retention = 12 months WITH an advance export warning.** Pruning is bounded but
+  never silent: when 12 months are held and the next finalize will prune the
+  oldest, the UI warns the user a full month ahead to export first. Exported files
+  are the permanent record beyond 12 months.
+- **Single writer:** only background mutates the report store (avoids the storage
+  races the project has hit before). Pure core (`src/monthly-report.js`) +
+  `report-html.js` unit-tested like the other pure modules.
+**Built from existing data — no new Jira/Sentry calls.**
+
+
 
 ## T-BR-1 — Bug Reports (DECIDED + shipped, v2.14.0–v2.15.2)
 - **Bug definition:** issue type `Bug` OR `QA Bug` (confirmed against the team's
