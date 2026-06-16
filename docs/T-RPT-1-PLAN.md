@@ -114,41 +114,98 @@ the same; only the sink changes).
 
 # PART 2 — TECHNICAL ARCHITECTURE PLAN
 
+> **REVISED 2026-06-16** to incorporate the Part 3 review. Changes: rollover
+> semantics corrected to match the real fetch trigger (F1); per-metric reducer
+> registry replaces the contradictory "cumulative daily" rule (F2); per-engineer
+> bug flow added to the model (F3); single-writer hardened with an in-flight lock
+> and persist-before-download (F6); migration seam (F5), permission-light export
+> (F4), palette-injected HTML (F8) folded in. Superseded text is kept only where
+> noted; the sections below are authoritative.
+
 ## 2.1 Architectural principles
 
-- **Single writer.** Only `background.js` mutates the report store; the popup
-  reads. (Mirrors how Sentry trend + jira data already flow — avoids the storage
-  races the project has been bitten by before.)
-- **Pure core, tested.** All roll-up / finalize / metric math lives in a pure
-  module (`src/monthly-report.js`) with no chrome/DOM deps, unit-tested like
-  `bug-reports.js` and `burndown.js`.
-- **Built from existing data.** No new Jira/Sentry calls. The accumulator reads
-  the same `state` the dashboard already assembles each fetch.
-- **Render reuses existing builders.** The HTML view composes the SVG/HTML
-  builders already written (burndown, timesheet, bug-reports) where useful.
-- **Rollover by comparison, not by timer.** Detect month change by comparing the
-  stored current-month key to today's — robust to the worker sleeping.
+- **Single writer, serialized.** Only `background.js` mutates the report store;
+  the popup reads. Accumulate + finalize run under an in-flight promise lock so two
+  overlapping fetch cycles cannot interleave a read-modify-write (F6). The store is
+  written with a single `chrome.storage.local.set` at the end of the cycle.
+- **Pure core, tested.** All roll-up / finalize / metric / reducer math lives in a
+  pure module (`src/monthly-report.js`) with no chrome/DOM deps, unit-tested like
+  `bug-reports.js` and `burndown.js`. `buildSnapshot(state)` is the one impure
+  boundary (it reads the dashboard's `state` shape) and gets its own fixture test.
+- **Built from existing data.** No new Jira/Sentry calls in the common path. The
+  accumulator reads the same `state` the dashboard already assembles each fetch.
+  (Exception: month hours may be derived from a date-bounded worklog read at
+  finalize — see 2.2/F2 — which is a once-a-month call, not per-fetch.)
+- **Render reuses builders via injected palette.** The HTML view composes shared
+  builders, but because an exported file has no access to the live `var(--...)`
+  tokens, builders take an explicit palette argument; the exported HTML inlines
+  resolved colours + SVG so it stands alone (F8).
+- **Lazy rollover by comparison.** Month change is detected by comparing the stored
+  month key to today's, evaluated on each fetch cycle. **Honest semantics (F1):**
+  the only fetch trigger is the popup opening (no periodic alarm exists — alarms
+  were deliberately removed). So finalize is *lazy*: it fires on the first panel
+  open after the month turns, and in-month accumulation only covers days the panel
+  was opened. v1 documents this ("data for N of M days"); a daily alarm heartbeat
+  is a deferred option (2.8) if true calendar coverage is later wanted.
 
-## 2.2 Per-metric model **[DECIDED: mixed]**
+## 2.2 Metric reducer registry **[REVISED — F2]**
 
-| Metric | Type | Stored how |
+The original "store cumulative-to-date daily, sum the deltas OR take last value"
+rule was self-contradictory and wrong for hours (sprint-to-date hours cross the
+month boundary, so neither summing daily values nor taking the last works). It is
+replaced by an explicit **reducer registry**: each tracked metric declares its
+type and how it rolls up to a month total. Adding a metric later is a one-line
+registry entry + (if new) a reducer — the single highest-leverage maintainability
+move.
+
+```
+// src/monthly-report.js
+export const METRICS = [
+  // key                source field on snapshot    reducer
+  { key:'bugsOpened',    src:'bugsOpenedToday',      reducer:'sumDailyDelta' },
+  { key:'bugsResolved',  src:'bugsResolvedToday',    reducer:'sumDailyDelta' },
+  { key:'supportOpened', src:'supportOpenedToday',   reducer:'sumDailyDelta' },
+  { key:'supportClosed', src:'supportClosedToday',   reducer:'sumDailyDelta' },
+  { key:'openBugs',      src:'openBugCount',         reducer:'latestSnapshot' },
+  { key:'medianBugAge',  src:'medianBugAgeDays',     reducer:'latestSnapshot' },
+  // hours: NOT accumulated daily — derived at finalize from a date-bounded
+  // worklog read for [monthStart, monthEnd], so the sprint-boundary problem
+  // disappears. Marked reducer:'finalizeQuery'.
+  { key:'hoursLogged',   src:null,                   reducer:'finalizeQuery' },
+];
+```
+
+**Reducer definitions (pure):**
+- `sumDailyDelta` — the metric is a true per-day count (e.g. "bugs created on
+  date D", which Jira can answer). Stored per day; month total = sum of the daily
+  values. Re-fetching the same day overwrites that day's entry (idempotent).
+- `latestSnapshot` — a point-in-time state value. Stored as `stateLatest` (and
+  `stateFirst` on first capture of the month). No daily history. Month value =
+  `stateLatest`; optional `delta = latest − first`.
+- `finalizeQuery` — not accumulated at all; computed once at finalize from a
+  bounded query (hours = worklogs in `[monthStart, monthEnd]`). Avoids the
+  cumulative-across-boundary trap entirely. This is the *only* metric needing a
+  (monthly, not per-fetch) network read; if that read fails, the month records
+  `hoursLogged: null` and the report notes it rather than guessing.
+
+| Metric | Type | Reducer |
 |---|---|---|
-| Hours logged (total + per engineer) | flow | daily point (cumulative-to-date value per day) |
-| Bugs opened / resolved | flow | daily point |
-| Support tickets opened / closed | flow | daily point |
-| Open bug count, median bug age | state | month-end snapshot (+ first-seen of month) |
-| Velocity, sprint completion % | state | snapshot at each sprint close within the month |
-| Sprints closed this month | event list | appended as sprints close |
-| Reopen rate, net bug flow, completion % | derived | computed at finalize |
+| Bugs opened / resolved | flow | `sumDailyDelta` |
+| Support opened / closed | flow | `sumDailyDelta` |
+| Open bug count, median bug age | state | `latestSnapshot` |
+| Velocity, completion % | state (per sprint close) | event list, `latestSnapshot` per closed sprint |
+| Sprints closed | event | appended as sprints close |
+| Hours logged (total + per engineer) | flow | `finalizeQuery` (date-bounded worklog read) |
+| Reopen rate, net flow, completion-avg | derived | computed at finalize from the above |
 
-## 2.3 Data model (chrome.storage.local)
+## 2.3 Data model (chrome.storage.local) **[REVISED — F3, F5]**
 
 ```
 reportStore = {
-  schemaVersion: 1,
+  schemaVersion: 1,                   // migrated via src/migrations.js (F5)
   currentMonth: "2026-06",            // local YYYY-MM
-  current: <MonthBucket>,             // in-progress, mutated each fetch
-  history: {                          // finalized, immutable
+  current: <MonthBucket>,             // in-progress, mutated each fetch cycle
+  history: {                          // finalized, immutable, max 12 (retention)
     "2026-05": <FinalizedMonth>,
     "2026-04": <FinalizedMonth>,
     ...
@@ -161,93 +218,132 @@ MonthBucket = {
   partial: false,                     // true if accumulation started mid-month
   startedAt: <iso>,
   squad: "HRM",
-  // FLOW — keyed by local date, latest-wins per day:
+  observedDays: 7,                    // # of distinct days the panel was opened
+                                      //   (F1 — report shows "data for N of M days")
+  // FLOW — keyed by local date, each value is that day's PER-DAY DELTA
+  // (sumDailyDelta reducer). Latest-wins per day → idempotent re-fetch.
   daily: {
-    "2026-06-01": { hoursLogged: 12.5, perEngineer: {accId: hrs,...},
-                    bugsOpened: 2, bugsResolved: 1,
-                    supportOpened: 0, supportClosed: 3 },
+    "2026-06-01": {
+      bugsOpened: 2, bugsResolved: 1,
+      supportOpened: 0, supportClosed: 3,
+      // per-engineer bug flow (F3) — enables the engineer "my report":
+      byEngineer: { "<accId>": { bugsOpened: 1, bugsResolved: 1 }, ... }
+    },
     ...
   },
-  // STATE — latest snapshot + first of month:
-  stateFirst: { openBugs: 14, medianBugAgeDays: 9, capturedAt: <iso> },
-  stateLatest:{ openBugs: 11, medianBugAgeDays: 7, capturedAt: <iso> },
-  // EVENTS:
+  // STATE — latestSnapshot reducer (+ first capture of month for deltas):
+  stateFirst:  { openBugs: 14, medianBugAgeDays: 9, capturedAt: <iso> },
+  stateLatest: { openBugs: 11, medianBugAgeDays: 7, capturedAt: <iso> },
+  // EVENTS — appended as sprints close in-month:
   sprintsClosed: [ { name, closedAt, committedPts, completedPts,
                      velocity, completionPct } ],
   appVersion: "x.y.z"
+  // NOTE: hours are NOT stored here — finalizeQuery computes them at finalize
+  // (date-bounded worklog read), total + perEngineer, written into derived.
 }
 
 FinalizedMonth = MonthBucket + {
   finalizedAt: <iso>,
-  derived: {
-    totalHours, perEngineerHours,
+  hoursAvailable: true,               // false if the finalize worklog read failed
+  derived: {                          // the FROZEN contract both renderers consume
+    totalHours, perEngineerHours,     // from finalizeQuery (null if unavailable)
     bugsOpened, bugsResolved, netBugFlow,
+    byEngineer: { "<accId>": { bugsOpened, bugsResolved, hours } },  // F3
     supportOpened, supportClosed,
-    openBugsEnd, medianBugAgeEnd,
-    reopenRate,                       // computed over month's bugs
-    velocityAvg, completionPctAvg,
-    sprintCount
+    openBugsEnd, medianBugAgeEnd, openBugsStart,   // from stateLatest/stateFirst
+    reopenRate,                       // computed over the month's bugs (changelog)
+    velocityAvg, completionPctAvg, sprintCount
   }
 }
 ```
 
-Why daily flow stores the *cumulative-to-date* value (not a per-fetch increment):
-multiple fetches per day overwrite the same date key with the latest cumulative
-reading, so re-fetching is idempotent — no double counting. Month total for a
-flow = sum over days of the per-day deltas, or simply the last day's cumulative
-value when the source itself is cumulative (e.g. sprint-to-date hours). The pure
-module documents which per source.
+**Storage semantics (corrected — supersedes the old "cumulative-to-date" note):**
+flow metrics are stored as **per-day deltas** (the `sumDailyDelta` reducer), so a
+month total is a plain sum and a re-fetch on the same day overwrites that day's
+entry rather than adding to it (idempotent). Hours are deliberately *not* in
+`daily` — they are derived at finalize from a date-bounded worklog read, which is
+why the cumulative-across-the-sprint-boundary problem (F2) does not arise.
+`derived` is the **frozen contract**: a typedef comment + a shared test fixture
+used by both the finalize test and the HTML/JSON renderers, so producer and
+consumers cannot drift (maintainability).
 
-## 2.4 Components & files
+**Migration (F5):** `migrateReportStore(store)` is added to `src/migrations.js`
+from day one (a no-op for schemaVersion 1) so the seam exists before there is
+12 months of data a careless v1→v2 could destroy.
+
+## 2.4 Components & files **[REVISED — F4, F5, F6, F8]**
 
 **New:**
-- `src/monthly-report.js` — pure. `updateBucket(bucket, snapshot, today)`,
-  `shouldRollover(storedMonth, today)`, `finalizeMonth(bucket)`,
-  `pruneHistory(history, retentionMonths)`, `computeDerived(bucket)`,
-  `emptyBucket(month, squad)`. No chrome/DOM.
-- `src/report-html.js` — pure. `buildReportHTML(finalizedMonth)` → full standalone
-  HTML string (reuses palette + bar/row helpers; self-contained for export).
-- `tests/monthly-report.test.js` — covers rollover boundaries, idempotent daily
-  writes, partial-month, finalize math, retention pruning.
-- `report.html` + `report.js` — the in-app viewer page (month list → rendered
-  view + "Export JSON" / "Export HTML" buttons).
+- `src/monthly-report.js` — pure. `emptyBucket(month, squad)`,
+  `buildSnapshot(state)` (impure boundary, fixture-tested), `updateBucket(bucket,
+  snapshot, today)`, `shouldRollover(storedMonth, today)`, `finalizeMonth(bucket,
+  hoursResult)`, `computeDerived(bucket, hoursResult)`, `pruneHistory(history,
+  retentionMonths)`, `retentionWarning(history, currentMonth, retentionMonths)`,
+  and the **`METRICS` reducer registry** + reducer fns (F2). No chrome/DOM.
+- `src/report-html.js` — pure, **palette-injected** (F8): `buildReportHTML(
+  finalizedMonth, palette)` returns a standalone HTML string with **inlined,
+  resolved CSS colours and inlined SVG** (no `var(--...)`, no external stylesheet),
+  so an exported file opens correctly outside the extension. Shared bar/row helpers
+  are forked here in palette-arg form rather than importing the live-theme builders.
+- `tests/monthly-report.test.js` — rollover (incl. year boundary + skipped-month
+  gap), per-reducer correctness (sumDailyDelta idempotency, latestSnapshot,
+  finalizeQuery-unavailable), per-engineer slicing (F3), finalize math vs fixture,
+  retention prune + `retentionWarning`, `buildSnapshot` against a `state` fixture.
+- `report.html` + `report.js` — thin viewer (month list → rendered view). **Export
+  is permission-free** via a `blob:`/`<a download>` click (F4); the viewer holds no
+  report logic, only selection + calling the pure builders.
 
 **Modified:**
-- `background.js` — after each successful `fetchJiraData` (and support/sentry as
-  relevant), build a `snapshot` from `state` and call the accumulator; run the
-  rollover check; on rollover, finalize + prune + (if B enabled) trigger download.
-- `settings.html` / `settings.js` — a "Monthly report" section: enable/disable
-  auto-download (model B), retention months, and a "download this month now"
-  button.
-- `popup.js` — an entry point to open `report.html` (a button in the header or
-  insights footer).
-- `manifest.json` — already has `downloads`? if not, add it for model B. (verify)
+- `background.js` — in the existing fetch cycle, under an **in-flight lock** (F6):
+  `buildSnapshot(state)` → rollover check → (on rollover) `finalizeMonth` →
+  **persist history first**, *then* (if B enabled) auto-download (F6) → reset
+  current → notify popup; always `updateBucket` then a single `set`. The monthly
+  `finalizeQuery` hours read happens here at finalize only.
+- `src/migrations.js` — add `migrateReportStore` seam (F5), no-op for v1.
+- `settings.html` / `settings.js` — "Monthly report" section: auto-download toggle
+  (model B), retention (default 12), "download this month now" (uses the
+  permission-free export path).
+- `popup.js` — "Monthly report" button in the **header, next to Settings** (decided
+  2.9) → opens `report.html`.
+- `manifest.json` — add `downloads` **only** for the auto-download-on-finalize path
+  (F4). Manual/in-app export needs no permission. NOTE in release notes: adding a
+  permission can re-prompt/disable on update for installed users.
 - The six docs + version bump on ship.
 
-## 2.5 Control flow
+## 2.5 Control flow **[REVISED — F1, F6]**
 
 ```
-fetch cycle (background, existing):
+fetch cycle (background) — runs when the popup opens (no periodic alarm; F1):
+  acquire in-flight lock (skip if a cycle is already running)          // F6
   fetchJiraData() → state updated
         │
         ▼
-  buildSnapshot(state)               // pure: pull the metrics we track
+  snapshot = buildSnapshot(state)         // pure: today's deltas + state values
         │
         ▼
   shouldRollover(store.currentMonth, today)?
-        ├─ yes → finalizeMonth(store.current)         // compute derived
+        ├─ yes → hoursResult = <date-bounded worklog read for the closing month>
+        │        finalized = finalizeMonth(store.current, hoursResult)  // derived
         │        history[oldMonth] = finalized
         │        pruneHistory(history, retentionMonths)
-        │        if (settings.report.autoDownload) downloadMonth(finalized)  // model B
+        │        store.currentMonth = thisMonth
         │        store.current = emptyBucket(thisMonth, squad)
+        │        chrome.storage.local.set({ reportStore })   // PERSIST FIRST (F6)
+        │        if (settings.report.autoDownload) downloadMonth(finalized) // then
         │        notify popup "month-finalized"
         ▼
   store.current = updateBucket(store.current, snapshot, today)   // model C, always
-  chrome.storage.local.set({ reportStore: store })
+  chrome.storage.local.set({ reportStore })     // single write, end of cycle
+  release in-flight lock
 ```
 
-Rollover is evaluated **before** applying today's snapshot, so the new month's
-first data point lands in the fresh bucket, not the one being finalized.
+Two ordering guarantees: rollover is evaluated **before** applying today's
+snapshot (the new month's first data lands in the fresh bucket), and finalized
+history is **persisted before** the fallible download is kicked off (a failed or
+slow download can never cost finalized data — F6). If the panel is not opened for
+days into a new month, finalize simply fires lazily on the next open; in-month
+`daily` only has entries for opened days, and `observedDays`/`partial` record that
+honestly (F1).
 
 ## 2.6 Model B (auto-download) details
 
@@ -267,8 +363,17 @@ Pure modules are the safety net (the project's established pattern):
   no double count.
 - **Partial month:** bucket started mid-month → `partial:true`, derived notes it.
 - **Finalize math:** totals/derived match hand-computed fixtures.
-- **Retention:** history longer than N → oldest pruned, newest kept.
-- **HTML builder:** smoke-render a fixture, assert key sections present.
+- **Retention:** history longer than N → oldest pruned, newest kept;
+  `retentionWarning` fires one month ahead.
+- **Reducer registry (F2):** each reducer correct in isolation — `sumDailyDelta`
+  idempotent on same-day re-write, `latestSnapshot` keeps first+latest,
+  `finalizeQuery` records `null`/`hoursAvailable:false` when the read fails.
+- **Per-engineer slicing (F3):** a fixture with two assignees → the "me" slice
+  pulls only that accountId's bug flow + hours.
+- **buildSnapshot boundary:** a representative `state` fixture → expected snapshot,
+  so dashboard `state` shape changes are caught by a failing test, not silently.
+- **HTML builder:** smoke-render a fixture, assert key sections present; assert no
+  `var(--` leaks into the exported string (palette fully resolved — F8).
 - Full suite + `pre-flight.sh` green before tag.
 
 ## 2.8 Rollout / phasing
@@ -477,5 +582,13 @@ likely place for future drift/bugs.
 The core architecture (single-writer, pure core, rollover-by-comparison, build-from
 -existing-data) is sound and matches the codebase's grain. Three items
 (**F1 rollover-trigger reality, F2 flow reducer semantics, F3 per-engineer bug
-flow**) are real design defects that must be resolved before coding, not during.
+flow**) were real design defects that must be resolved before coding, not during.
 The rest are hardening. Recommend updating Part 2 to reflect F1–F3, then build.
+
+> **UPDATE 2026-06-16:** Part 2 has been revised to incorporate all of this. F1
+> (honest lazy-rollover semantics + `observedDays`), F2 (the `METRICS` reducer
+> registry + hours via `finalizeQuery`), and F3 (per-engineer bug flow in the
+> model + derived) are folded in; F4 (permission-light export), F5 (migration
+> seam), F6 (in-flight lock + persist-before-download), F8 (palette-injected,
+> self-contained HTML) are reflected in 2.4/2.5. Sections 2.1–2.7 are now the
+> authoritative, internally-consistent design. **The plan is ready to build.**
