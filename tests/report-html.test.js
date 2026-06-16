@@ -24,7 +24,7 @@ test('self-contained — no var(--...) leaks (F8)', () => {
 });
 test('contains all sections', () => {
   const h = buildReportHTML(sampleFinalized());
-  for (const s of ['Delivery', 'Bugs', 'Support', 'By engineer']) assert(h.includes(s), `missing ${s}`);
+  for (const s of ['Delivery', 'Bugs', 'Support', 'Hours by engineer']) assert(h.includes(s), `missing ${s}`);
 });
 test('renders net flow direction', () => {
   assert(buildReportHTML(sampleFinalized()).includes('backlog'), 'net flow label');

@@ -64,7 +64,7 @@ export function emptyBucket(month, squad, startedAt = new Date().toISOString()) 
     startedAt,
     squad: squad || null,
     observedDays: 0,
-    daily: {},              // dayKey -> { bugsOpened, bugsResolved, supportOpened, supportClosed, byEngineer:{} }
+    daily: {},              // dayKey -> { bugsOpened, bugsResolved, supportOpened, supportClosed } (squad-level)
     stateFirst: null,       // { openBugs, medianBugAge, capturedAt }
     stateLatest: null,
     sprintsClosed: [],      // [{ name, closedAt, committedPts, completedPts, velocity, completionPct }]
@@ -88,22 +88,19 @@ export function buildSnapshot(state, now = new Date()) {
   const rd = state.reportDeltas || {};
   const bugs = (state.bugReports && state.bugReports.bugs) || [];
 
-  // Per-day bug flow, derived from bug created/resolved dates == today.
+  // Per-day bug flow (SQUAD-LEVEL). We deliberately do NOT attribute bugs to an
+  // individual: the assignee changes through the dev→QA→done workflow, so the
+  // assignee at fetch time is not "who caused/owns the bug" — it just reflects
+  // workflow position. Bug volume is a property of the squad + codebase, so
+  // opened/resolved are squad counts only. (Per-engineer HOURS, which come from
+  // authored worklogs, remain per-engineer — those are genuinely individual.)
   const today = dayKey(now);
   let bugsOpened = 0, bugsResolved = 0;
-  const byEngineer = {};
   for (const b of bugs) {
     const created = b.created ? dayKey(new Date(b.created)) : null;
     const resolved = b.resolved ? dayKey(new Date(b.resolved)) : null;
-    const acc = b.assigneeAccountId || null;
-    if (created === today) {
-      bugsOpened++;
-      if (acc) (byEngineer[acc] = byEngineer[acc] || { bugsOpened: 0, bugsResolved: 0 }).bugsOpened++;
-    }
-    if (resolved === today) {
-      bugsResolved++;
-      if (acc) (byEngineer[acc] = byEngineer[acc] || { bugsOpened: 0, bugsResolved: 0 }).bugsResolved++;
-    }
+    if (created === today) bugsOpened++;
+    if (resolved === today) bugsResolved++;
   }
 
   // Support flow: count tickets created/closed today across main + extra boards.
@@ -140,7 +137,6 @@ export function buildSnapshot(state, now = new Date()) {
       supportOpened: rd.supportOpened ?? supportOpened,
       supportClosed: rd.supportClosed ?? supportClosed,
     },
-    byEngineer,
     state: { openBugs, medianBugAge },
     closedSprints,
     appVersion: state.appVersion || null,
@@ -187,13 +183,12 @@ export function updateBucket(bucket, snapshot, today = new Date()) {
   const isNewDay = !bucket.daily[dk];
   if (isNewDay) bucket.observedDays = (bucket.observedDays || 0) + 1;
 
-  // FLOW (latest-wins per day → idempotent).
+  // FLOW (latest-wins per day → idempotent). Squad-level counts only.
   bucket.daily[dk] = {
     bugsOpened: snapshot.flow.bugsOpened || 0,
     bugsResolved: snapshot.flow.bugsResolved || 0,
     supportOpened: snapshot.flow.supportOpened || 0,
     supportClosed: snapshot.flow.supportClosed || 0,
-    byEngineer: snapshot.byEngineer || {},
   };
 
   // STATE (first + latest).
@@ -235,21 +230,15 @@ export function computeDerived(bucket, hoursResult = null) {
   const supportOpened = sum('supportOpened');
   const supportClosed = sum('supportClosed');
 
-  // Per-engineer bug flow, summed across days.
-  const byEngineer = {};
-  for (const d of days) {
-    for (const [acc, v] of Object.entries(d.byEngineer || {})) {
-      const e = byEngineer[acc] = byEngineer[acc] || { bugsOpened: 0, bugsResolved: 0, hours: null };
-      e.bugsOpened += v.bugsOpened || 0;
-      e.bugsResolved += v.bugsResolved || 0;
-    }
-  }
-  // Fold in hours (finalizeQuery) total + per engineer.
+  // Per-engineer breakdown is HOURS ONLY (worklogs are genuinely authored by
+  // individuals). Bug flow is squad-level and intentionally not attributed to a
+  // person — see buildSnapshot.
   const hoursAvailable = !!hoursResult;
   const totalHours = hoursResult ? hoursResult.total : null;
+  const byEngineer = {};
   if (hoursResult && hoursResult.perEngineer) {
     for (const [acc, hrs] of Object.entries(hoursResult.perEngineer)) {
-      (byEngineer[acc] = byEngineer[acc] || { bugsOpened: 0, bugsResolved: 0, hours: null }).hours = hrs;
+      byEngineer[acc] = { hours: hrs };
     }
   }
 
@@ -313,8 +302,9 @@ export function retentionWarning(history, currentMonth, retentionMonths = DEFAUL
 }
 
 /**
- * Slice a finalized month (or its derived) down to a single engineer's view.
- * Returns { hours, bugsOpened, bugsResolved } for the engineer, or zeros.
+ * Slice a finalized month down to a single engineer's view. Per-engineer data is
+ * HOURS ONLY (bug flow is squad-level, not attributed to individuals).
+ * @returns {{ accountId, hours }}
  */
 export function sliceEngineer(finalizedMonth, accountId) {
   const d = (finalizedMonth && finalizedMonth.derived) || {};
@@ -322,7 +312,5 @@ export function sliceEngineer(finalizedMonth, accountId) {
   return {
     accountId,
     hours: e ? e.hours : null,
-    bugsOpened: e ? e.bugsOpened : 0,
-    bugsResolved: e ? e.bugsResolved : 0,
   };
 }

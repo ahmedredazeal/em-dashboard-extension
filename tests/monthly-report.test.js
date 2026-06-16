@@ -82,16 +82,17 @@ test('partial flag when bucket starts after the 1st', () => {
 });
 
 console.log('\nfinalize — hours via finalizeQuery');
-test('finalize folds hours total + per engineer; hoursAvailable reflects the read', () => {
+test('finalize folds hours total + per engineer (hours only); hoursAvailable reflects the read', () => {
   let b = emptyBucket('2026-05', 'HRM', new Date(2026, 4, 1).toISOString());
-  b = updateBucket(b, { day: '2026-05-10', flow: { bugsOpened: 1, bugsResolved: 0, supportOpened: 0, supportClosed: 0 }, byEngineer: { 'acc-a': { bugsOpened: 1, bugsResolved: 0 } }, state: { openBugs: 3, medianBugAge: 5 }, closedSprints: [] }, new Date(2026, 4, 10));
+  b = updateBucket(b, { day: '2026-05-10', flow: { bugsOpened: 1, bugsResolved: 0, supportOpened: 0, supportClosed: 0 }, state: { openBugs: 3, medianBugAge: 5 }, closedSprints: [] }, new Date(2026, 4, 10));
   const hours = { total: 120, perEngineer: { 'acc-a': 80, 'acc-b': 40 } };
   const fm = finalizeMonth(b, hours, '2026-06-01T00:00:00Z');
   assert(fm.derived.totalHours === 120, `total ${fm.derived.totalHours}`);
   assert(fm.hoursAvailable === true, 'hoursAvailable');
   assert(fm.derived.byEngineer['acc-a'].hours === 80, 'acc-a hours');
-  assert(fm.derived.byEngineer['acc-a'].bugsOpened === 1, 'acc-a bugs');
-  assert(fm.derived.byEngineer['acc-b'].hours === 40, 'acc-b hours from finalizeQuery only');
+  assert(fm.derived.byEngineer['acc-b'].hours === 40, 'acc-b hours from finalizeQuery');
+  assert(fm.derived.byEngineer['acc-a'].bugsOpened === undefined, 'no per-engineer bug flow');
+  assert(fm.derived.bugsOpened === 1, 'squad bug flow still computed');
 });
 test('finalize with no hours read → hoursAvailable false, totalHours null', () => {
   let b = emptyBucket('2026-05', 'HRM', new Date(2026, 4, 1).toISOString());
@@ -102,12 +103,12 @@ test('finalize with no hours read → hoursAvailable false, totalHours null', ()
 });
 
 console.log('\nper-engineer slice (F3)');
-test('sliceEngineer pulls one engineer view', () => {
-  const fm = { derived: { byEngineer: { 'acc-a': { bugsOpened: 3, bugsResolved: 2, hours: 70 }, 'acc-b': { bugsOpened: 1, bugsResolved: 1, hours: 50 } } } };
+test('sliceEngineer pulls one engineer hours view', () => {
+  const fm = { derived: { byEngineer: { 'acc-a': { hours: 70 }, 'acc-b': { hours: 50 } } } };
   const s = sliceEngineer(fm, 'acc-a');
-  assert(s.hours === 70 && s.bugsOpened === 3 && s.bugsResolved === 2, JSON.stringify(s));
+  assert(s.hours === 70 && s.accountId === 'acc-a', JSON.stringify(s));
   const z = sliceEngineer(fm, 'nobody');
-  assert(z.bugsOpened === 0 && z.hours === null, 'unknown engineer → zeros');
+  assert(z.hours === null, 'unknown engineer → null hours');
 });
 
 console.log('\nretention');
@@ -158,8 +159,7 @@ test('buildSnapshot derives today flow + state from dashboard state shape', () =
   assert(snap.flow.bugsResolved === 1, `bugsResolved ${snap.flow.bugsResolved}`); // B2 resolved today
   assert(snap.flow.supportOpened === 1, `supportOpened ${snap.flow.supportOpened}`);
   assert(snap.state.openBugs === 2, `openBugs ${snap.state.openBugs}`);          // B1, B3
-  assert(snap.byEngineer['acc-a'].bugsOpened === 1, 'acc-a opened today');
-  assert(snap.byEngineer['acc-b'].bugsResolved === 1, 'acc-b resolved today');
+  assert(snap.byEngineer === undefined, 'bug flow is squad-level — no per-engineer attribution');
   assert(snap.closedSprints.length === 1 && snap.closedSprints[0].completionPct === 90, JSON.stringify(snap.closedSprints));
   assert(snap.squad === 'HRM', 'squad');
 });

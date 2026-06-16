@@ -249,17 +249,15 @@ export function generateMockReportStore() {
     'mock-acc-nour':  'Nour Khalil',
   };
   function finalized(month, seed) {
-    const byEngineer = {};
+    const hoursByEng = {};
     Object.keys(ENG).forEach((acc, i) => {
-      byEngineer[acc] = {
-        bugsOpened: (seed + i) % 4,
-        bugsResolved: (seed + i + 1) % 4,
-        hours: 110 + ((seed * 7 + i * 13) % 50),
-      };
+      hoursByEng[acc] = 110 + ((seed * 7 + i * 13) % 50);
     });
-    const bugsOpened = Object.values(byEngineer).reduce((a, e) => a + e.bugsOpened, 0) + 4;
-    const bugsResolved = Object.values(byEngineer).reduce((a, e) => a + e.bugsResolved, 0) + 5;
-    const totalHours = Object.values(byEngineer).reduce((a, e) => a + e.hours, 0);
+    // Bug/support counts are squad-level (not derived from individuals).
+    const bugsOpened = 9 + (seed % 5);
+    const bugsResolved = 11 + (seed % 4);
+    const totalHours = Object.values(hoursByEng).reduce((a, h) => a + h, 0);
+    const byEngineer = Object.fromEntries(Object.entries(hoursByEng).map(([a, h]) => [a, { hours: h }]));
     return {
       month, partial: false, squad: 'HRM', observedDays: 20,
       finalizedAt: `${month}-28T18:00:00.000Z`, hoursAvailable: true,
@@ -270,7 +268,7 @@ export function generateMockReportStore() {
       ],
       derived: {
         totalHours, hoursAvailable: true,
-        perEngineerHours: Object.fromEntries(Object.entries(byEngineer).map(([a, e]) => [a, e.hours])),
+        perEngineerHours: { ...hoursByEng },
         bugsOpened, bugsResolved, netBugFlow: bugsOpened - bugsResolved,
         byEngineer,
         supportOpened: 12 + (seed % 6), supportClosed: 11 + (seed % 7),
@@ -292,8 +290,8 @@ export function generateMockReportStore() {
     month: curKey, partial: false, squad: 'HRM', observedDays: Math.max(1, now.getDate() - 1),
     startedAt: `${curKey}-01T09:00:00.000Z`, appVersion: 'demo',
     daily: {
-      [`${curKey}-02`]: { bugsOpened: 2, bugsResolved: 1, supportOpened: 1, supportClosed: 2, byEngineer: { 'mock-acc-ahmed': { bugsOpened: 1, bugsResolved: 0 }, 'mock-acc-sara': { bugsOpened: 1, bugsResolved: 1 } } },
-      [`${curKey}-03`]: { bugsOpened: 1, bugsResolved: 3, supportOpened: 0, supportClosed: 1, byEngineer: { 'mock-acc-omar': { bugsOpened: 1, bugsResolved: 2 } } },
+      [`${curKey}-02`]: { bugsOpened: 2, bugsResolved: 1, supportOpened: 1, supportClosed: 2 },
+      [`${curKey}-03`]: { bugsOpened: 1, bugsResolved: 3, supportOpened: 0, supportClosed: 1 },
     },
     stateFirst: { openBugs: 15, medianBugAge: 7, capturedAt: `${curKey}-02T09:00:00.000Z` },
     stateLatest: { openBugs: 13, medianBugAge: 8, capturedAt: `${curKey}-03T09:00:00.000Z` },

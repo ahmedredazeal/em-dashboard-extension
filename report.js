@@ -101,23 +101,20 @@ function currentFinalized() {
   return finalizedFor(els.monthSelect.value);
 }
 
-/** Build the FinalizedMonth actually rendered, applying the me-scope slice. */
+/** Build the FinalizedMonth actually rendered. In Me scope we narrow HOURS to
+ *  the engineer (bug/support counts stay squad-level — they're not attributed to
+ *  individuals by design). */
 function viewModel(fm) {
   if (scope === 'me' && myAccountId) {
     const slice = sliceEngineer(fm, myAccountId);
-    // Re-shape into a finalized-month-like object scoped to the engineer.
     return {
       ...fm,
       derived: {
         ...fm.derived,
-        // headline numbers become the engineer's own
-        bugsOpened: slice.bugsOpened,
-        bugsResolved: slice.bugsResolved,
-        netBugFlow: slice.bugsOpened - slice.bugsResolved,
+        // Hours become the engineer's own; bug/support counts remain squad-level.
         totalHours: slice.hours,
         hoursAvailable: slice.hours != null,
-        // keep byEngineer but the table is less relevant in me-scope
-        byEngineer: { [myAccountId]: { bugsOpened: slice.bugsOpened, bugsResolved: slice.bugsResolved, hours: slice.hours } },
+        byEngineer: { [myAccountId]: { hours: slice.hours } },
       },
     };
   }

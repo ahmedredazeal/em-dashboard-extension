@@ -84,7 +84,7 @@ export function buildReportHTML(fm, palette = LIGHT_PALETTE, opts = {}) {
   const netColor = net > 0 ? p.bad : (net < 0 ? p.good : p.muted);
   const netLabel = net > 0 ? `+${net} (backlog grew)` : (net < 0 ? `${net} (backlog shrank)` : '0 (flat)');
 
-  // Per-engineer table
+  // Per-engineer table — HOURS ONLY (bug flow is squad-level, not per-person).
   const engineers = Object.entries(d.byEngineer || {})
     .map(([acc, v]) => ({ acc, ...v }))
     .sort((a, b) => (b.hours || 0) - (a.hours || 0));
@@ -92,9 +92,7 @@ export function buildReportHTML(fm, palette = LIGHT_PALETTE, opts = {}) {
       <tr>
         <td>${esc(e.acc)}</td>
         <td class="num">${fmt(e.hours)}</td>
-        <td class="num">${fmt(e.bugsOpened)}</td>
-        <td class="num">${fmt(e.bugsResolved)}</td>
-      </tr>`).join('') : `<tr><td colspan="4" class="muted">No per-engineer data.</td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="2" class="muted">No per-engineer hours data.</td></tr>`;
 
   // Sprints table
   const sprints = (fm && fm.sprintsClosed) || [];
@@ -158,6 +156,7 @@ export function buildReportHTML(fm, palette = LIGHT_PALETTE, opts = {}) {
     ${fm && fm.appVersion ? ` · v${esc(fm.appVersion)}` : ''}
   </div>
   ${warnBanner}
+  ${scope === 'Me' ? `<div class="meta" style="margin-top:-4px;">Hours are yours; bug &amp; support counts are squad-wide (bugs aren't attributed to individuals).</div>` : ''}
 
   <h2>Delivery</h2>
   <div class="grid">
@@ -186,9 +185,9 @@ export function buildReportHTML(fm, palette = LIGHT_PALETTE, opts = {}) {
     ${statCard('Tickets closed', fmt(d.supportClosed), null, p)}
   </div>
 
-  <h2>By engineer</h2>
+  <h2>Hours by engineer</h2>
   <table>
-    <thead><tr><th>Engineer</th><th class="num">Hours</th><th class="num">Bugs opened</th><th class="num">Bugs resolved</th></tr></thead>
+    <thead><tr><th>Engineer</th><th class="num">Hours</th></tr></thead>
     <tbody>${engRows}</tbody>
   </table>
 

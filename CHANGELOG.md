@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.16.1 (2026-06-16) - Monthly Report: bug counts are squad-level
+
+Refines how the monthly report attributes bugs. Bug counts (opened / resolved /
+net flow) are now **squad-level only** and are no longer broken down per engineer.
+
+Why: the assignee on a bug changes as it moves through the workflow (developer to
+QA engineer during testing to done), so the assignee at any given moment reflects
+*workflow position*, not who owns or caused the defect. Attributing bug counts to
+the current assignee was therefore misleading and unstable (the same bug could
+attribute to different people on different days). The reporter field is usually
+QA/PM, so it cannot stand in either. Bug volume is a property of the squad and the
+codebase, so it is reported at the squad level.
+
+Per-engineer **hours** are unchanged - those come from authored worklogs and are
+genuinely individual. In the "Me" report scope, hours are yours while bug and
+support counts remain squad-wide (the report notes this).
+
+Net flow (= bugs opened minus resolved) is unchanged: positive means the backlog
+grew that month, negative means it shrank.
+
+Tests updated (per-engineer breakdown is now hours-only). 28 suites + pre-flight
+green.
+
+---
+
 ## v2.16.0 (2026-06-16) — Monthly Report (T-RPT-1)
 
 A monthly report that builds itself from dashboard data, accumulates locally so
