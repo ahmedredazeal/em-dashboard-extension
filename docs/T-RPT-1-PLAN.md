@@ -320,3 +320,162 @@ The whole feature exists so data is never lost, so pruning must be loud:
 ## 2.11 Open questions — none
 
 All design decisions are locked. Ready to build on approval.
+
+---
+
+# PART 3 — ARCHITECTURE & MAINTAINABILITY REVIEW
+
+A critical self-review of Part 2, done after inspecting the current codebase.
+Findings are ordered by severity. Each has a recommendation; the ones marked
+**[MUST FIX]** change the design before build.
+
+## 3.1 Findings that change the design
+
+### F1 — Rollover depends on the panel being opened **[MUST FIX]**
+The plan says "rollover is checked on every fetch, robust to the worker sleeping."
+Inspection shows the only trigger for `fetchJiraData` is `checkDashboard()`, called
+from the `refresh-dashboard` message **the popup sends when it opens**. There is no
+periodic alarm (the code calls `chrome.alarms.clearAll()` — scheduled fetches were
+removed). Consequence: if the user does not open the side panel for the first
+several days of a new month, the prior month is not finalized until they do. Worse
+edge: if they never open it during a month at all, that month's *accumulation*
+never happens either — there are no fetches to accumulate from.
+
+This does not break correctness (finalize still fires on the next open, and
+accumulation only reflects days the panel was opened — which is arguably honest),
+but the plan oversells it. Two honest options:
+- **(a) Accept + document:** the report reflects "days you used the dashboard,"
+  finalize is lazy on next open. Simplest; no new permissions. Add a per-day
+  `observed` flag so the report can say "data for N of 30 days."
+- **(b) Add a daily `chrome.alarms` heartbeat** that wakes the worker, runs a
+  fetch, and accumulates even when the panel is closed. More faithful monthly
+  data, but: reintroduces the alarm that was deliberately removed, costs a daily
+  background fetch, and needs the worker to re-auth/rebuild settings outside the
+  popup flow.
+**Recommendation:** ship (a) in v1 (document the semantics honestly), offer (b) as
+a later option. Either way, **the plan's "robust to worker sleeping" claim must be
+corrected** — it is robust to *finalize* being late, not to *missing data*.
+
+### F2 — "Latest-wins cumulative daily" is wrong for some flows **[MUST FIX]**
+2.3 says each daily flow stores "cumulative-to-date" so re-fetches are idempotent,
+then says "month total = sum over days of per-day deltas, or last day's cumulative
+value." These are two *different* storage semantics and the plan conflates them:
+- **Hours logged** from the timesheet is **sprint-to-date cumulative**, and a sprint
+  spans the month boundary — so "last day's cumulative value" is not the month's
+  hours, and "sum of daily values" double-counts massively. Neither stated rule is
+  correct for it.
+- **Bugs opened/resolved** are naturally *count-in-period*; the dashboard can be
+  asked "created in [day]" — those are true per-day deltas, summable.
+The single "cumulative-to-date" rule cannot cover both. **Fix:** define per-metric
+*reducers* explicitly — each tracked metric declares whether it is `sumOfDailyDeltas`
+or `latestSnapshot` or `maxToDate`, and `finalizeMonth` applies the declared reducer.
+For hours specifically, store the per-day *incremental* hours (today's cumulative −
+yesterday's cumulative within the same sprint), or better, derive month hours from a
+date-bounded worklog query at finalize rather than accumulating at all.
+
+### F3 — Per-engineer bug flow is required but not modeled **[MUST FIX]**
+2.9 decision 2 commits to an engineer "my monthly report" (time + my bugs), but the
+data model (2.3) only stores per-engineer *hours* (`perEngineer`), not per-engineer
+*bug flow*. As written, a "my bugs opened/resolved this month" cannot be produced
+from the stored bucket. **Fix:** either (a) store `bugsOpened`/`bugsResolved` keyed
+by assignee accountId in the daily record, or (b) accept that "my report" covers
+time + a month-end *open my-bugs* snapshot only (no my-bug flow). Pick before build;
+(a) is the honest fulfillment of the decision, at more storage.
+
+## 3.2 Findings that harden the design (not blockers)
+
+### F4 — `downloads` permission is absent
+Confirmed: `manifest.json` has no `downloads` permission. Model B needs it. Adding a
+permission to an *installed* extension can trigger a re-prompt / re-enable on update
+for users — call this out in the release notes. Alternatively, model B can use an
+`<a download>` blob click from the report page (no permission), which is the lighter
+path for a user-initiated export; the *automatic* finalize-time download is what
+truly needs the permission. **Recommendation:** make manual export permission-free
+(blob anchor in report.js); only the auto-download-on-finalize path uses
+`chrome.downloads`, so users who never enable B never trigger the permission.
+
+### F5 — No schema migration path, despite `schemaVersion: 1`
+The project has a real `src/migrations.js` discipline. The plan stamps
+`schemaVersion: 1` but never says how a future schema change migrates an existing
+`reportStore`. Given this store accumulates for 12 months, a v1→v2 change must not
+nuke history. **Fix:** add a `migrateReportStore(store)` to the existing migrations
+flow from day one (even if it is a no-op for v1), so the seam exists before there is
+data to lose.
+
+### F6 — Single-writer holds only if finalize is atomic
+2.1's single-writer principle is correct, but finalize is a read-modify-write of a
+large object across an `await` (the model-B download). If a second fetch lands mid
+-finalize, the later `set` can clobber. **Fix:** guard `checkDashboard`/accumulate
+with a simple in-flight promise lock (the codebase already serializes some work this
+way), and do the `chrome.storage.local.set` once at the end of the cycle, never
+interleaved with the download. Also: persist the finalized history *before* kicking
+off the (fallible, slow) download, so a failed download never costs finalized data.
+
+### F7 — Storage growth not bounded within a month
+Retention caps *months* (12), but a single month's `daily` map with `perEngineer`
+sub-maps is unbounded by team size × days. For a big squad this is still small, but
+the plan should state a ceiling and the failure mode if `chrome.storage.local` quota
+(5 MB default) is approached. **Fix:** `getBytesInUse` check at finalize; if near
+quota, the export-warning escalates. Document the realistic ceiling (≈ tens of KB/
+month even for 20 engineers → years fit).
+
+### F8 — `report.html` reuse vs duplication tension
+2.4 wants `report-html.js` to be "self-contained for export" yet "reuse palette +
+bar/row helpers." Those pull in opposite directions: an exported HTML file opened
+outside the extension has no access to `styles.css` tokens or the render modules.
+**Fix:** the exported HTML must inline its own CSS (resolved values, not
+`var(--...)`) and inline any SVG — so `report-html.js` cannot import the live render
+builders that emit `var(--...)`. Either fork minimal self-contained builders, or have
+the builders take an explicit palette argument (so the same code serves both the live
+theme and the exported static palette). Decide this seam explicitly; it is the most
+likely place for future drift/bugs.
+
+## 3.3 Maintainability assessment
+
+**Strengths (keep):**
+- Pure-core-with-tests matches the established project pattern (`bug-reports.js`,
+  `burndown.js`) — high-value, low-regression.
+- Building from existing `state` (no new network) keeps the blast radius small.
+- Decisions are logged in `DECISIONS.md` — the "why" is captured.
+
+**Maintainability risks to address in the build:**
+- **Snapshot coupling.** `buildSnapshot(state)` reads the shape of the dashboard's
+  `state` object. If `state` changes, the report silently drifts. **Mitigation:**
+  give `buildSnapshot` its own small test with a representative `state` fixture, and
+  treat it as the one impure boundary — everything downstream is pure and tested.
+- **Metric reducer registry.** Per F2, model metrics as a declared list
+  `{ key, type, reducer }` in one place, so adding a metric later is a one-line
+  registry entry + a reducer, not edits scattered across accumulate/finalize/render.
+  This is the single highest-leverage maintainability move.
+- **Report schema as the contract.** `FinalizedMonth.derived` is what the HTML/JSON
+  consume. Freeze it as the documented contract (a typedef comment + a fixture used
+  by both the finalize test and the html test), so the producer and the two
+  renderers can't drift apart.
+- **Keep `report.js` (viewer) thin.** All logic in the pure modules; the viewer only
+  selects a month and calls builders. Mirrors the popup/render split already in place.
+
+## 3.4 Revised file plan (net of the review)
+
+- `src/monthly-report.js` — pure: `emptyBucket`, `buildSnapshot`(impure-boundary,
+  but kept here + fixture-tested), `updateBucket`, `shouldRollover`,
+  `finalizeMonth`, `computeDerived`, `pruneHistory`, `retentionWarning`, and a
+  **`METRICS` reducer registry** (F2). 
+- `src/report-html.js` — pure, **palette-injected** (F8), no `var(--...)`, inlines
+  CSS/SVG for standalone export.
+- `src/migrations.js` — add `migrateReportStore` seam (F5).
+- `tests/monthly-report.test.js` — rollover (incl. year boundary + skipped-month
+  gap, F1), per-reducer correctness (F2), per-engineer slicing (F3), finalize math,
+  retention + warning, quota ceiling sanity.
+- `report.html` / `report.js` — thin viewer; manual export via blob anchor
+  (permission-free, F4).
+- `background.js` — in-flight lock around accumulate/finalize (F6); persist history
+  before download (F6).
+- `manifest.json` — `downloads` only for auto-download-on-finalize (F4); note the
+  update re-prompt.
+
+## 3.5 Verdict
+The core architecture (single-writer, pure core, rollover-by-comparison, build-from
+-existing-data) is sound and matches the codebase's grain. Three items
+(**F1 rollover-trigger reality, F2 flow reducer semantics, F3 per-engineer bug
+flow**) are real design defects that must be resolved before coding, not during.
+The rest are hardening. Recommend updating Part 2 to reflect F1–F3, then build.
