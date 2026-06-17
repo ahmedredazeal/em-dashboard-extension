@@ -31,13 +31,12 @@ shipped in v2.16.0; removed in v2.16.1.
 (custom display name + logo instead of Zealer/Zeal), with Zeal as the default
 theme. Most config is already dynamic; branding is the main new surface.
 
-**Strategic fork (decide before anything):**
-- **(A) White-label this repo** behind a branding config — one codebase. Less
-  drift, but every public concern (telemetry, secrets, Zeal-specific defaults)
-  now lives in the repo used internally every day.
-- **(B) Clone to a separate public repo** — keep this private as the Zeal build;
-  public changes land in the clone. Clean separation and freedom to diverge, but
-  two codebases to keep in sync.
+**Strategic fork — DECIDED: option (B), clone.** A separate PUBLIC repo will be
+the white-label/store build; this repo stays the private Zeal build. Public
+changes land in the clone. The two codebases must be kept in sync for shared
+fixes — consider a shared-core strategy if drift becomes painful. (Rejected (A)
+white-labeling this repo in place, to avoid public concerns — telemetry, secrets,
+Zeal defaults — living in the repo used internally every day.)
 
 **Points to consider (carry into the design discussion):**
 - **Telemetry is the big one.** The hardcoded write-only Sentry usage DSN reports
@@ -55,6 +54,27 @@ theme. Most config is already dynamic; branding is the main new surface.
 - **Zeal-specific defaults** — squad HRM, support board 176, the App Name field
   id, Sun–Thu work week: strip or gate behind first-run setup for a public build.
 - **CWS publishing** needs the Google dev account ($5) noted in T-DIST-1 phase 2.
+
+## T-EO-1 — Engineering-overview build (PROPOSED, separate clone)
+**Status:** backlog; design discussion before build. A SECOND clone, distinct
+from the public white-label (T-WL-1).
+**Aim:** re-frame the dashboard from single-squad to an engineering-wide overview.
+In each Insights chart, show the **3 squads side by side** (grouped series per
+squad) instead of one squad at a time — sprint progress, velocity/burndown, bugs,
+time, support. Plus a **separate progress chart for the Cloud team** (stories /
+boards — different shape, e.g. kanban not sprint-based). The **Sentry trend chart
+stays as-is**, managed via Sentry views (already view-based), so no special
+cross-squad work there.
+**Open / ideas (Ahmed open to ideas):**
+- How to define the 3 squads — a config list of squad keys + their boards?
+- Aggregate-only overview vs. drill-into-one-squad.
+- "Side by side" means each metric is computed PER squad then rendered as grouped
+  series → the per-squad fetch/compute runs N times and merges, so the fetch
+  layer needs a multi-squad loop (today it is single-squad).
+- Per-squad legend/colour; consistent ordering.
+- How the Cloud team differs (likely kanban boards, no sprints) → its own chart.
+**Relationship to T-WL-1:** both are clones but DIFFERENT products. Decide whether
+the eng-overview is built from the Zeal private build or from the white-label base.
 
 ## T-SLA-1 — Support-ticket SLA tracking (PARKED, reference data captured)
 **Status:** backlog; design discussion before build. The valuable artifact right
