@@ -25,6 +25,37 @@ counts are squad-wide, with a note saying so.
 This reversed the earlier T-RPT-1 "F3 per-engineer bug flow" design after it
 shipped in v2.16.0; removed in v2.16.1.
 
+## T-WL-1 — White-label for public distribution (PROPOSED, strategic fork open)
+**Status:** backlog; needs a design discussion. Decide the fork FIRST.
+**Ask:** publish a Chrome Web Store version other companies can install and brand
+(custom display name + logo instead of Zealer/Zeal), with Zeal as the default
+theme. Most config is already dynamic; branding is the main new surface.
+
+**Strategic fork (decide before anything):**
+- **(A) White-label this repo** behind a branding config — one codebase. Less
+  drift, but every public concern (telemetry, secrets, Zeal-specific defaults)
+  now lives in the repo used internally every day.
+- **(B) Clone to a separate public repo** — keep this private as the Zeal build;
+  public changes land in the clone. Clean separation and freedom to diverge, but
+  two codebases to keep in sync.
+
+**Points to consider (carry into the design discussion):**
+- **Telemetry is the big one.** The hardcoded write-only Sentry usage DSN reports
+  to Zeal's project. A public build must NOT silently phone home to Zeal —
+  remove it, make it opt-in, or point it at the installing company. Shipping
+  identified/anonymous usage to Zeal from other companies' installs is a serious
+  trust/privacy problem and likely the single most important thing to get right.
+- **Sentry Insights feature** — keep / change / discard for public? It already
+  assumes the user supplies their own Sentry org/token (multi-team work, v2.13.0),
+  so it can stay as an optional feature; just decide explicitly.
+- **Secrets audit** — no hardcoded tokens/PATs/DSNs may ship in a public build.
+- **Branding surface** — in-app display name, logo, splash, theme colors as a
+  config with Zeal as the default. (manifest name/icons are fixed per CWS listing,
+  so the themeable brand is the in-app one.)
+- **Zeal-specific defaults** — squad HRM, support board 176, the App Name field
+  id, Sun–Thu work week: strip or gate behind first-run setup for a public build.
+- **CWS publishing** needs the Google dev account ($5) noted in T-DIST-1 phase 2.
+
 ## T-SLA-1 — Support-ticket SLA tracking (PARKED, reference data captured)
 **Status:** backlog; design discussion before build. The valuable artifact right
 now is the SLA matrix itself (from the team SLA doc), recorded here so it isn't
