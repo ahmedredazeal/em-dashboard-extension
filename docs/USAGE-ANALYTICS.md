@@ -17,11 +17,28 @@ issue contents are included; only the fields below.
 
 | Event | When | Key fields |
 |---|---|---|
-| `app_opened` (usage) | first time identity resolves in a browser session | user{email,id,username}, release (version), tags{role, squad} |
+| `app_opened` (usage) | first time identity resolves in a browser session | user{email,id,username}, release (version), tags{role, squad, days_active, total_opens, first_version}, extra.usage_stats (full rolling profile) |
 | `section_viewed` (usage) | a user opens a section/feature | + tags{section}: `insights`, `sprint`, `sentry`, `monthly_report`, `gantt_fulltab` |
+| `action_taken` (usage) | a user performs a tracked action | + tags{action}: `export_report`, `scope_toggled`, `ticket_clicked` |
 | `app.session` (transaction) | panel hidden/closed (session > 1s) | duration (start→end), user, release |
 | `jira.fetch` (transaction) | each Jira fetch | duration |
 | errors | handled failures | message, user, context |
+
+### The rolling per-user profile (attached to `app_opened`)
+
+Sentry is an error backend, so per-user retention math (distinct days active,
+lifetime opens) is against its grain and normally needs Discover-tier
+aggregation. Instead the extension keeps a tiny profile in
+`chrome.storage.local` and folds it forward on each open, attaching it to the
+event. The **latest event per user** is then self-describing — read it straight
+from the Issues view:
+
+| Field | As | Meaning |
+|---|---|---|
+| `days_active` | tag | distinct calendar days opened (timezone-aware) |
+| `total_opens` | tag | lifetime session opens |
+| `first_version` | tag | version on first ever open |
+| `usage_stats` | extra | full profile: firstSeen, lastSeen, currentVersion, plus per-`sections` and per-`actions` counts |
 
 Demo/Mock mode is suppressed — sample sessions never reach analytics.
 
@@ -50,10 +67,33 @@ Demo/Mock mode is suppressed — sample sessions never reach analytics.
   duration. (A rough engagement proxy — a side panel left open inflates this, so
   read it as "kept open", not "actively used".)
 
-### Build a dashboard
-- **Dashboards → Create Dashboard**. Add widgets from the queries above:
-  active-users line, per-person table, version pie, feature bar, session p50.
-  This is the single screen to check before/after the team rollout.
+### Build a dashboard (verified widget recipes)
+
+**Dashboards → Create Dashboard → "Zealer — Usage"**, then Add Widget. Set
+**Dataset: Errors** on every widget (usage events are captured as events, not
+transactions). Scope the whole dashboard to the `zealer-dashboard` **project**
+and a **30D** range via the dashboard's bottom filter bar.
+
+| Widget | Type | Visualize / Columns | X-Axis / Group by | Filter |
+|---|---|---|---|---|
+| Active Users | Line | `count_unique(user)` (+ optional `count()` series) | — | `usage_event:app_opened` |
+| Version Adoption | Table | columns `release`, `count_unique(user)` (sort desc) | `release` | `usage_event:app_opened` |
+| Feature Usage | Bar / Table | `count()` | `section` (or `tags[section]` if not yet in the dropdown) | `usage_event:section_viewed` |
+| Action Usage | Bar / Table | `count()` | `action` (or `tags[action]`) | `usage_event:action_taken` |
+| Usage by Squad | Bar | `count_unique(user)` | `squad` | `usage_event:app_opened` |
+
+Notes from setup:
+- **Bar (Categorical)** can throw "Something went wrong" — prefer **Table** for
+  the grouped widgets (most reliable; sortable).
+- The grouping field for a **Bar (Categorical)** is its **X-Axis** (there's no
+  separate "Group by" section).
+- Low-volume custom tags (e.g. `section`, `action` before rollout) may not appear
+  in the X-Axis/column dropdown until they have more events behind them — that's
+  Sentry indexing, not a data gap. Use the `tags[<key>]` form, or build the widget
+  in **Explore → Discover** (more permissive) and "Save to Dashboard".
+- Switching a widget's chart type can clear its **Filter** — re-check it after.
+- To exclude your own dev reloads later, add `!user.email:<you>` to the
+  per-user widgets (kept off during initial setup so there's data to evaluate).
 
 ## Caveats
 - Sentry is an error product; per-user *product* analytics works but is against

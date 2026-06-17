@@ -266,6 +266,17 @@ function trackSection(section) {
   } catch { /* ignore */ }
 }
 
+// Fire a usage event for a meaningful user action (export, scope toggle, ticket
+// click). Unlike trackSection these are NOT deduped — each occurrence counts.
+// Suppressed in demo/mock mode. Best-effort — never throws into the UI.
+function trackAction(action) {
+  try {
+    if (state.mockMode) return;                 // don't report demo sessions
+    if (!action) return;
+    chrome.runtime.sendMessage({ type: 'track-action', action }).catch(() => {});
+  } catch { /* ignore */ }
+}
+
 function setupEventHandlers() {
   // Gantt: click any [data-jira-key] row to open the ticket in Jira
   document.getElementById('insights-content')?.addEventListener('click', e => {
@@ -273,7 +284,7 @@ function setupEventHandlers() {
     if (!el) return;
     const key  = el.dataset.jiraKey;
     const base = (state.settings?.jira?.baseUrl || '').replace(/\/$/, '');
-    if (base && key) window.open(`${base}/browse/${key}`, '_blank');
+    if (base && key) { trackAction('ticket_clicked'); window.open(`${base}/browse/${key}`, '_blank'); }
   });
 
   // Demo mode banner × button — turns off mock mode and reboots
@@ -992,6 +1003,7 @@ function wireScopePills(container) {
   if (!container) return;
   container.querySelectorAll('.scope-pill').forEach(btn => {
     btn.addEventListener('click', async () => {
+      trackAction('scope_toggled');
       state.viewScope          = btn.dataset.scope;
       state.settings           = state.settings || {};
       state.settings.viewScope = state.viewScope;
@@ -2971,7 +2983,7 @@ function ticketSummaryHTML(stories, isSupport) {
 /** Wire click events on ticket rows inside a container element */
 function wireTicketClicks(container) {
   container.querySelectorAll('.ticket-row[data-url]').forEach(row => {
-    row.addEventListener('click', () => window.open(row.dataset.url, '_blank'));
+    row.addEventListener('click', () => { trackAction('ticket_clicked'); window.open(row.dataset.url, '_blank'); });
   });
 }
 

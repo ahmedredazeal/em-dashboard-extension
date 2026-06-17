@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.18.0 (2026-06-17) - Usage analytics enrichment (T-UA-1): rolling profile + actions
+
+Enriches the Sentry usage telemetry so per-user adoption questions are answerable
+without Discover-tier aggregation, and adds tracking for meaningful actions.
+
+- **Rolling per-user profile attached to every `app_opened`.** A small profile
+  is kept in `chrome.storage.local` and folded forward on each open:
+  `firstSeen`, `firstVersion`, `lastSeen`, `currentVersion`, `daysActive`
+  (distinct calendar days, timezone-aware), `totalOpens`, and per-`sections` /
+  per-`actions` counts. It rides on the event as tags (`days_active`,
+  `total_opens`, `first_version`) plus a full `usage_stats` extra - so the
+  *latest* event per user is self-describing in Sentry's Issues view.
+- **Action tracking.** Three intent-signal actions now emit `action_taken`
+  events with an `action` tag: `export_report` (Monthly Report exported),
+  `scope_toggled` (Me ↔ Squad), and `ticket_clicked` (click-through to Jira).
+  Filter `usage_event:action_taken`, group by `action`.
+- **Pure + tested.** `foldAppOpen` and `bumpCounter` are pure (state in → new
+  state out, never mutate); 10 new unit tests (25 total in the suite).
+- **Verified, not fixed:** the `section` and `role` tags were confirmed landing
+  correctly on real events - the earlier "missing in dashboard dropdown" was
+  Sentry not surfacing low-volume tags, not a data gap. No code change needed.
+- **Demo/Mock mode stays suppressed** for opens, sections, and actions.
+
 ## v2.17.0 (2026-06-16) - Usage analytics: feature tracking + session duration
 
 Fills the gaps in the existing Sentry usage telemetry so the tool is ready for a

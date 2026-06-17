@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
     <div class="cl-row">
+      <div class="cl-ver minor">v2.18.0</div>
+      <div class="cl-desc"><strong>Usage analytics enrichment (T-UA-1): rolling per-user profile + action tracking.</strong> Each <code>app_opened</code> now carries a self-describing profile - days active, lifetime opens, first/current version, and per-section/action counts - kept in local storage and attached to the event, so Sentry's plain Issues view answers "since when, how many days, how often, what version" per user without Discover-tier aggregation. Three meaningful actions are now tracked (<code>export_report</code>, <code>scope_toggled</code>, <code>ticket_clicked</code>) as <code>action_taken</code> events with an <code>action</code> tag. Demo mode stays excluded. <code>section</code> and <code>role</code> tags were verified healthy - no fix needed.</div>
+    </div>
+
+    <div class="cl-row">
       <div class="cl-ver minor">v2.17.0</div>
       <div class="cl-desc"><strong>Usage analytics: feature tracking + session duration.</strong> Opening any major section (Insights, Sprint, Sentry, Monthly Report, Gantt) now reports a usage event, and the panel reports session length on close - so the existing Sentry telemetry can answer who uses the tool, how often, which features, and for how long. New setup guide in docs/USAGE-ANALYTICS.md. Demo mode is excluded. Usage is identified and must be disclosed at rollout.</div>
     </div>

@@ -111,9 +111,13 @@ The extension reports a small amount of **usage and error telemetry** to a fixed
 
 What telemetry contains:
 - An `app_opened` event (once per browser session) and `section_viewed` events.
+- `action_taken` events for a few meaningful actions: `export_report`, `scope_toggled`, `ticket_clicked` (carried as an `action` tag).
+- A rolling per-user profile attached to `app_opened`, kept in `chrome.storage.local`: `firstSeen`/`firstVersion`, `lastSeen`/`currentVersion`, `daysActive` (distinct calendar days), `totalOpens`, and per-section/per-action counts. Headline scalars (`days_active`, `total_opens`, `first_version`) ride as tags; the full profile rides as a `usage_stats` extra — so the latest event per user is self-describing without Discover-tier aggregation.
 - Performance timings (e.g. Jira/Sentry fetch duration).
 - Handled error/warning reports (e.g. "a Sentry view failed to fetch", with the view id/label — **not** its contents).
 - Identity tags from your Jira profile (email, accountId, display name) and `role` / `squad` tags.
+
+Demo/Mock Mode is never reported (opens, sections, and actions are all suppressed).
 
 What telemetry **never** contains: your Jira or Sentry **auth tokens**, your Sentry **issue contents**, or your **configured Sentry view data**. The telemetry path and the user-configured Sentry path are completely separate code paths and never intersect:
 

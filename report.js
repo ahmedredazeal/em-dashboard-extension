@@ -154,6 +154,12 @@ function showEmpty() {
 function exportCurrent(kind) {
   const fm = currentFinalized();
   if (!fm) return;
+  // Usage: count report exports as an action (suppressed in demo mode so sample
+  // sessions don't pollute analytics). Best-effort — never blocks the export.
+  try {
+    const demo = new URLSearchParams(location.search).get('demo');
+    if (!demo) chrome.runtime.sendMessage({ type: 'track-action', action: 'export_report' }).catch(() => {});
+  } catch { /* ignore */ }
   const vm = viewModel(fm);
   const month = fm.month;
   const scopeTag = scope === 'me' ? '-me' : '';

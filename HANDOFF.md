@@ -5,12 +5,54 @@
 
 ---
 
-## Current version: v2.17.0
-| docs | Added docs/DECISIONS.md — running design-decisions/backlog-context log (the "why" behind TASKS.md items, previously only in chat). Seeded with T-BR-1, T-DIST-1, multi-team Sentry, capacity-line, stability decisions. Added backlog item T-RPT-1 (monthly report, local storage, Settings-configurable destination; overlaps T-EXP-1; design discussion deferred). NEW PRACTICE: when a design discussion happens, record the decision in docs/DECISIONS.md so it is tracked in the repo, not just in conversation. |
+## Current version: v2.18.0
 
-## Last session: Ahmed + Claude — 2026-06-04
+## Last session: Ahmed + Claude — 2026-06-17
 
-### Completed this session (v1.8.7 → v2.0.0)
+### Usage analytics arc (T-UA-1)
+
+Goal: the `zealer-dashboard` Sentry project wasn't showing useful usage insights.
+Diagnosed live from Sentry screenshots — **ingestion was healthy all along**
+(16 releases tracked; `app_opened` events carrying user/release/squad). The real
+situation: ~21 of 22 events were Ahmed's own dev-reloads (versions 2.10→2.17 in
+two days) + one real user (`i.mohamed`), so there was simply almost no real usage
+yet, viewed through the wrong lens (the perf/Release-Health overview, on the
+Unhandled tab). `section` and `role` tags were both verified present on real
+events — the "missing in dropdown" was Sentry not surfacing low-volume tags.
+
+**Phase 1 (no app code):** built four Sentry Dashboard widgets with Ahmed
+(Active Users line, Version Adoption table, Feature Usage, Usage by Squad).
+Learnings now in docs/USAGE-ANALYTICS.md: use Dataset=Errors; Table beats Bar
+(Categorical) which throws "Something went wrong"; X-Axis IS the group-by on
+categorical bars; low-volume tags need `tags[key]` or Discover; switching chart
+type clears the Filter; dashboard project/time filters only apply after save.
+Rollout disclosure message drafted (leads with what the tool is, then the
+analytics notice) — Ahmed to send with an install link.
+
+**Phase 2 (this release, v2.18.0):**
+- Rolling per-user profile: `foldAppOpen` + `bumpCounter` (pure, in
+  src/usage-telemetry.js), folded in `maybeLogUsage`, stored in
+  `chrome.storage.local.usageStats`, attached to `app_opened` as tags
+  (`days_active`, `total_opens`, `first_version`) + `usage_stats` extra.
+- Action tracking: `action_taken` events (`action` tag) for `export_report`
+  (report.js exportCurrent, demo-guarded), `scope_toggled` (wireScopePills),
+  `ticket_clicked` (insights data-jira-key handler + wireTicketClicks).
+  `trackAction` helper in popup.js (NOT deduped); `track-action` handler +
+  `trackAction` in background.js; section counts also bumped in trackSectionView.
+- 10 new unit tests (25 total in usage-telemetry suite). Role/section fixes
+  dropped from scope — both confirmed healthy.
+
+### What's next
+- Ahmed sets the dashboard project/time scope and evaluates the four widgets.
+- After real rollout traffic, add Feature Usage + Action Usage widgets (the
+  `section`/`action` tags will appear in the dropdown once they have volume).
+- Optional later: exclude Ahmed's own account from per-user widgets.
+
+---
+
+## Prior session: Ahmed + Claude — 2026-06-04
+
+### Completed (v1.8.7 → v2.0.0)
 
 | Version | Summary |
 |---|---|

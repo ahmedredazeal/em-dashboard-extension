@@ -10,7 +10,7 @@ import * as sentryAPI from './src/sentry-api.js';
 import * as alerts from './src/alerts.js';
 import { parseExtraBoardSpec, parseSentryViewSpec, parseSentryUrl, normalizeStory, isStoryDone, normalizeBug } from './src/parsers.js';
 import { attachCloseTimestamps, dayIndex, estimateAtSprintStart, sprintAddDay, createdDayAfterStart } from './src/changelog-parser.js';
-import { buildUsageEnvelope, buildErrorEnvelope, buildTransactionEnvelope, sendEnvelope } from './src/usage-telemetry.js';
+import { buildUsageEnvelope, buildErrorEnvelope, buildTransactionEnvelope, sendEnvelope, foldAppOpen, bumpCounter } from './src/usage-telemetry.js';
 import { computeBurndownSeries } from './src/burndown.js';
 import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/timesheet.js';
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
@@ -59,9 +59,22 @@ function telemetryContext(currentUser, settings) {
   };
 }
 
+/** Local calendar date 'YYYY-MM-DD' — timezone-aware bucketing for daysActive. */
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Fire an `app_opened` usage event the first time a user's Jira identity is
  * known in a session. Replaces the old Google-Form/Sheet ping.
+ *
+ * Also folds this open into a rolling per-user profile (chrome.storage.local)
+ * and attaches it to the event, so the latest event per user in Sentry is
+ * self-describing (days active, lifetime opens, first/current version) without
+ * needing Discover-tier aggregation. See src/usage-telemetry.js foldAppOpen.
  */
 async function maybeLogUsage(currentUser, settings) {
   if (!currentUser?.accountId && !currentUser?.emailAddress) {
@@ -73,11 +86,27 @@ async function maybeLogUsage(currentUser, settings) {
     const { telemetrySessionLogged } = await chrome.storage.session.get('telemetrySessionLogged');
     if (telemetrySessionLogged) return;
 
+    const version = chrome.runtime.getManifest().version;
+    // Fold this open into the rolling profile, persist it, attach to the event.
+    const { usageStats: prevStats } = await chrome.storage.local.get('usageStats');
+    const stats = foldAppOpen(prevStats, { date: localDateStr(), version });
+    await chrome.storage.local.set({ usageStats: stats });
+
     const ctx = telemetryContext(currentUser, settings);
+    ctx.tags = {
+      ...ctx.tags,
+      // Headline scalars as tags so they're filterable/groupable in Sentry;
+      // the full profile (incl. per-section/action counts) rides in `extra`.
+      days_active:   String(stats.daysActive),
+      total_opens:   String(stats.totalOpens),
+      first_version: stats.firstVersion || '',
+    };
+    ctx.extra = { usage_stats: stats };
     const envelope = buildUsageEnvelope('app_opened', ctx);
     const ok = await sendEnvelope(SENTRY_DSN, envelope);
     if (ok) {
-      console.log('[telemetry] app_opened sent ✓ for', ctx.user?.email || ctx.user?.id);
+      console.log('[telemetry] app_opened sent ✓ for', ctx.user?.email || ctx.user?.id,
+        `(day ${stats.daysActive}, open #${stats.totalOpens})`);
       chrome.storage.session.set({ telemetrySessionLogged: true });
     }
   } catch (err) {
@@ -88,11 +117,33 @@ async function maybeLogUsage(currentUser, settings) {
 /** Track a feature/section view (gantt, timesheet, insights, boards). */
 async function trackSectionView(section, currentUser, settings) {
   try {
+    // Bump the per-section counter in the rolling profile so it appears in the
+    // next app_opened's usage_stats extra (per-user feature affinity).
+    const { usageStats } = await chrome.storage.local.get('usageStats');
+    await chrome.storage.local.set({ usageStats: bumpCounter(usageStats, 'sections', section) });
     const ctx = telemetryContext(currentUser, settings);
     ctx.tags = { ...ctx.tags, section };
     await sendEnvelope(SENTRY_DSN, buildUsageEnvelope('section_viewed', ctx));
   } catch (err) {
     console.warn('[telemetry] section_viewed error (ignored):', err?.message);
+  }
+}
+
+/**
+ * Track a meaningful user action (export_report, scope_toggled, ticket_clicked).
+ * Emitted as usage_event=action_taken with an `action` tag, mirroring
+ * section_viewed — filter `usage_event:action_taken`, group by `action`. Unlike
+ * sections these are NOT deduped per session; each occurrence is one event.
+ */
+async function trackAction(action, currentUser, settings) {
+  try {
+    const { usageStats } = await chrome.storage.local.get('usageStats');
+    await chrome.storage.local.set({ usageStats: bumpCounter(usageStats, 'actions', action) });
+    const ctx = telemetryContext(currentUser, settings);
+    ctx.tags = { ...ctx.tags, action };
+    await sendEnvelope(SENTRY_DSN, buildUsageEnvelope('action_taken', ctx));
+  } catch (err) {
+    console.warn('[telemetry] action error (ignored):', err?.message);
   }
 }
 
@@ -1305,6 +1356,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { settings } = await chrome.storage.local.get('settings');
       const { lastCurrentUser } = await chrome.storage.session.get('lastCurrentUser');
       await trackSectionView(message.section, lastCurrentUser, settings);
+      sendResponse({ success: true });
+    })().catch(() => sendResponse({ success: false }));
+    return true;
+  }
+
+  // Telemetry: popup/report reports a meaningful action (export/scope/ticket).
+  if (message.type === 'track-action') {
+    (async () => {
+      const { settings } = await chrome.storage.local.get('settings');
+      const { lastCurrentUser } = await chrome.storage.session.get('lastCurrentUser');
+      await trackAction(message.action, lastCurrentUser, settings);
       sendResponse({ success: true });
     })().catch(() => sendResponse({ success: false }));
     return true;

@@ -9,6 +9,7 @@
 import {
   parseDsn, makeEventId, makeSpanId,
   buildUsageEnvelope, buildErrorEnvelope, buildTransactionEnvelope, envelopeFromItem,
+  foldAppOpen, bumpCounter,
 } from '../src/usage-telemetry.js';
 
 let pass = 0, fail = 0;
@@ -117,6 +118,73 @@ console.log('\nenvelopeFromItem');
 test('joins header/itemHeader/payload with newlines', () => {
   const env = envelopeFromItem({ event_id: 'x'.repeat(32) }, 'event');
   assert(env.split('\n').length === 3, 'three lines');
+});
+
+console.log('\nfoldAppOpen');
+test('seeds firstSeen/firstVersion and counts day 1 on first open', () => {
+  const s = foldAppOpen(undefined, { date: '2026-06-15', version: '2.10.0' });
+  assert(s.firstSeen === '2026-06-15', 'firstSeen');
+  assert(s.firstVersion === '2.10.0', 'firstVersion');
+  assert(s.daysActive === 1, 'daysActive=1');
+  assert(s.totalOpens === 1, 'totalOpens=1');
+  assert(s.currentVersion === '2.10.0', 'currentVersion');
+  assert(s.lastSeen === '2026-06-15', 'lastSeen');
+});
+test('same-day reopen bumps opens but not daysActive', () => {
+  let s = foldAppOpen(undefined, { date: '2026-06-15', version: '2.10.0' });
+  s = foldAppOpen(s, { date: '2026-06-15', version: '2.10.0' });
+  assert(s.daysActive === 1, 'still 1 day');
+  assert(s.totalOpens === 2, 'two opens');
+});
+test('new calendar day increments daysActive; first* are sticky', () => {
+  let s = foldAppOpen(undefined, { date: '2026-06-15', version: '2.10.0' });
+  s = foldAppOpen(s, { date: '2026-06-16', version: '2.11.0' });
+  assert(s.daysActive === 2, 'two days');
+  assert(s.totalOpens === 2, 'two opens');
+  assert(s.firstSeen === '2026-06-15', 'firstSeen sticky');
+  assert(s.firstVersion === '2.10.0', 'firstVersion sticky');
+  assert(s.currentVersion === '2.11.0', 'currentVersion advances');
+  assert(s.lastSeen === '2026-06-16', 'lastSeen advances');
+});
+test('does not mutate the previous object', () => {
+  const prev = foldAppOpen(undefined, { date: '2026-06-15', version: '2.10.0' });
+  const snapshot = JSON.stringify(prev);
+  foldAppOpen(prev, { date: '2026-06-16', version: '2.11.0' });
+  assert(JSON.stringify(prev) === snapshot, 'prev unchanged');
+});
+test('initializes empty sections + actions maps', () => {
+  const s = foldAppOpen(undefined, { date: '2026-06-15', version: '2.10.0' });
+  assert(s.sections && Object.keys(s.sections).length === 0, 'sections {}');
+  assert(s.actions && Object.keys(s.actions).length === 0, 'actions {}');
+});
+
+console.log('\nbumpCounter');
+test('increments a section counter from zero', () => {
+  const s = bumpCounter(undefined, 'sections', 'gantt');
+  assert(s.sections.gantt === 1, 'gantt=1');
+});
+test('accumulates across calls and isolates groups', () => {
+  let s = bumpCounter(undefined, 'sections', 'gantt');
+  s = bumpCounter(s, 'sections', 'gantt');
+  s = bumpCounter(s, 'actions', 'export_report');
+  assert(s.sections.gantt === 2, 'gantt=2');
+  assert(s.actions.export_report === 1, 'export_report=1');
+});
+test('preserves existing profile fields', () => {
+  const prev = foldAppOpen(undefined, { date: '2026-06-15', version: '2.10.0' });
+  const s = bumpCounter(prev, 'actions', 'scope_toggled');
+  assert(s.totalOpens === 1 && s.daysActive === 1, 'profile intact');
+  assert(s.actions.scope_toggled === 1, 'action counted');
+});
+test('ignores an empty name', () => {
+  const s = bumpCounter(undefined, 'actions', '');
+  assert(Object.keys(s.actions).length === 0, 'no empty key');
+});
+test('does not mutate the previous object', () => {
+  const prev = bumpCounter(undefined, 'sections', 'gantt');
+  const snapshot = JSON.stringify(prev);
+  bumpCounter(prev, 'sections', 'gantt');
+  assert(JSON.stringify(prev) === snapshot, 'prev unchanged');
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

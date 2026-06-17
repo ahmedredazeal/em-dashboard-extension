@@ -45,6 +45,57 @@ export function makeSpanId() {
   return s;
 }
 
+// ── Rolling per-user usage profile (PURE) ────────────────────────────────
+// Sentry is an error backend; per-user retention math (distinct days active,
+// lifetime opens) is against its grain and needs Discover-tier aggregation.
+// Instead we keep a tiny rolling profile in chrome.storage.local (background.js
+// owns the read/write) and attach it to each `app_opened` event. The *latest*
+// event per user is then self-describing — the plain Issues view answers
+// "since when, how many days, how many opens, what version" with no aggregation.
+// These folders are pure (state in → new state out, never mutate) so they
+// unit-test cleanly; the storage + today's-date impurity lives in background.js.
+
+/**
+ * Fold one app-open into the rolling profile.
+ * @param {Object|null} prev    prior usageStats ({}/undefined on first run)
+ * @param {Object} ev
+ * @param {string} ev.date      local calendar date 'YYYY-MM-DD' (caller supplies,
+ *                              so the timezone decision is explicit + testable)
+ * @param {string} [ev.version] running app version
+ * @returns {Object} new usageStats (prev is never mutated)
+ */
+export function foldAppOpen(prev, { date, version } = {}) {
+  const s = (prev && typeof prev === 'object') ? { ...prev } : {};
+  s.sections = { ...(s.sections || {}) };
+  s.actions  = { ...(s.actions  || {}) };
+  if (!s.firstSeen) { s.firstSeen = date || ''; s.firstVersion = version || ''; }
+  // A new active day is counted only when the calendar date rolls over, so
+  // multiple opens on the same day don't inflate daysActive.
+  if (date && s.lastActiveDate !== date) {
+    s.daysActive = (s.daysActive || 0) + 1;
+    s.lastActiveDate = date;
+  }
+  s.lastSeen = date || s.lastSeen || '';
+  s.currentVersion = version || s.currentVersion || '';
+  s.totalOpens = (s.totalOpens || 0) + 1;
+  return s;
+}
+
+/**
+ * Increment a named counter inside a sub-map of the profile (used for
+ * per-section view counts and per-action counts).
+ * @param {Object|null} prev   prior usageStats
+ * @param {string} group       'sections' | 'actions'
+ * @param {string} name        counter key (e.g. 'gantt', 'export_report')
+ * @returns {Object} new usageStats (prev is never mutated)
+ */
+export function bumpCounter(prev, group, name) {
+  const s = (prev && typeof prev === 'object') ? { ...prev } : {};
+  s[group] = { ...(s[group] || {}) };
+  if (name) s[group][name] = (s[group][name] || 0) + 1;
+  return s;
+}
+
 /** ISO timestamp for the event body. */
 function nowIso() { return new Date().toISOString(); }
 

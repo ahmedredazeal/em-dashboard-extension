@@ -1,6 +1,6 @@
 # TASKS.md — Shared Task List
 
-> Last updated: 2026-06-04 (v2.0.0)
+> Last updated: 2026-06-17 (v2.18.0)
 
 ---
 
@@ -50,6 +50,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.18.0 | T-UA-1 phase 2: usage-analytics enrichment. Rolling per-user profile (`foldAppOpen`/`bumpCounter`, pure+tested) attached to `app_opened` — days_active/total_opens/first_version tags + full `usage_stats` extra. Action tracking: `action_taken` events (`export_report`, `scope_toggled`, `ticket_clicked`). `section`/`role` verified healthy (no fix). 25 telemetry tests. Phase 1 (Sentry dashboard widgets + rollout disclosure) delivered alongside. |
 | v2.17.0 | Usage analytics: section_viewed fires for all major views + app.session duration; docs/USAGE-ANALYTICS.md setup guide. Rollout-readiness. |
 | v2.16.1 | Monthly Report: bug counts squad-level (not per-engineer); per-engineer hours retained. |
 | v2.16.0 | T-RPT-1 Monthly Report: self-building monthly report (delivery/bugs/support/hours, squad+me), in-app viewer + JSON/HTML export, optional auto-download, 12-month retention with advance warning, demo-mode data. |
