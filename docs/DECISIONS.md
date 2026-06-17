@@ -38,6 +38,8 @@ fixes — consider a shared-core strategy if drift becomes painful. (Rejected (A
 white-labeling this repo in place, to avoid public concerns — telemetry, secrets,
 Zeal defaults — living in the repo used internally every day.)
 
+**Action list:** `docs/T-WL-1-ACTIONS.md` (built from project history — what to keep/change/discard with justification; ordered for the dedicated WL chat).
+
 **Points to consider (carry into the design discussion):**
 - **Telemetry is the big one.** The hardcoded write-only Sentry usage DSN reports
   to Zeal's project. A public build must NOT silently phone home to Zeal —
