@@ -16,7 +16,12 @@
   <div class="settings-wrap">
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
-                    <div class="cl-row">
+                        <div class="cl-row">
+      <div class="cl-ver patch">v2.19.4</div>
+      <div class="cl-desc"><strong>Calendar: stop the countdown tick clobbering the real error.</strong> The "Calendar not configured" message appeared even with a valid URL because the 1-second countdown tick re-rendered with no error context and hit a catch-all message. The error reason is now kept in state, so the card shows the actual failure (network / HTTP code / not an iCal feed) instead.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver patch">v2.19.3</div>
       <div class="cl-desc"><strong>Calendar: fix "not configured" despite a saved URL.</strong> The popup now passes the iCal URL directly to the background fetch instead of each side reading storage independently, removing a popup/background mismatch that could make the card report no URL even when one was set. Added diagnostics for any remaining mismatch.</div>
     </div>

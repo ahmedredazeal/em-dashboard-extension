@@ -52,6 +52,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.19.4 | Calendar: fixed the 1s countdown tick clobbering the real fetch error with a catch-all "not configured" message; error reason now held in state and mapped to specific text (incl. HTTP codes). |
 | v2.19.3 | Calendar: fixed "not configured" with a saved URL — popup passes the iCal URL in the fetch message (no more popup/background storage mismatch); added diagnostics. |
 | v2.19.2 | Calendar fixes: iCal field styled like other inputs; card shows on URL presence (removed enable toggle); broadened Google host perms for iCal redirects; specific fetch-error messages. |
 | v2.19.1 | Calendar: fixed live ICS not rendering (init-before-settings), renamed to Today Meetings, made collapsible with countdown in header. Icons: Monthly Report uses the EM role chart SVG; Settings role pills reuse role-picker EM/Engineer icons. |

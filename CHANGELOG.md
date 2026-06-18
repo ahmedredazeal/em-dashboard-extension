@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.19.4 (2026-06-18) - Calendar: stop the countdown tick clobbering the real error
+
+Fixes the misleading "Calendar not configured" message that appeared even though
+the iCal URL was set and reaching the background (logs showed the URL present on
+both sides).
+
+Root cause was a rendering bug, not a config bug: the 1-second countdown tick
+called the render function with no arguments, which fell through to a catch-all
+"not configured" line and overwrote whatever real error (network / HTTP / not an
+iCal feed) had just been shown. The error reason is now held in state, so the tick
+cannot clobber it, and every failure maps to a specific message (including HTTP
+status codes). The card now tells you the actual reason a fetch fails.
+
+---
+
 ## v2.19.3 (2026-06-18) - Calendar: fix "not configured" despite a saved URL
 
 The Today Meetings card showed "not configured" even when the iCal URL was set

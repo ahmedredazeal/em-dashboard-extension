@@ -263,6 +263,7 @@ async function loadAndApplyTheme() {
 // parses the ICS URL), or use mock meetings in demo mode. The countdown ticks
 // client-side off the already-fetched view; a poll refreshes the list.
 let _calView = null;          // { timed, allDay }
+let _calError = null;         // last fetch error reason (so the 1s tick does not clobber it)
 let _calTickTimer = null;
 let _calPollTimer = null;
 const CAL_POLL_MS = 5 * 60 * 1000;  // re-fetch every 5 min while panel is open
@@ -299,7 +300,7 @@ async function initCalendar() {
   await refreshCalendar();
   // Start client-side countdown tick + periodic poll.
   if (_calTickTimer) clearInterval(_calTickTimer);
-  _calTickTimer = setInterval(renderCalendarCard, CAL_TICK_MS);
+  _calTickTimer = setInterval(() => renderCalendarCard(), CAL_TICK_MS);
   if (_calPollTimer) clearInterval(_calPollTimer);
   if (!state.mockMode) _calPollTimer = setInterval(refreshCalendar, CAL_POLL_MS);
 }
@@ -317,35 +318,47 @@ async function refreshCalendar() {
     const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar', icsUrl: cal.icsUrl || '' });
     if (resp && resp.success) {
       _calView = resp.view;
+      _calError = null;
       trackSection('calendar');
     } else {
-      _calView = (resp && resp.reason === 'not-configured') ? null : _calView;
-      renderCalendarCard(resp && resp.reason);
+      _calView = null;
+      _calError = (resp && resp.reason) || 'error';
+      renderCalendarCard();
       return;
     }
     renderCalendarCard();
   } catch (e) {
-    renderCalendarCard('error');
+    _calView = null;
+    _calError = 'error';
+    renderCalendarCard();
   }
 }
 
-function renderCalendarCard(errorReason) {
+function renderCalendarCard() {
   const el = document.getElementById('calendar-card');
   const hdrCd = document.getElementById('calendar-header-countdown');
   if (!el) return;
-  if (errorReason && !_calView) {
+
+  // Error / no-data state (driven by _calError, so the 1s countdown tick — which
+  // calls this with no args — never clobbers a real error message).
+  if (!_calView) {
     if (hdrCd) hdrCd.innerHTML = '';
-    const msg = {
-      'network': 'Could not reach the calendar (check the URL and that it is a public/secret iCal address).',
-      'not-ics': 'That URL did not return an iCal feed. Use the "Secret address in iCal format" (ends in .ics).',
-      'not-configured': 'Add your iCal URL in Settings to see today\'s meetings.',
-    }[errorReason] || 'Calendar unavailable. Check the iCal URL in Settings.';
-    el.innerHTML = `<div class="cal-empty">${escapeHtml(msg)} <a href="#" id="cal-settings-link">Open Settings</a></div>`;
-    const lk = document.getElementById('cal-settings-link');
-    if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
+    if (_calError) {
+      const r = String(_calError);
+      let msg;
+      if (r === 'not-configured') msg = 'Add your iCal URL in Settings to see today\'s meetings.';
+      else if (r === 'network') msg = 'Could not reach the calendar. Check the URL is the secret iCal address and that you are online.';
+      else if (r === 'not-ics') msg = 'That URL did not return an iCal feed. Use the "Secret address in iCal format" (ends in .ics), not the share link.';
+      else if (r.startsWith('http-')) msg = `The calendar URL returned an error (${r.replace('http-', 'HTTP ')}). Re-copy the secret iCal address from Google Calendar.`;
+      else msg = 'Calendar unavailable. Check the iCal URL in Settings.';
+      el.innerHTML = `<div class="cal-empty">${escapeHtml(msg)} <a href="#" id="cal-settings-link">Open Settings</a></div>`;
+      const lk = document.getElementById('cal-settings-link');
+      if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
+    } else {
+      el.innerHTML = `<div class="cal-empty">Loading today's meetings…</div>`;
+    }
     return;
   }
-  if (!_calView) { if (hdrCd) hdrCd.innerHTML = ''; el.innerHTML = `<div class="cal-empty">Calendar not configured.</div>`; return; }
 
   const now = new Date();
   // Recompute "next" from the timed list each tick (in-progress → upcoming).
