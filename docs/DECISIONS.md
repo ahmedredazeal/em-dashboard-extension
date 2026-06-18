@@ -57,6 +57,25 @@ Zeal defaults — living in the repo used internally every day.)
   id, Sun–Thu work week: strip or gate behind first-run setup for a public build.
 - **CWS publishing** needs the Google dev account ($5) noted in T-DIST-1 phase 2.
 
+## T-CAL-1 — Google Calendar sync (PLANNED, phase 1)
+**Plan:** `docs/T-CAL-1-PLAN.md`. Phase 1 = today meetings + next-meeting countdown
++ 30-min alert. Phase 2 (deferred) = meeting hours shown ALONGSIDE logged hours.
+**Capacity decision:** meetings are NOT subtracted from the 6h/day capacity line —
+shown alongside only. Subtracting would risk double-counting against logged worklog
+hours and imply an availability model we cannot validate.
+**Leapsome constraint:** Zeal leave/approvals live in Leapsome (needs super-admin,
+not granted to all users), so Google Calendar yields MEETINGS, not approved
+absence. The feature must not imply it knows availability.
+**Auth — open decision (A vs B), both in the plan:**
+- (A) private iCal/ICS URL pasted in settings — no Google Cloud/OAuth, serves Zeal
+  + white-label identically (paste-in-settings like Jira), poll-based. Recommended
+  for phase 1.
+- (B) Google OAuth client ID per company — proper API/real-time, heavier setup.
+Google does NOT offer a simple per-user paste-able API token (unlike Jira), which
+is why "a key in settings" maps to A (ICS secret URL), not a Google API key.
+**White-label:** Option A is WL-friendly; telemetry for this feature is discarded
+in the public build like the rest (T-WL-1).
+
 ## T-EO-1 — Engineering-overview build (PROPOSED, separate clone)
 **Status:** backlog; design discussion before build. A SECOND clone, distinct
 from the public white-label (T-WL-1).
