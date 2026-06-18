@@ -201,14 +201,12 @@
     <!-- Alert rules -->
     <div class="settings-section" id="calendar-section-settings">
       <h2>📅 Calendar (Today's meetings)</h2>
-      <p class="hint">Show today's meetings and a countdown in the side panel, with an alert when a meeting is within 30 minutes. Uses your Google Calendar's private iCal address — read-only, and it stays on your device (only sent to Google to fetch).</p>
-      <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
-        <input type="checkbox" id="calendar-enabled"/>
-        <span>Enable the Today / meetings card</span>
-      </label>
-      <label class="field-label" for="calendar-ics-url">Private iCal/ICS URL</label>
-      <input type="password" id="calendar-ics-url" class="text-input" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" autocomplete="off"/>
-      <p class="hint" style="margin-top:4px;">In Google Calendar: <strong>Settings → [your calendar] → Integrate calendar → Secret address in iCal format</strong>. Copy that URL here. Treat it like a password — anyone with it can read your calendar.</p>
+      <p class="hint">Show today's meetings and a countdown in the side panel, with an alert when a meeting is within 30 minutes. Paste your Google Calendar's private iCal address below — read-only, kept on your device (only sent to Google to fetch). Clear the field to turn the card off.</p>
+      <div class="field">
+        <label for="calendar-ics-url">Private iCal/ICS URL</label>
+        <input type="password" id="calendar-ics-url" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" autocomplete="off" spellcheck="false"/>
+        <span class="field-hint">In Google Calendar: <strong>Settings → [your calendar] → Integrate calendar → Secret address in iCal format</strong>. Copy that URL here. Treat it like a password — anyone with it can read your calendar.</span>
+      </div>
     </div>
 
     <div class="settings-section" id="report-section">

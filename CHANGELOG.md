@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.19.2 (2026-06-18) - Calendar: render robustness + field styling
+
+Follow-up fixes for the Today Meetings card.
+
+- **Styling:** the iCal URL field now uses the standard settings field markup
+  (label + input + hint inside a .field wrapper) instead of nonexistent CSS
+  classes, so it matches the other settings inputs.
+- **Showing up:** the card now appears whenever an iCal URL is set - the separate
+  "enable" checkbox was removed (a common gotcha was pasting the URL but leaving
+  the toggle off, which left the card blank). Clearing the field turns it off.
+- **Reach:** broadened host permissions to cover Google calendar hosts and their
+  redirects (a Google secret-iCal URL can redirect to a host the previous single
+  permission did not cover - the likely reason live fetch failed). NOTE: this
+  permission change may prompt Chrome to re-enable the extension on update.
+- **Diagnostics:** fetch failures now show a specific reason in the card (could
+  not reach / not an iCal feed / not configured) instead of a blank or generic
+  message, so a misconfigured URL is obvious.
+
+---
+
 ## v2.19.1 (2026-06-18) - Calendar fixes + icon consistency
 
 - **Fix: live calendar showed nothing** while demo mode worked. The Today card was

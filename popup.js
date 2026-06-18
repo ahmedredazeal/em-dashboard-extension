@@ -273,8 +273,11 @@ async function initCalendar() {
   const section = document.getElementById('calendar-section');
   if (!section) return;
 
-  // Show the card only when enabled (demo mode always shows it to demonstrate).
-  if (!state.mockMode && !(cal.enabled && cal.icsUrl)) {
+  // Show the card when configured. Having an ICS URL IS the intent — we do not
+  // also require the separate enable toggle to be on (a common gotcha: URL pasted
+  // but toggle left off → blank card). Demo mode always shows it.
+  const configured = !!cal.icsUrl;
+  if (!state.mockMode && !configured) {
     section.classList.add('hidden');
     return;
   }
@@ -331,7 +334,12 @@ function renderCalendarCard(errorReason) {
   if (!el) return;
   if (errorReason && !_calView) {
     if (hdrCd) hdrCd.innerHTML = '';
-    el.innerHTML = `<div class="cal-empty">Calendar unavailable. Check the ICS URL in <a href="#" id="cal-settings-link">Settings</a>.</div>`;
+    const msg = {
+      'network': 'Could not reach the calendar (check the URL and that it is a public/secret iCal address).',
+      'not-ics': 'That URL did not return an iCal feed. Use the "Secret address in iCal format" (ends in .ics).',
+      'not-configured': 'Add your iCal URL in Settings to see today\'s meetings.',
+    }[errorReason] || 'Calendar unavailable. Check the iCal URL in Settings.';
+    el.innerHTML = `<div class="cal-empty">${escapeHtml(msg)} <a href="#" id="cal-settings-link">Open Settings</a></div>`;
     const lk = document.getElementById('cal-settings-link');
     if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
     return;

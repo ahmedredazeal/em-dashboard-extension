@@ -353,9 +353,7 @@ function getTrackedViewIds() {
   if (reportAuto) reportAuto.checked = !!(settings.report && settings.report.autoDownload);
 
   // Calendar (T-CAL-1)
-  const calEnabled = document.getElementById('calendar-enabled');
   const calUrl = document.getElementById('calendar-ics-url');
-  if (calEnabled) calEnabled.checked = !!(settings.calendar && settings.calendar.enabled);
   if (calUrl) calUrl.value = (settings.calendar && settings.calendar.icsUrl) || '';
 
   // ── Role-specific section visibility ───────────────────────────────
@@ -645,10 +643,10 @@ function getTrackedViewIds() {
           autoDownload: document.getElementById('report-autodownload')?.checked || false,
           retentionMonths: 12
         },
-        calendar: {
-          enabled: document.getElementById('calendar-enabled')?.checked || false,
-          icsUrl: (document.getElementById('calendar-ics-url')?.value || '').trim()
-        },
+        calendar: (() => {
+          const icsUrl = (document.getElementById('calendar-ics-url')?.value || '').trim();
+          return { icsUrl, enabled: !!icsUrl };
+        })(),
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',
         viewScope: settings.viewScope || (settings.role === 'engineer' ? 'me' : 'squad')

@@ -1358,10 +1358,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         const stored = await chrome.storage.local.get(['settings']);
         const cal = (stored.settings && stored.settings.calendar) || {};
-        if (!cal.enabled || !cal.icsUrl) { sendResponse({ success: false, reason: 'not-configured' }); return; }
-        const res = await fetch(cal.icsUrl, { method: 'GET' });
+        if (!cal.icsUrl) { sendResponse({ success: false, reason: 'not-configured' }); return; }
+        let res;
+        try {
+          res = await fetch(cal.icsUrl, { method: 'GET', redirect: 'follow' });
+        } catch (netErr) {
+          // Most commonly a host-permission/CORS issue: the ICS host is not in
+          // manifest host_permissions, or the URL redirects to one that is not.
+          console.warn('[calendar] network/permission error:', netErr?.message);
+          sendResponse({ success: false, reason: 'network', message: netErr?.message });
+          return;
+        }
         if (!res.ok) { sendResponse({ success: false, reason: `http-${res.status}` }); return; }
         const text = await res.text();
+        if (!/BEGIN:VCALENDAR/i.test(text)) {
+          sendResponse({ success: false, reason: 'not-ics', message: 'Response was not an iCal feed' });
+          return;
+        }
         const { parseICS, todaysMeetings } = await import('./src/calendar.js');
         const now = new Date();
         const view = todaysMeetings(parseICS(text, now), now);

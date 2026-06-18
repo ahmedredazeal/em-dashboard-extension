@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zealer Dashboard",
-  "version": "2.19.1",
+  "version": "2.19.2",
   "description": "Engineering delivery cockpit \u2014 sprint health, reliability alerts, and time tracking, in a Chrome side panel.",
   "author": "Zeal",
   "icons": {
@@ -40,7 +40,9 @@
     "https://api.github.com/*",
     "https://*.sentry.io/*",
     "https://sentry.io/*",
-    "https://calendar.google.com/*"
+    "https://calendar.google.com/*",
+    "https://*.google.com/*",
+    "https://*.googleusercontent.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
