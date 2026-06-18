@@ -352,6 +352,12 @@ function getTrackedViewIds() {
   const reportAuto = document.getElementById('report-autodownload');
   if (reportAuto) reportAuto.checked = !!(settings.report && settings.report.autoDownload);
 
+  // Calendar (T-CAL-1)
+  const calEnabled = document.getElementById('calendar-enabled');
+  const calUrl = document.getElementById('calendar-ics-url');
+  if (calEnabled) calEnabled.checked = !!(settings.calendar && settings.calendar.enabled);
+  if (calUrl) calUrl.value = (settings.calendar && settings.calendar.icsUrl) || '';
+
   // ── Role-specific section visibility ───────────────────────────────
   function applyRoleToSettings(role) {
     document.querySelectorAll('.em-only').forEach(el => {
@@ -638,6 +644,10 @@ function getTrackedViewIds() {
         report: {
           autoDownload: document.getElementById('report-autodownload')?.checked || false,
           retentionMonths: 12
+        },
+        calendar: {
+          enabled: document.getElementById('calendar-enabled')?.checked || false,
+          icsUrl: (document.getElementById('calendar-ics-url')?.value || '').trim()
         },
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',

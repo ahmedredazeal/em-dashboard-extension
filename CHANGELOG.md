@@ -1,5 +1,35 @@
 # Changelog
 
+## v2.19.0 (2026-06-18) - Today meetings: Google Calendar sync (T-CAL-1 phase 1)
+
+Shows the signed-in engineer meetings for today in the side panel, with a live
+countdown to the next meeting and an alert when one is within 30 minutes.
+
+- **Today card** above Insights: today timed meetings (and all-day items
+  separately), with the next meeting highlighted.
+- **Countdown + 30-min alert.** The countdown ticks every second client-side; when
+  the next meeting is 30 minutes away or less, it turns red with a flashing dot.
+  In-progress meetings are shown as such.
+- **Auth: private iCal/ICS URL** pasted in Settings (read-only; no Google Cloud
+  project or OAuth). Treated like the Jira token - stored locally, only sent to
+  Google to fetch. Works the same for the Zeal and (future) white-label builds.
+- **Refresh.** ICS is pull-only, so the list polls every ~5 minutes while the
+  panel is open (no new background alarm - the panel remains the only trigger);
+  the countdown itself needs no network.
+- **Demo mode** populates the card with sample meetings (one in progress, one
+  within 30 min) so it can be shown without a real calendar.
+
+Phase 2 (deferred): showing meeting hours alongside logged sprint hours for
+visibility - NOT subtracted from the 6h/day capacity line. NOTE: Zeal leave is in
+Leapsome and cannot be integrated, so this shows meetings, never approved absence.
+
+New: src/calendar.js (pure ICS parser + meeting/countdown logic; 22 tests),
+calendar fetch handler in background.js, Today card in popup, Calendar settings
+section, generateMockMeetings. manifest +calendar.google.com host permission.
+29 test suites + pre-flight green.
+
+---
+
 ## v2.18.0 (2026-06-17) - Usage analytics enrichment (T-UA-1): rolling profile + actions
 
 Enriches the Sentry usage telemetry so per-user adoption questions are answerable

@@ -9,7 +9,8 @@ import { getTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
 import { assignProjectColors, currentQuarters } from './src/worklog-aggregator.js';
 import { buildGanttSVG } from './src/gantt.js';
-import { generateMockState, MOCK_CURRENT_USER } from './src/mock-data.js';
+import { generateMockState, MOCK_CURRENT_USER, generateMockMeetings } from './src/mock-data.js';
+import { todaysMeetings, countdownState, formatCountdown, timeLabel } from './src/calendar.js';
 import { milestoneCounts } from './src/milestones.js';
 import { visibleAlerts } from './src/alerts.js';
 import { PRIORITY_DOT_COLOR, statusColor, statusCategoryIcon } from './src/domain-constants.js';
@@ -253,6 +254,110 @@ async function loadAndApplyTheme() {
 /**
  * Setup event handlers
  */
+// ── Calendar / Today card (T-CAL-1) ──────────────────────────────────────────
+// ICS is pull-only: fetch the parsed view from the background (which fetches +
+// parses the ICS URL), or use mock meetings in demo mode. The countdown ticks
+// client-side off the already-fetched view; a poll refreshes the list.
+let _calView = null;          // { timed, allDay }
+let _calTickTimer = null;
+let _calPollTimer = null;
+const CAL_POLL_MS = 5 * 60 * 1000;  // re-fetch every 5 min while panel is open
+const CAL_TICK_MS = 1000;           // countdown updates every second
+
+async function initCalendar() {
+  const cal = (state.settings && state.settings.calendar) || {};
+  const section = document.getElementById('calendar-section');
+  if (!section) return;
+
+  // Show the card only when enabled (demo mode always shows it to demonstrate).
+  if (!state.mockMode && !(cal.enabled && cal.icsUrl)) {
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+
+  await refreshCalendar();
+  // Start client-side countdown tick + periodic poll.
+  if (_calTickTimer) clearInterval(_calTickTimer);
+  _calTickTimer = setInterval(renderCalendarCard, CAL_TICK_MS);
+  if (_calPollTimer) clearInterval(_calPollTimer);
+  if (!state.mockMode) _calPollTimer = setInterval(refreshCalendar, CAL_POLL_MS);
+}
+
+async function refreshCalendar() {
+  try {
+    if (state.mockMode) {
+      const now = new Date();
+      _calView = generateMockMeetings(now);
+      renderCalendarCard();
+      trackSection('calendar');
+      return;
+    }
+    const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar' });
+    if (resp && resp.success) {
+      _calView = resp.view;
+      trackSection('calendar');
+    } else {
+      _calView = (resp && resp.reason === 'not-configured') ? null : _calView;
+      renderCalendarCard(resp && resp.reason);
+      return;
+    }
+    renderCalendarCard();
+  } catch (e) {
+    renderCalendarCard('error');
+  }
+}
+
+function renderCalendarCard(errorReason) {
+  const el = document.getElementById('calendar-card');
+  if (!el) return;
+  if (errorReason && !_calView) {
+    el.innerHTML = `<div class="cal-empty">Calendar unavailable. Check the ICS URL in <a href="#" id="cal-settings-link">Settings</a>.</div>`;
+    const lk = document.getElementById('cal-settings-link');
+    if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
+    return;
+  }
+  if (!_calView) { el.innerHTML = `<div class="cal-empty">Calendar not configured.</div>`; return; }
+
+  const now = new Date();
+  // Recompute "next" from the timed list each tick (in-progress → upcoming).
+  const view = todaysMeetings(
+    [...(_calView.timed || []), ...(_calView.allDay || [])].map(m => ({ ...m })),
+    now
+  );
+  const cd = countdownState(view.next, now);
+
+  const banner = (() => {
+    if (cd.status === 'none') return `<div class="cal-next cal-none">No more meetings today</div>`;
+    if (cd.status === 'in_progress') {
+      return `<div class="cal-next cal-inprogress">● ${escapeHtml(view.next.title)} — in progress</div>`;
+    }
+    const alertCls = cd.alert ? ' cal-alert' : '';
+    const dot = cd.alert ? `<span class="cal-flash">●</span> ` : '';
+    return `<div class="cal-next${alertCls}">${dot}${escapeHtml(view.next.title)} · <strong>${cd.label}</strong> (${timeLabel(view.next.start)})</div>`;
+  })();
+
+  const timedRows = (view.timed || []).map(m => {
+    const isNext = view.next && m.id === view.next.id;
+    return `<div class="cal-row${isNext ? ' cal-row-next' : ''}">
+      <span class="cal-time">${timeLabel(m.start)}</span>
+      <span class="cal-title">${escapeHtml(m.title)}</span>
+    </div>`;
+  }).join('');
+
+  const allDayRows = (view.allDay || []).map(m =>
+    `<div class="cal-row cal-row-allday"><span class="cal-time">all day</span><span class="cal-title">${escapeHtml(m.title)}</span></div>`
+  ).join('');
+
+  const body = (view.timed.length || view.allDay.length)
+    ? allDayRows + timedRows
+    : `<div class="cal-empty">No meetings today.</div>`;
+
+  el.innerHTML = banner + `<div class="cal-list">${body}</div>`;
+}
+
+// ── end Calendar ─────────────────────────────────────────────────────────────
+
 // Fire a usage event when a user opens a section/feature. Deduped per section
 // per session (a Set), and suppressed in demo/mock mode so sample sessions don't
 // pollute real usage analytics. Best-effort — never throws into the UI.
@@ -2243,6 +2348,9 @@ function renderTodayScreen() {
   // Insights (open by default) — render charts
   requestRender('today:initial-insights', { immediate: true, target: 'insights' });
   trackSection('insights');  // insights is expanded by default → counts as viewed
+
+  // Today / calendar card (T-CAL-1) — fetch + start countdown if configured.
+  initCalendar();
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');

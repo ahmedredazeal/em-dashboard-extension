@@ -299,3 +299,30 @@ export function generateMockReportStore() {
   };
   return { schemaVersion: 1, currentMonth: curKey, current, history, retentionMonths: 12 };
 }
+
+// ── Calendar demo data (T-CAL-1) ─────────────────────────────────────────────
+// A few meetings around "now" so the Today card + countdown + 30-min alert demo
+// without a real ICS calendar. One meeting is within 30 minutes to show the alert
+// state; one is in progress; one all-day.
+export function generateMockMeetings(now = new Date()) {
+  const at = (offsetMin, durMin) => {
+    const s = new Date(now.getTime() + offsetMin * 60000);
+    const e = new Date(s.getTime() + durMin * 60000);
+    return { start: s.toISOString(), end: e.toISOString() };
+  };
+  const mk = (id, title, offsetMin, durMin, extra = {}) => ({
+    id, title, ...at(offsetMin, durMin), allDay: false, location: '', attendeesCount: 3, ...extra,
+  });
+  const timed = [
+    mk('m-inprog', 'Sprint standup', -10, 15, { attendeesCount: 6 }),          // in progress
+    mk('m-soon', 'Design review', 20, 45, { attendeesCount: 4 }),              // within 30m → alert
+    mk('m-later', '1:1 with manager', 150, 30, { attendeesCount: 2 }),         // later today
+  ].sort((a, b) => new Date(a.start) - new Date(b.start));
+  const allDay = [
+    { id: 'm-allday', title: 'Release freeze', start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(), end: null, allDay: true, location: '', attendeesCount: 0 },
+  ];
+  // next = the in-progress one is "next" only if nothing upcoming; here Design
+  // review is upcoming, so the core's pickNext returns it. We let the popup
+  // recompute via todaysMeetings to keep one source of truth.
+  return { timed, allDay };
+}

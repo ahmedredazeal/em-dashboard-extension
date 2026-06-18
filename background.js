@@ -1351,6 +1351,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   // Telemetry: popup reports a section view (gantt/timesheet/insights/boards).
+  if (message.type === 'fetch-calendar') {
+    // Fetch + parse the user's ICS calendar. Returns today's meetings to the
+    // popup via sendResponse. ICS is pull-only — the popup polls this.
+    (async () => {
+      try {
+        const stored = await chrome.storage.local.get(['settings']);
+        const cal = (stored.settings && stored.settings.calendar) || {};
+        if (!cal.enabled || !cal.icsUrl) { sendResponse({ success: false, reason: 'not-configured' }); return; }
+        const res = await fetch(cal.icsUrl, { method: 'GET' });
+        if (!res.ok) { sendResponse({ success: false, reason: `http-${res.status}` }); return; }
+        const text = await res.text();
+        const { parseICS, todaysMeetings } = await import('./src/calendar.js');
+        const now = new Date();
+        const view = todaysMeetings(parseICS(text, now), now);
+        // Cache for instant reopen.
+        await chrome.storage.session.set({ calendarCache: { at: now.toISOString(), view } });
+        sendResponse({ success: true, view });
+      } catch (err) {
+        console.warn('[calendar] fetch failed:', err?.message);
+        sendResponse({ success: false, reason: 'error', message: err?.message });
+      }
+    })();
+    return true; // async sendResponse
+  }
+
   if (message.type === 'track-section') {
     (async () => {
       const { settings } = await chrome.storage.local.get('settings');

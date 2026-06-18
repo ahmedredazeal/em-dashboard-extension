@@ -1225,3 +1225,29 @@ body.privacy-on [data-privacy-mask]::after {
   font-size: var(--fs-caption);
   color: var(--primary, #6366f1);
 }
+
+/* ── Today / Calendar card (T-CAL-1) ──────────────────────────────────────── */
+#calendar-card { font-size: 13px; }
+.cal-next {
+  padding: 8px 10px; border-radius: 6px; background: var(--surface-raised);
+  border: 1px solid var(--border); margin-bottom: 8px;
+}
+.cal-next.cal-none { color: var(--text-muted); }
+.cal-next.cal-inprogress { border-color: var(--primary); }
+.cal-next.cal-alert {
+  border-color: #dc2626; color: #dc2626; background: rgba(220, 38, 38, 0.08);
+  font-weight: 600;
+}
+.cal-flash { animation: cal-blink 1s steps(2, start) infinite; color: #dc2626; }
+@keyframes cal-blink { to { visibility: hidden; } }
+.cal-list { display: flex; flex-direction: column; gap: 2px; }
+.cal-row {
+  display: flex; gap: 8px; padding: 4px 6px; border-radius: 4px; align-items: baseline;
+}
+.cal-row-next { background: rgba(37, 99, 235, 0.08); }
+.cal-row-allday { color: var(--text-muted); font-style: italic; }
+.cal-time {
+  flex: 0 0 64px; color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 12px;
+}
+.cal-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-empty { color: var(--text-muted); padding: 8px 6px; font-style: italic; }
