@@ -2,7 +2,7 @@
 
 Engineering Manager + Engineer cockpit for **Jira + Sentry**. Sprint health, reliability trends, time tracking, milestones, a sprint-timeline Gantt, and configurable alert rules — all in a Chrome MV3 side panel. A single extension serves both EMs and individual engineers via a dual-role architecture.
 
-**Current version: v2.19.2**
+**Current version: v2.19.3**
 
 ---
 

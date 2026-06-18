@@ -1358,10 +1358,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         const stored = await chrome.storage.local.get(['settings']);
         const cal = (stored.settings && stored.settings.calendar) || {};
-        if (!cal.icsUrl) { sendResponse({ success: false, reason: 'not-configured' }); return; }
+        // Prefer the URL the popup passed (it knows the live value) — avoids any
+        // popup/background storage-read mismatch. Fall back to stored settings.
+        const icsUrl = (message.icsUrl && message.icsUrl.trim()) || cal.icsUrl || '';
+        console.log('[calendar] bg fetch — fromMsg:', !!message.icsUrl, 'fromStore:', !!cal.icsUrl);
+        if (!icsUrl) {
+          sendResponse({
+            success: false, reason: 'not-configured',
+            diag: { hasSettings: !!stored.settings, calendarKeys: Object.keys(cal), calPresent: !!(stored.settings && 'calendar' in stored.settings) }
+          });
+          return;
+        }
         let res;
         try {
-          res = await fetch(cal.icsUrl, { method: 'GET', redirect: 'follow' });
+          res = await fetch(icsUrl, { method: 'GET', redirect: 'follow' });
         } catch (netErr) {
           // Most commonly a host-permission/CORS issue: the ICS host is not in
           // manifest host_permissions, or the URL redirects to one that is not.

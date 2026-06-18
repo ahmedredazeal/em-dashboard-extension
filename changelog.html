@@ -16,7 +16,12 @@
   <div class="settings-wrap">
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
-                <div class="cl-row">
+                    <div class="cl-row">
+      <div class="cl-ver patch">v2.19.3</div>
+      <div class="cl-desc"><strong>Calendar: fix "not configured" despite a saved URL.</strong> The popup now passes the iCal URL directly to the background fetch instead of each side reading storage independently, removing a popup/background mismatch that could make the card report no URL even when one was set. Added diagnostics for any remaining mismatch.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver patch">v2.19.2</div>
       <div class="cl-desc"><strong>Calendar: render robustness + field styling.</strong> The iCal URL field now matches the other settings inputs. The card shows whenever a URL is set (removed the separate enable toggle that could leave it blank). Broadened Google host permissions to cover iCal redirects (likely cause of live fetch failing). Fetch errors now show a specific reason instead of a blank card.</div>
     </div>

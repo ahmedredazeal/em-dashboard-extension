@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.19.3 (2026-06-18) - Calendar: fix "not configured" despite a saved URL
+
+The Today Meetings card showed "not configured" even when the iCal URL was set
+(the section was visible, but the fetch reported no URL). Root cause: the popup
+and the background service worker were resolving the setting independently, and
+could disagree about the saved value at fetch time.
+
+- The popup now passes the iCal URL directly in the fetch message; the background
+  uses that and only falls back to reading storage. This removes the popup/
+  background mismatch as a possibility.
+- Added diagnostics (console + a diag payload) so any remaining configuration
+  mismatch is visible rather than silent.
+
+---
+
 ## v2.19.2 (2026-06-18) - Calendar: render robustness + field styling
 
 Follow-up fixes for the Today Meetings card.

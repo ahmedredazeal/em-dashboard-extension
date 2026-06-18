@@ -313,7 +313,8 @@ async function refreshCalendar() {
       trackSection('calendar');
       return;
     }
-    const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar' });
+    const cal = (state.settings && state.settings.calendar) || {};
+    const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar', icsUrl: cal.icsUrl || '' });
     if (resp && resp.success) {
       _calView = resp.view;
       trackSection('calendar');
