@@ -16,7 +16,12 @@
   <div class="settings-wrap">
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
-                        <div class="cl-row">
+                            <div class="cl-row">
+      <div class="cl-ver patch">v2.19.5</div>
+      <div class="cl-desc"><strong>Calendar: fix the actual fetch failure (dynamic import).</strong> The generic "Calendar unavailable" was masking an exception: the calendar parser was loaded with a dynamic import inside the background service worker, which is unreliable in MV3. Switched to a static import (matching every other module). The card now also surfaces the real error detail for any unexpected failure.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver patch">v2.19.4</div>
       <div class="cl-desc"><strong>Calendar: stop the countdown tick clobbering the real error.</strong> The "Calendar not configured" message appeared even with a valid URL because the 1-second countdown tick re-rendered with no error context and hit a catch-all message. The error reason is now kept in state, so the card shows the actual failure (network / HTTP code / not an iCal feed) instead.</div>
     </div>

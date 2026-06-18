@@ -264,6 +264,7 @@ async function loadAndApplyTheme() {
 // client-side off the already-fetched view; a poll refreshes the list.
 let _calView = null;          // { timed, allDay }
 let _calError = null;         // last fetch error reason (so the 1s tick does not clobber it)
+let _calErrorMsg = '';        // detail message for the 'error' reason
 let _calTickTimer = null;
 let _calPollTimer = null;
 const CAL_POLL_MS = 5 * 60 * 1000;  // re-fetch every 5 min while panel is open
@@ -319,10 +320,12 @@ async function refreshCalendar() {
     if (resp && resp.success) {
       _calView = resp.view;
       _calError = null;
+      _calErrorMsg = '';
       trackSection('calendar');
     } else {
       _calView = null;
       _calError = (resp && resp.reason) || 'error';
+      _calErrorMsg = (resp && resp.message) || '';
       renderCalendarCard();
       return;
     }
@@ -350,7 +353,7 @@ function renderCalendarCard() {
       else if (r === 'network') msg = 'Could not reach the calendar. Check the URL is the secret iCal address and that you are online.';
       else if (r === 'not-ics') msg = 'That URL did not return an iCal feed. Use the "Secret address in iCal format" (ends in .ics), not the share link.';
       else if (r.startsWith('http-')) msg = `The calendar URL returned an error (${r.replace('http-', 'HTTP ')}). Re-copy the secret iCal address from Google Calendar.`;
-      else msg = 'Calendar unavailable. Check the iCal URL in Settings.';
+      else msg = 'Calendar could not be loaded' + (_calErrorMsg ? `: ${_calErrorMsg}` : '. Check the iCal URL in Settings.');
       el.innerHTML = `<div class="cal-empty">${escapeHtml(msg)} <a href="#" id="cal-settings-link">Open Settings</a></div>`;
       const lk = document.getElementById('cal-settings-link');
       if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });

@@ -52,6 +52,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.19.5 | Calendar: fixed the real fetch failure — replaced the background dynamic import of the parser (unreliable in MV3) with a static import; card now surfaces the actual error detail. |
 | v2.19.4 | Calendar: fixed the 1s countdown tick clobbering the real fetch error with a catch-all "not configured" message; error reason now held in state and mapped to specific text (incl. HTTP codes). |
 | v2.19.3 | Calendar: fixed "not configured" with a saved URL — popup passes the iCal URL in the fetch message (no more popup/background storage mismatch); added diagnostics. |
 | v2.19.2 | Calendar fixes: iCal field styled like other inputs; card shows on URL presence (removed enable toggle); broadened Google host perms for iCal redirects; specific fetch-error messages. |

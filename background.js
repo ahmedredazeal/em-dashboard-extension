@@ -16,6 +16,7 @@ import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/t
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { buildMilestoneData } from './src/milestones.js';
 import { countReopens } from './src/bug-reports.js';
+import { parseICS as parseCalendarICS, todaysMeetings as calendarTodaysMeetings } from './src/calendar.js';
 import {
   emptyBucket, buildSnapshot, updateBucket, shouldRollover,
   finalizeMonth, pruneHistory, monthKey, DEFAULT_RETENTION_MONTHS,
@@ -1385,15 +1386,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: false, reason: 'not-ics', message: 'Response was not an iCal feed' });
           return;
         }
-        const { parseICS, todaysMeetings } = await import('./src/calendar.js');
         const now = new Date();
-        const view = todaysMeetings(parseICS(text, now), now);
+        const view = calendarTodaysMeetings(parseCalendarICS(text, now), now);
         // Cache for instant reopen.
         await chrome.storage.session.set({ calendarCache: { at: now.toISOString(), view } });
         sendResponse({ success: true, view });
       } catch (err) {
-        console.warn('[calendar] fetch failed:', err?.message);
-        sendResponse({ success: false, reason: 'error', message: err?.message });
+        console.warn('[calendar] fetch failed:', err?.message, err);
+        sendResponse({ success: false, reason: 'error', message: err?.message || String(err) });
       }
     })();
     return true; // async sendResponse

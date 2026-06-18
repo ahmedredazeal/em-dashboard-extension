@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.19.5 (2026-06-18) - Calendar: fix the actual fetch failure (dynamic import)
+
+The "Calendar unavailable" message was the catch-all for an exception thrown
+inside the fetch handler - and the exception was the **dynamic import** of the
+calendar parser inside the background service worker, which is unreliable in MV3
+(a known trap in this codebase: dynamic import can fail silently in worker/options
+contexts; use static imports).
+
+- The calendar parser is now **statically imported** at the top of the background
+  script, like every other module, removing the dynamic import.
+- The card now also shows the **actual error detail** for any unexpected failure,
+  instead of a generic message, so a real cause is never hidden again.
+
+---
+
 ## v2.19.4 (2026-06-18) - Calendar: stop the countdown tick clobbering the real error
 
 Fixes the misleading "Calendar not configured" message that appeared even though
