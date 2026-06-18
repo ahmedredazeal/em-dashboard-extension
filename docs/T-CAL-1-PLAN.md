@@ -21,13 +21,30 @@ which cannot be integrated without super-admin — not something to grant all us
 must not imply it knows who is on leave. Anything capacity-related (phase 2) is
 "meeting load", never "availability".
 
-## Auth — two approaches, decide before building
+## Auth — DECIDED: Option A (private iCal/ICS URL)
 
-Reading a person's Google Calendar does **not** map cleanly onto Jira's
-"paste an API token" model — Google does not issue simple per-user API tokens for
-calendar read. Two workable options, laid out so we can pick:
+**Decision (locked):** use the **private iCal/ICS URL** pasted in settings. Option B
+(OAuth) is kept below as a documented fallback if phase 2 ever needs a real API,
+but phase 1 ships on Option A. The UI is auth-agnostic, so a later move to B would
+not touch the meetings list / countdown.
 
-### Option A — Private iCal/ICS URL pasted in settings
+### How ICS refresh works (poll, not push — recorded so it is not re-litigated)
+An ICS secret URL is a **static file** Google serves; there is **no webhook/push**.
+The extension cannot be notified of calendar changes — it must **poll** (re-fetch
+the file) to see new/moved meetings. This is fine for phase 1:
+- The **countdown needs no network** — once today's events are fetched, it ticks
+  down client-side (`setInterval`), pure local clock math.
+- The **30-min alert** fires off already-fetched data; polling only matters for
+  catching meetings *added/moved during the day*. A poll every ~5 min surfaces
+  those within 5 min — adequate for a "meeting in 30 min" heads-up.
+- So: **poll the ICS on panel open + a light interval while open** (no new
+  background alarm — alarms were deliberately removed; panel is the only trigger),
+  and **tick the countdown locally every second**.
+- Caveat: Google's published ICS feed can itself lag its UI by a few minutes and
+  may cache, so even the poll is "near", not "live" — acceptable for a day-view +
+  heads-up widget (another reason ICS suits this better than chasing real-time).
+
+### Option A — Private iCal/ICS URL pasted in settings ✅ CHOSEN
 - Google Calendar can produce a **private secret address** (`…/basic.ics`) per
   calendar (Calendar settings → "Secret address in iCal format").
 - The user pastes that URL into our Settings, exactly like the Jira token field.
@@ -43,7 +60,7 @@ calendar read. Two workable options, laid out so we can pick:
 - **Manifest:** add `https://calendar.google.com/*` to `host_permissions`. No new
   Chrome permissions.
 
-### Option B — Google OAuth client ID in settings
+### Option B — Google OAuth client ID in settings (NOT chosen — fallback only)
 - Standard Google Calendar API via `chrome.identity.launchWebAuthFlow` (or
   `getAuthToken`), scope `calendar.readonly`. Each company registers its **own**
   Google Cloud OAuth client and pastes the **client ID** into Settings.
@@ -56,14 +73,13 @@ calendar read. Two workable options, laid out so we can pick:
 - **Manifest:** add `identity` permission, `oauth2` block (or web-auth-flow host
   perms for `accounts.google.com` + `www.googleapis.com`).
 
-### Recommendation (for when you decide)
-For **phase 1's needs** (today's meetings + a 30-min alert), **Option A (ICS URL)**
-is the better fit: it is the lightest, requires no Google Cloud setup, and serves
-Zeal and white-label identically with the paste-in-settings pattern you wanted.
-Option B only earns its complexity if phase 2 grows into richer, real-time, or
-write calendar use. We can start on A and migrate to B later behind the same
-"Calendar" settings section if needed — the UI (meetings list + countdown) is
-auth-agnostic.
+### Decision rationale
+Phase 1 needs only today's meetings + a 30-min alert, for which **Option A is the
+right fit**: lightest setup, no Google Cloud project, and it serves Zeal and the
+white-label build identically with the paste-in-settings pattern. Option B remains
+documented above purely as a migration path if phase 2 grows into richer/real-time
+calendar use — and because the UI is auth-agnostic, that migration would not touch
+the meetings list or countdown.
 
 ## Phase 1 — design
 
@@ -131,12 +147,11 @@ judgement. Revisit only if a clear, non-double-counting model emerges.
   (any Google Calendar), so it is white-label-friendly under Option A.
 
 ## Build order (phase 1, when approved)
-1. Decide Option A vs B.
-2. Settings "Calendar" section + storage shape.
-3. Fetch + normalize (ICS parser for A, or Calendar API for B) — pure, unit-tested.
-4. Today-card UI + client-side countdown + 30-min alert state.
-5. Demo/mock meetings.
-6. Docs (the six) + version bump (minor).
+1. Settings "Calendar" section + storage shape (`settings.calendar.{enabled, icsUrl}`).
+2. Fetch + normalize: a small dependency-free ICS parser — pure, unit-tested.
+3. Today-card UI + client-side countdown + 30-min alert state.
+4. Demo/mock meetings.
+5. Docs (the six) + version bump (minor).
 
 > Nothing here is built yet. Phase 1 only; phase 2 (capacity visibility) is
-> sketched and deliberately deferred. Auth approach is an open decision (A vs B).
+> sketched and deliberately deferred. Auth approach is DECIDED: Option A (ICS URL).

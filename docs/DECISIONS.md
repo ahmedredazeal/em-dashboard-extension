@@ -66,13 +66,16 @@ hours and imply an availability model we cannot validate.
 **Leapsome constraint:** Zeal leave/approvals live in Leapsome (needs super-admin,
 not granted to all users), so Google Calendar yields MEETINGS, not approved
 absence. The feature must not imply it knows availability.
-**Auth — open decision (A vs B), both in the plan:**
-- (A) private iCal/ICS URL pasted in settings — no Google Cloud/OAuth, serves Zeal
-  + white-label identically (paste-in-settings like Jira), poll-based. Recommended
-  for phase 1.
-- (B) Google OAuth client ID per company — proper API/real-time, heavier setup.
-Google does NOT offer a simple per-user paste-able API token (unlike Jira), which
-is why "a key in settings" maps to A (ICS secret URL), not a Google API key.
+**Auth — DECIDED: Option A (private iCal/ICS URL).** Pasted in settings like the
+Jira token; no Google Cloud project / OAuth; serves Zeal + white-label identically.
+ICS is pull-only (no push/webhook), so refresh = poll the static .ics on panel open
++ a light interval (~5 min) to catch added/moved meetings, while the countdown ticks
+client-side every second off already-fetched events; no new background alarm. Google
+does NOT offer a simple per-user paste-able API token (unlike Jira), which is why
+"a key in settings" maps to the ICS secret URL, not a Google API key. Option B
+(Google OAuth client ID per company — proper API/real-time but heavier) is kept as a
+documented fallback only; the meetings UI is auth-agnostic so a later switch would
+not touch it.
 **White-label:** Option A is WL-friendly; telemetry for this feature is discarded
 in the public build like the rest (T-WL-1).
 
