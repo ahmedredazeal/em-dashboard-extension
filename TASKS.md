@@ -52,6 +52,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.19.1 | Calendar: fixed live ICS not rendering (init-before-settings), renamed to Today Meetings, made collapsible with countdown in header. Icons: Monthly Report uses the EM role chart SVG; Settings role pills reuse role-picker EM/Engineer icons. |
 | v2.19.0 | T-CAL-1 phase 1: Today meetings card (Google Calendar via ICS URL) with live countdown + 30-min alert; demo data; Settings Calendar section. |
 | v2.18.0 | T-UA-1 phase 2: usage-analytics enrichment. Rolling per-user profile (`foldAppOpen`/`bumpCounter`, pure+tested) attached to `app_opened` — days_active/total_opens/first_version tags + full `usage_stats` extra. Action tracking: `action_taken` events (`export_report`, `scope_toggled`, `ticket_clicked`). `section`/`role` verified healthy (no fix). 25 telemetry tests. Phase 1 (Sentry dashboard widgets + rollout disclosure) delivered alongside. |
 | v2.17.0 | Usage analytics: section_viewed fires for all major views + app.session duration; docs/USAGE-ANALYTICS.md setup guide. Rollout-readiness. |

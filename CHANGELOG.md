@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.19.1 (2026-06-18) - Calendar fixes + icon consistency
+
+- **Fix: live calendar showed nothing** while demo mode worked. The Today card was
+  initialized before saved settings finished loading, so it never saw the ICS URL.
+  It now initializes after settings load (both the live and demo paths).
+- **Renamed** the section to "Today Meetings".
+- **Collapsible:** the meeting list now collapses, while the countdown to the next
+  meeting stays visible beside the section title.
+- **Icon consistency:** the Monthly Report now uses the Engineering-Manager role
+  chart icon (the monochrome bar-chart SVG from the role picker) instead of the
+  colored emoji, in the header button, the report page, and Settings. The role
+  picker EM and Engineer icons are also now reused for the Settings role pills.
+
+---
+
 ## v2.19.0 (2026-06-18) - Today meetings: Google Calendar sync (T-CAL-1 phase 1)
 
 Shows the signed-in engineer meetings for today in the side panel, with a live

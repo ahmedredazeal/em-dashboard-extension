@@ -204,6 +204,7 @@ async function boot() {
 
   if (state.mockMode && state.settings.role) {
     await injectMockState();
+    initCalendar();   // Today card in demo mode
     return; // skip normal data load — all charts rendered from mock state
   }
   
@@ -219,6 +220,9 @@ async function boot() {
   
   // Show home screen
   showScreen('today');
+
+  // Today / calendar card (T-CAL-1) — settings are loaded by now.
+  initCalendar();
   
   // Check if cache is fresh enough (< 2 minutes old) to skip fetch
   const cacheResult = await chrome.storage.local.get(['cache']);
@@ -276,6 +280,19 @@ async function initCalendar() {
   }
   section.classList.remove('hidden');
 
+  // Collapsible (#3): the card body collapses; the header + countdown stay visible.
+  const header = document.getElementById('calendar-header');
+  if (header && !header.dataset.calWired) {
+    header.dataset.calWired = '1';
+    header.addEventListener('click', () => {
+      const card = document.getElementById('calendar-card');
+      const chevron = document.getElementById('calendar-chevron');
+      const open = card.style.display !== 'none';
+      card.style.display = open ? 'none' : '';
+      if (chevron) chevron.textContent = open ? '▶' : '▼';
+    });
+  }
+
   await refreshCalendar();
   // Start client-side countdown tick + periodic poll.
   if (_calTickTimer) clearInterval(_calTickTimer);
@@ -310,14 +327,16 @@ async function refreshCalendar() {
 
 function renderCalendarCard(errorReason) {
   const el = document.getElementById('calendar-card');
+  const hdrCd = document.getElementById('calendar-header-countdown');
   if (!el) return;
   if (errorReason && !_calView) {
+    if (hdrCd) hdrCd.innerHTML = '';
     el.innerHTML = `<div class="cal-empty">Calendar unavailable. Check the ICS URL in <a href="#" id="cal-settings-link">Settings</a>.</div>`;
     const lk = document.getElementById('cal-settings-link');
     if (lk) lk.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
     return;
   }
-  if (!_calView) { el.innerHTML = `<div class="cal-empty">Calendar not configured.</div>`; return; }
+  if (!_calView) { if (hdrCd) hdrCd.innerHTML = ''; el.innerHTML = `<div class="cal-empty">Calendar not configured.</div>`; return; }
 
   const now = new Date();
   // Recompute "next" from the timed list each tick (in-progress → upcoming).
@@ -327,6 +346,21 @@ function renderCalendarCard(errorReason) {
   );
   const cd = countdownState(view.next, now);
 
+  // Header countdown — stays visible even when the list is collapsed (#3).
+  if (hdrCd) {
+    if (cd.status === 'none') {
+      hdrCd.className = 'cal-header-countdown cal-none';
+      hdrCd.textContent = 'No more today';
+    } else if (cd.status === 'in_progress') {
+      hdrCd.className = 'cal-header-countdown cal-inprogress';
+      hdrCd.textContent = '● in progress';
+    } else {
+      hdrCd.className = 'cal-header-countdown' + (cd.alert ? ' cal-alert' : '');
+      hdrCd.innerHTML = (cd.alert ? '<span class="cal-flash">●</span> ' : '') + escapeHtml(cd.label);
+    }
+  }
+
+  // Body banner (full next-meeting line) + list — these collapse together.
   const banner = (() => {
     if (cd.status === 'none') return `<div class="cal-next cal-none">No more meetings today</div>`;
     if (cd.status === 'in_progress') {
@@ -2348,9 +2382,6 @@ function renderTodayScreen() {
   // Insights (open by default) — render charts
   requestRender('today:initial-insights', { immediate: true, target: 'insights' });
   trackSection('insights');  // insights is expanded by default → counts as viewed
-
-  // Today / calendar card (T-CAL-1) — fetch + start countdown if configured.
-  initCalendar();
   
   // Sentry issues — one collapsible section per view
   const spikes = document.getElementById('sentry-spikes');

@@ -16,7 +16,12 @@
   <div class="settings-wrap">
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
-        <div class="cl-row">
+            <div class="cl-row">
+      <div class="cl-ver patch">v2.19.1</div>
+      <div class="cl-desc"><strong>Calendar fixes + icon consistency.</strong> Fixed the Today card showing nothing with a real ICS URL (it initialized before settings loaded). Renamed the section to "Today Meetings" and made it collapsible with the next-meeting countdown kept beside the title. The Monthly Report now uses the Engineering-Manager role chart icon (monochrome SVG) instead of the colored emoji, and the Settings role pills reuse the role-picker EM/Engineer icons.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver minor">v2.19.0</div>
       <div class="cl-desc"><strong>Today meetings (Google Calendar sync, phase 1).</strong> A Today card shows your meetings for the day with a live countdown and a red flashing alert when the next meeting is within 30 minutes. Uses your Google Calendar private iCal/ICS URL (read-only, pasted in Settings like the Jira token; no OAuth). Polls every ~5 min while open; countdown ticks client-side. Demo mode included. Phase 2 (meeting hours alongside logged hours) is deferred; note that Zeal leave lives in Leapsome so this shows meetings, not approved absence.</div>
     </div>

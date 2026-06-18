@@ -55,7 +55,7 @@
       <span class="app-bar-version" id="app-version">v1.0.0</span>
     </div>
     <div class="app-bar-right">
-      <button class="icon-btn" id="report-btn" title="Monthly report">📊</button>
+      <button class="icon-btn" id="report-btn" title="Monthly report"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg></button>
       <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
       <button class="icon-btn" id="docs-btn" title="Documentation">?</button>
     </div>
@@ -107,9 +107,15 @@
           <div id="alert-inbox"></div>
         </div>
 
-        <!-- TODAY (calendar) — T-CAL-1; hidden until configured/enabled -->
+        <!-- TODAY MEETINGS (calendar) — T-CAL-1; hidden until configured/enabled -->
         <div class="section hidden" id="calendar-section">
-          <div class="section-label">Today</div>
+          <div id="calendar-header" class="section-label" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+              <span>Today Meetings</span>
+              <span id="calendar-header-countdown" class="cal-header-countdown"></span>
+            </div>
+            <span id="calendar-chevron" style="flex:0 0 auto;">▼</span>
+          </div>
           <div id="calendar-card"></div>
         </div>
 

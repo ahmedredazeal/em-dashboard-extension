@@ -1251,3 +1251,12 @@ body.privacy-on [data-privacy-mask]::after {
 }
 .cal-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-empty { color: var(--text-muted); padding: 8px 6px; font-style: italic; }
+
+/* Today Meetings — header countdown (stays visible when collapsed, T-CAL-1) */
+.cal-header-countdown {
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-header-countdown.cal-none { font-weight: 400; }
+.cal-header-countdown.cal-inprogress { color: var(--primary); }
+.cal-header-countdown.cal-alert { color: #dc2626; }
