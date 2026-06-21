@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.19.6 (2026-06-18) - Port: SLA breach surfacing in Support Board (from DevPulse)
+
+Brought over a genuine fix from the DevPulse (white-label) fork: the Support Board
+Breakdown card now surfaces SLA breaches.
+
+- src/render/support-board-svg.js: counts BreachedSLA-labelled tickets per status,
+  shows a red per-row marker and a red summary banner (mirroring the existing
+  blocked-external treatment). Previously the breakdown had no SLA indicator even
+  when breach data was present.
+- Demo data: two support tickets flagged BreachedSLA so the indicator shows in
+  Demo Mode.
+- +3 tests for the SLA indicator.
+
+Reviewed the fork commit-by-commit and intentionally did NOT port: the icon
+refresh (already in Zealer since v2.19.1), the My-Tasks gating change and
+default-to-EM mock change (both depend on DevPulse role-preview buttons that
+Zealer does not have, so porting them blindly could break Zealer demo), and the
+white-label-only work (configurable name, telemetry removal, work-week selector).
+
+29 suites + pre-flight green.
+
+---
+
 ## v2.19.5 (2026-06-18) - Calendar: fix the actual fetch failure (dynamic import)
 
 The "Calendar unavailable" message was the catch-all for an exception thrown

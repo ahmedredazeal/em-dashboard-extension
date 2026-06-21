@@ -59,7 +59,7 @@ test('per-status blocked badge shown', () => {
     { status: 'In Progress', labels: ['blocked-external'] },
     { status: 'In Progress', labels: [] },
   ]));
-  assert(html.includes('⚠ 1 blocked'), 'per-status blocked badge missing');
+  assert(html.includes('⚠ 1'), 'per-status blocked badge missing');
 });
 test('blocked summary line aggregates across statuses', () => {
   const html = buildSupportBoardChart(board([
@@ -71,6 +71,26 @@ test('blocked summary line aggregates across statuses', () => {
 test('no blocked summary when none blocked', () => {
   const html = buildSupportBoardChart(board([{ status: 'Open' }]));
   assert(!html.includes('blocked-external across'), 'summary should be absent');
+});
+
+console.log('\nSLA breached');
+test('per-status SLA badge shown', () => {
+  const html = buildSupportBoardChart(board([
+    { status: 'Open', labels: ['BreachedSLA'] },
+    { status: 'Open', labels: [] },
+  ]));
+  assert(html.includes('🔴 1 SLA'), 'per-status SLA badge missing');
+});
+test('breach summary line aggregates across statuses', () => {
+  const html = buildSupportBoardChart(board([
+    { status: 'Open', labels: ['BreachedSLA'] },
+    { status: 'In Progress', labels: ['BreachedSLA'] },
+  ]));
+  assert(html.includes('2 tickets breached SLA across 2 statuses'), 'summary wrong: ' + (html.match(/\d+ tickets? breached SLA across[^<]*/)||['none'])[0]);
+});
+test('no breach summary when none breached', () => {
+  const html = buildSupportBoardChart(board([{ status: 'Open', labels: ['blocked-external'] }]));
+  assert(!html.includes('breached SLA across'), 'summary should be absent');
 });
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

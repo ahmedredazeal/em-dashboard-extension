@@ -202,11 +202,11 @@ export const MOCK_CURRENT_USER = {
 const SUPPORT_TICKETS = [
   { key:'SUP-1', summary:'Login page not loading for some users',   status:'Open',         statusCategory:'new',          labels:['blocked-external'], assignee:'Ahmed Reda',    assigneeAccountId:'mock-acc-ahmed', points:0 },
   { key:'SUP-2', summary:'Payment fails for AMEX cards',            status:'In Progress',  statusCategory:'indeterminate', labels:[],                   assignee:'Omar Farouk',   assigneeAccountId:'mock-acc-omar',  points:0 },
-  { key:'SUP-3', summary:'Export CSV returns empty file',           status:'In Progress',  statusCategory:'indeterminate', labels:[],                   assignee:'Ahmed Reda',    assigneeAccountId:'mock-acc-ahmed', points:0 },
+  { key:'SUP-3', summary:'Export CSV returns empty file',           status:'In Progress',  statusCategory:'indeterminate', labels:['BreachedSLA'],                   assignee:'Ahmed Reda',    assigneeAccountId:'mock-acc-ahmed', points:0 },
   { key:'SUP-4', summary:'Dashboard charts not loading on Safari',  status:'QA Testing',   statusCategory:'indeterminate', labels:[],                   assignee:'Nour Khalil',   assigneeAccountId:'mock-acc-nour',  points:0 },
   { key:'SUP-5', summary:'Mobile app crashes on startup (iOS 17)',  status:'Open',         statusCategory:'new',          labels:['blocked-external'], assignee:null,             assigneeAccountId:null,             points:0 },
   { key:'SUP-6', summary:'Notification emails not being sent',      status:'Code Review',  statusCategory:'indeterminate', labels:[],                   assignee:'Sara Hassan',   assigneeAccountId:'mock-acc-sara',  points:0 },
-  { key:'SUP-7', summary:'Reports show incorrect date range',       status:'Open',         statusCategory:'new',          labels:[],                   assignee:'Ahmed Reda',    assigneeAccountId:'mock-acc-ahmed', points:0 },
+  { key:'SUP-7', summary:'Reports show incorrect date range',       status:'Open',         statusCategory:'new',          labels:['BreachedSLA'],                   assignee:'Ahmed Reda',    assigneeAccountId:'mock-acc-ahmed', points:0 },
   { key:'SUP-8', summary:'Two-factor auth loop on mobile',          status:'QA Rejected',  statusCategory:'indeterminate', labels:[],                   assignee:'Layla Mostafa', assigneeAccountId:'mock-acc-layla', points:0 },
   { key:'SUP-9', summary:'API timeout on large data exports',       status:'Open',         statusCategory:'new',          labels:['blocked-external'], assignee:'Sara Hassan',   assigneeAccountId:'mock-acc-sara',  points:0 },
 ].map(s => ({ ...s, type:'Bug', dueDate:null, startDate:null, rank:null, priority:'Medium' }));

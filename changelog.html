@@ -16,7 +16,12 @@
   <div class="settings-wrap">
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
-                            <div class="cl-row">
+                                <div class="cl-row">
+      <div class="cl-ver patch">v2.19.6</div>
+      <div class="cl-desc"><strong>Port: SLA breach surfacing in Support Board (from the DevPulse fork).</strong> The Support Board Breakdown now shows a red per-row marker and summary banner for SLA-breached tickets (it had none before). Demo data flags two tickets so it shows in Demo Mode. Other fork commits were reviewed and deliberately not ported (icons already present; role-preview-dependent fixes that do not apply to Zealer; white-label-only changes).</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver patch">v2.19.5</div>
       <div class="cl-desc"><strong>Calendar: fix the actual fetch failure (dynamic import).</strong> The generic "Calendar unavailable" was masking an exception: the calendar parser was loaded with a dynamic import inside the background service worker, which is unreliable in MV3. Switched to a static import (matching every other module). The card now also surfaces the real error detail for any unexpected failure.</div>
     </div>

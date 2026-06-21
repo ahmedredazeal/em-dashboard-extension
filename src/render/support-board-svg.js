@@ -40,14 +40,18 @@ export function buildSupportBoardChart(boards) {
   const stories = sb.stories;
   const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
 
-  // Count by status name, and track blocked-external per status
+  // Count by status name, and track blocked-external + SLA-breached per status
   const byStatus = {};
   const blockedByStatus = {};
+  const breachedByStatus = {};
   for (const s of stories) {
     const st = s.status || 'Unknown';
     byStatus[st] = (byStatus[st] || 0) + 1;
     if (s.labels?.includes('blocked-external')) {
       blockedByStatus[st] = (blockedByStatus[st] || 0) + 1;
+    }
+    if (s.labels?.includes('BreachedSLA')) {
+      breachedByStatus[st] = (breachedByStatus[st] || 0) + 1;
     }
   }
 
@@ -63,23 +67,30 @@ export function buildSupportBoardChart(boards) {
   const maxCount = Math.max(...entries.map(([, c]) => c), 1);
 
   const totalBlocked = Object.values(blockedByStatus).reduce((s, n) => s + n, 0);
+  const totalBreached = Object.values(breachedByStatus).reduce((s, n) => s + n, 0);
   const rows = entries.map(([status, count]) => {
     const color = STATUS_COLORS[status] || '#6366f1';
     const pct = Math.round(count / maxCount * 100);
     const blocked = blockedByStatus[status] || 0;
+    const breached = breachedByStatus[status] || 0;
     // Fixed-width right area (always reserved) — keeps bar width consistent across all rows
-    const blockedCell = blocked > 0
-      ? `<span style="font-size:10px;color:#f59e0b;white-space:nowrap;">⚠ ${blocked} blocked</span>`
-      : '';
+    const flags = [
+      breached > 0 ? `<span style="font-size:10px;color:#ef4444;font-weight:700;white-space:nowrap;">🔴 ${breached} SLA</span>` : '',
+      blocked > 0 ? `<span style="font-size:10px;color:#f59e0b;white-space:nowrap;">⚠ ${blocked}</span>` : '',
+    ].filter(Boolean).join(' ');
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
       <div style="width:90px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${status}</div>
       <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden;min-width:0;">
         <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
       </div>
       <span style="font-size:10px;color:var(--text);width:18px;text-align:right;flex-shrink:0;">${count}</span>
-      <div style="width:88px;flex-shrink:0;text-align:left;">${blockedCell}</div>
+      <div style="width:96px;flex-shrink:0;text-align:left;display:flex;gap:6px;justify-content:flex-start;">${flags}</div>
     </div>`;
   }).join('');
+
+  const breachedSummary = totalBreached > 0
+    ? `<div style="margin-top:8px;padding:5px 8px;background:rgba(239,68,68,0.08);border-radius:4px;border:1px solid rgba(239,68,68,0.25);font-size:11px;color:#ef4444;font-weight:600;">🔴 ${totalBreached} ticket${totalBreached>1?'s':''} breached SLA across ${Object.keys(breachedByStatus).length} status${Object.keys(breachedByStatus).length>1?'es':''}</div>`
+    : '';
 
   const blockedSummary = totalBlocked > 0
     ? `<div style="margin-top:8px;padding:5px 8px;background:rgba(245,158,11,0.08);border-radius:4px;border:1px solid rgba(245,158,11,0.2);font-size:11px;color:#f59e0b;">⚠ ${totalBlocked} ticket${totalBlocked>1?'s':''} blocked-external across ${Object.keys(blockedByStatus).length} status${Object.keys(blockedByStatus).length>1?'es':''}</div>`
@@ -92,6 +103,7 @@ export function buildSupportBoardChart(boards) {
     </div>
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
       ${rows}
+      ${breachedSummary}
       ${blockedSummary}
     </div>
   </div>`;
