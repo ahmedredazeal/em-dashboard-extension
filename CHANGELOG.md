@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.19.8 (2026-06-22) - Realistic demo burndown + richer Gantt (from DevPulse)
+
+Brought the demo data in line with the DevPulse fork so the charts read like a
+live sprint.
+
+- **Burndown:** the demo burndown is now produced by the real computeBurndownSeries()
+  engine (driven by MOCK_SPRINT + STORIES) instead of hand-rolled arrays where the
+  estimate line was just a copy of the ideal line. The ideal / estimate (due-date) /
+  actual (closes) lines now diverge correctly. Output verified identical to the fork.
+- **Gantt:** added five more subtasks (on DEMO-5, DEMO-7, DEMO-9) so the Gantt has
+  more depth in Demo Mode. Kept the Zeal-flavored assignees rather than the fork's
+  genericized demo data.
+
+29 suites + pre-flight green.
+
+---
+
 ## v2.19.7 (2026-06-22) - Mock role preview + calendar collapsed by default
 
 Ported the mock-role-preview system from the DevPulse fork and set the meetings

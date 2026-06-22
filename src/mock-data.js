@@ -6,6 +6,8 @@
  * Engineer mode uses accountId "mock-acc-ahmed" as the "me" user.
  */
 
+import { computeBurndownSeries } from './burndown.js';
+
 const d = (offset) => {
   const dt = new Date();
   dt.setHours(0, 0, 0, 0);
@@ -54,38 +56,10 @@ const DONE_PTS = STORIES.filter(s => s.statusCategory === 'done').reduce((n, s) 
 const TOTAL_DAYS = 14; // calendar days from start to end
 const TODAY_IDX  = 8;  // d(-8) + 8 = today
 
-// Burndown: remaining pts per calendar day (plain number arrays, as buildBurndownSVG expects)
-// ideal/estimate: full series 0..TOTAL_DAYS, actual: only elapsed days (0..TODAY_IDX)
-const BD_IDEAL_NUMS = Array.from({length:TOTAL_DAYS+1}, (_, i) =>
-  Math.round(COMMITTED_PTS - COMMITTED_PTS * (i / TOTAL_DAYS)));
-const BD_ESTIMATE_NUMS = [...BD_IDEAL_NUMS];
-// Actual remaining per day: burndowns as tickets close
-// Day 0-2: no completions. Day 3: DEMO-3 done (-5). Day 5: DEMO-6 (-3). Day 6: DEMO-4 (-3). Day 7: DEMO-1 (-8). Day 8 (today): DEMO-2 (-13).
-const BD_ACTUAL_NUMS = [59,59,59,54,54,51,48,40,27];
-const BD_LABELS  = Array.from({length:TOTAL_DAYS+1}, (_, i) => {
-  const dt = new Date(SPRINT_START + 'T00:00:00');
-  dt.setDate(dt.getDate() + i);
-  return `${dt.getDate()}/${dt.getMonth()+1}`;
-});
-
-const MOCK_BURNDOWN = {
-  ideal:          BD_IDEAL_NUMS,
-  estimate:       BD_ESTIMATE_NUMS,
-  actual:         BD_ACTUAL_NUMS,
-  labels:         BD_LABELS,
-  totalPoints:    COMMITTED_PTS,
-  committedPoints:COMMITTED_PTS,
-  totalDays:      TOTAL_DAYS,
-  todayIndex:     TODAY_IDX,
-  hasActualData:  true,
-  perDayData:     BD_IDEAL_NUMS.map((ideal, i) => ({
-    day: i, ideal, estimate: ideal,
-    actual: BD_ACTUAL_NUMS[i] ?? null,
-    completedDelta: i > 0 && BD_ACTUAL_NUMS[i] != null && BD_ACTUAL_NUMS[i-1] != null
-      ? BD_ACTUAL_NUMS[i-1] - BD_ACTUAL_NUMS[i] : 0,
-    scopeNet: 0,
-  })),
-};
+// MOCK_BURNDOWN is computed from the real computeBurndownSeries() after MOCK_SPRINT
+// is defined (below), so the ideal / estimate (due-date) / actual (closes) lines
+// diverge exactly as they do for a live sprint — instead of hand-rolled arrays
+// where the estimate line was a copy of the ideal line.
 
 // Timesheet members (sprint) — `estimated` = total hours estimated for the sprint
 const MOCK_TIMESHEET = [
@@ -120,8 +94,26 @@ const MOCK_SPRINT = {
     { key:'DEMO-5b', summary:'Verify query plans on staging', status:'In Progress', statusCategory:'indeterminate',
       assignee:'Sara Hassan', assigneeAccountId:'mock-acc-sara', priority:'High', points:0,
       type:'Sub-task', isSubtask:true, parentKey:'DEMO-5', dueDate:d(2), startDate:d(-1), rank:'0|i0004:b', labels:[] },
+    { key:'DEMO-5c', summary:'Load-test new indexes', status:'To Do', statusCategory:'new',
+      assignee:'Sara Hassan', assigneeAccountId:'mock-acc-sara', priority:'High', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-5', dueDate:d(1), startDate:d(-2), rank:'0|i0004:c', labels:[] },
+    { key:'DEMO-7a', summary:'Add retry/backoff wrapper', status:'In Progress', statusCategory:'indeterminate',
+      assignee:'Ahmed Reda', assigneeAccountId:'mock-acc-ahmed', priority:'Medium', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-7', dueDate:d(1), startDate:d(-1), rank:'0|i0006:a', labels:[] },
+    { key:'DEMO-7b', summary:'Unit tests for error paths', status:'To Do', statusCategory:'new',
+      assignee:'Ahmed Reda', assigneeAccountId:'mock-acc-ahmed', priority:'Medium', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-7', dueDate:d(3), startDate:d(1), rank:'0|i0006:b', labels:[] },
+    { key:'DEMO-9a', summary:'Push provider integration', status:'In Progress', statusCategory:'indeterminate',
+      assignee:'Omar Farouk', assigneeAccountId:'mock-acc-omar', priority:'Medium', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-9', dueDate:d(3), startDate:d(0), rank:'0|i0008:a', labels:[] },
+    { key:'DEMO-9b', summary:'In-app notification center', status:'To Do', statusCategory:'new',
+      assignee:'Omar Farouk', assigneeAccountId:'mock-acc-omar', priority:'Medium', points:0,
+      type:'Sub-task', isSubtask:true, parentKey:'DEMO-9', dueDate:d(5), startDate:d(2), rank:'0|i0008:b', labels:[] },
   ],
 };
+
+// Built from the real burndown engine so the demo chart behaves like a live sprint.
+const MOCK_BURNDOWN = computeBurndownSeries(MOCK_SPRINT, STORIES);
 
 const MOCK_ANALYTICS = {
   burndown: MOCK_BURNDOWN,
