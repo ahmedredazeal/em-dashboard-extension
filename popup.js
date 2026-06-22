@@ -71,6 +71,7 @@ let state = {
   sprintAnalytics: null,
   isLoading: false,
   mockMode: false,           // true when demo/mock mode is active (session-only)
+  mockRole: '',              // transient preview role for mock mode (session-only, never persisted)
   timesheetMode: 'sprint',   // 'sprint' | 'Q1' | 'Q2' | 'Q3' | 'Q4'
   quarterWorklogCache: {},   // { Q1: {members, issueTypeSplit, fetchedAt, startDate, endDate} }
 };
@@ -198,11 +199,18 @@ async function boot() {
 
   // Demo/mock mode — session-scoped (resets on browser restart)
   try {
-    const sess = await chrome.storage.session.get('mockModeEnabled');
+    const sess = await chrome.storage.session.get(['mockModeEnabled', 'mockRole']);
     state.mockMode = !!sess.mockModeEnabled;
-  } catch { state.mockMode = false; }
+    state.mockRole = sess.mockRole || '';
+  } catch { state.mockMode = false; state.mockRole = ''; }
 
-  if (state.mockMode && state.settings.role) {
+  if (state.mockMode) {
+    // A transient preview role (from the settings "Mock as EM/Engineer" buttons) drives
+    // the demo. When none was picked we default to EM, so mock always renders something.
+    // In-memory only — never written back to storage, so the saved role is untouched.
+    if (!state.mockRole) state.mockRole = 'em';
+    state.settings = { ...state.settings, role: state.mockRole };
+    state.viewScope = state.mockRole === 'engineer' ? 'me' : 'squad';
     await injectMockState();
     initCalendar();   // Today card in demo mode
     return; // skip normal data load — all charts rendered from mock state
@@ -284,6 +292,17 @@ async function initCalendar() {
     return;
   }
   section.classList.remove('hidden');
+
+  // Collapsed by default: hide the meeting list, keep the header + countdown
+  // visible. (Set once per session via the calCollapsedInit guard so a user who
+  // expands it is not re-collapsed on every refresh/tick.)
+  const cardEl = document.getElementById('calendar-card');
+  const chevronEl = document.getElementById('calendar-chevron');
+  if (cardEl && !section.dataset.calCollapsedInit) {
+    section.dataset.calCollapsedInit = '1';
+    cardEl.style.display = 'none';
+    if (chevronEl) chevronEl.textContent = '▶';
+  }
 
   // Collapsible (#3): the card body collapses; the header + countdown stay visible.
   const header = document.getElementById('calendar-header');
@@ -1925,9 +1944,10 @@ function renderEngineerProgressCircles() {
   const row = document.getElementById('engineer-progress-row');
   if (!row) return;
 
-  // Engineer-only feature — but demo mode showcases it regardless of the
-  // user's real role (mock "me" = mock-acc-ahmed has sprint + support tickets).
-  const roleOk = state.settings?.role === 'engineer' || state.mockMode;
+  // Engineer-only feature. In mock mode the role is set from the EM/Engineer preview
+  // buttons (state.settings.role), so this correctly shows only when previewing (or
+  // really signed in) as Engineer.
+  const roleOk = state.settings?.role === 'engineer';
   if (!roleOk || !state.currentUser?.accountId) {
     row.style.display = 'none';
     return;
@@ -3168,7 +3188,14 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'mock-mode-changed') {
     state.mockMode = !!message.enabled;
     if (state.mockMode) {
-      injectMockState();
+      chrome.storage.session.get('mockRole').then((sess) => {
+        const role = (sess && sess.mockRole) || 'em';   // default preview role = EM
+        state.mockRole = role;
+        state.settings = { ...state.settings, role };
+        state.viewScope = role === 'engineer' ? 'me' : 'squad';
+        injectMockState();
+        initCalendar();
+      }).catch(() => { injectMockState(); initCalendar(); });
     } else {
       const banner = document.getElementById('mock-mode-banner');
       if (banner) banner.style.display = 'none';

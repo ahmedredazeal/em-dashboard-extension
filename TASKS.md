@@ -52,6 +52,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.19.7 | Ported mock-role-preview buttons (Mock as EM/Engineer, session-only) + My-Tasks role gating from DevPulse; skipped icon refresh (already present); Today Meetings card now collapsed by default. |
 | v2.19.6 | Ported SLA breach surfacing in Support Board Breakdown from DevPulse fork (red per-row marker + summary; demo flags; +3 tests). Other fork commits reviewed and intentionally skipped (icons already done; role-preview-dependent; white-label-only). |
 | v2.19.5 | Calendar: fixed the real fetch failure — replaced the background dynamic import of the parser (unreliable in MV3) with a static import; card now surfaces the actual error detail. |
 | v2.19.4 | Calendar: fixed the 1s countdown tick clobbering the real fetch error with a catch-all "not configured" message; error reason now held in state and mapped to specific text (incl. HTTP codes). |

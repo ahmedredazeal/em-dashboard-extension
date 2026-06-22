@@ -1260,3 +1260,21 @@ body.privacy-on [data-privacy-mask]::after {
 .cal-header-countdown.cal-none { font-weight: 400; }
 .cal-header-countdown.cal-inprogress { color: var(--primary); }
 .cal-header-countdown.cal-alert { color: #dc2626; }
+
+/* Mock role preview buttons (ported from DevPulse) */
+.mock-role-btn {
+  font-size: 11px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+}
+.mock-role-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.mock-role-btn.active {
+  border-color: #f59e0b;
+  color: #d97706;
+  background: rgba(245,158,11,0.12);
+}

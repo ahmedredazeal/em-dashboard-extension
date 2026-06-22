@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.19.7 (2026-06-22) - Mock role preview + calendar collapsed by default
+
+Ported the mock-role-preview system from the DevPulse fork and set the meetings
+card to start collapsed.
+
+- **Mock role preview:** Settings Demo Mode now has "Mock as EM" / "Mock as
+  Engineer" buttons. They set a transient preview role (session-only, never
+  written to the saved role) and update the open side panel live. Turning demo on
+  defaults to previewing as EM.
+- **My Tasks gating:** with the preview buttons in place, the My-Tasks panel now
+  gates purely on role (shows when previewing as Engineer, hidden as EM) instead
+  of force-showing in every demo.
+- **Icon refresh:** not ported - Zealer already has the EM/Engineer role SVGs
+  (since v2.19.1).
+- **Calendar collapsed by default:** the Today Meetings card body now starts
+  collapsed, with the header and next-meeting countdown still visible. Expanding
+  it sticks for the session.
+
+29 suites + pre-flight green.
+
+---
+
 ## v2.19.6 (2026-06-18) - Port: SLA breach surfacing in Support Board (from DevPulse)
 
 Brought over a genuine fix from the DevPulse (white-label) fork: the Support Board

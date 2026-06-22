@@ -768,25 +768,49 @@ function getTrackedViewIds() {
   const demoToggle = document.getElementById('demo-mode-toggle');
   const demoNote   = document.getElementById('demo-mode-active-note');
   const settingsBody = document.getElementById('settings-main-body');
+  const mockRoleBtns = [
+    document.getElementById('mock-as-em'),
+    document.getElementById('mock-as-engineer'),
+  ].filter(Boolean);
 
-  function applyDemoUI(on) {
+  function applyDemoUI(on, role) {
     if (demoToggle) demoToggle.checked = on;
     if (demoNote)   demoNote.style.display = on ? 'block' : 'none';
     if (settingsBody) settingsBody.classList.toggle('demo-active', on);
+    mockRoleBtns.forEach((b) => {
+      b.disabled = !on;
+      b.classList.toggle('active', !!on && b.dataset.mockRole === role);
+    });
   }
 
-  // Read session state and initialise toggle
+  // Read session state and initialise toggle + active preview role
   try {
-    const sess = await chrome.storage.session.get('mockModeEnabled');
-    applyDemoUI(!!sess.mockModeEnabled);
+    const sess = await chrome.storage.session.get(['mockModeEnabled', 'mockRole']);
+    applyDemoUI(!!sess.mockModeEnabled, sess.mockRole || '');
   } catch { /* session storage unavailable */ }
 
   demoToggle?.addEventListener('change', async () => {
     const on = demoToggle.checked;
-    try { await chrome.storage.session.set({ mockModeEnabled: on }); } catch { /* noop */ }
-    applyDemoUI(on);
+    try {
+      // turning on previews as EM by default; turning off clears any previewed role
+      await chrome.storage.session.set(on ? { mockModeEnabled: true, mockRole: 'em' } : { mockModeEnabled: false, mockRole: '' });
+    } catch { /* noop */ }
+    let role = '';
+    if (on) { try { role = (await chrome.storage.session.get('mockRole')).mockRole || 'em'; } catch { role = 'em'; } }
+    applyDemoUI(on, role);
     // Notify open popup to apply the change immediately (no close/reopen needed)
     chrome.runtime.sendMessage({ type: 'mock-mode-changed', enabled: on }).catch(() => {});
+  });
+
+  // "Mock as EM" / "Mock as Engineer" — set a transient preview role (session only,
+  // never persisted to settings.role) and enable mock mode.
+  mockRoleBtns.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const role = btn.dataset.mockRole;
+      try { await chrome.storage.session.set({ mockModeEnabled: true, mockRole: role }); } catch { /* noop */ }
+      applyDemoUI(true, role);
+      chrome.runtime.sendMessage({ type: 'mock-mode-changed', enabled: true }).catch(() => {});
+    });
   });
 
 })();
