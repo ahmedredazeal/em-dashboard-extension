@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.19.9 (2026-06-22) - Time-logged pace line fix + richer Gantt subtasks
+
+- **Pace line:** the time-logged chart could show only the cap line and not the
+  pace line. The pace/cap math read the sprint start only from currentSprint,
+  while the rest of the chart falls back to sprintAnalytics dates — so a sprint
+  whose dates live there computed no pace. Pace now uses the same date source as
+  the rest of the chart, and the pace marker is clamped so it never drifts past
+  the sprint end. Both lines now draw whenever the sprint has dates.
+- **Gantt demo depth:** the demo now has 16 subtasks across 6 parent stories
+  (was 7 across 3) — DEMO-1 and DEMO-2 get fully-completed child breakdowns, and
+  DEMO-8 gets a mixed-status one — so the Gantt shows much richer per-assignee
+  sub-lanes in Demo Mode. (The Gantt conveys breakdown and sequence; it does not
+  draw dependency arrows — that would be a separate feature.)
+
+29 suites + pre-flight green.
+
+---
+
 ## v2.19.8 (2026-06-22) - Realistic demo burndown + richer Gantt (from DevPulse)
 
 Brought the demo data in line with the DevPulse fork so the charts read like a

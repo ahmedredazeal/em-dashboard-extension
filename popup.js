@@ -1459,17 +1459,21 @@ function renderInsights() {
     //   • fixed  = TOTAL sprint working days × 6h — the full-sprint budget (cap)
     //   • pace   = ELAPSED working days so far × 6h — "are you keeping pace?"
     let capFixed = 0, capPace = 0;
-    if (currentMode === 'sprint' && state.currentSprint?.startDate) {
+    // Use the SAME date source as sprintStart/sprintEnd above (currentSprint with a
+    // sprintAnalytics fallback) — previously this only read currentSprint.startDate,
+    // so a sprint whose dates live in sprintAnalytics computed no pace line.
+    if (currentMode === 'sprint' && sprintStart) {
       const wds = state.settings?.ui?.workingDays || [0,1,2,3,4];
-      const start = new Date(state.currentSprint.startDate.slice(0,10));
+      const start = new Date(sprintStart);
       const today = new Date(); today.setHours(0,0,0,0);
-      const end = state.currentSprint?.endDate
-        ? new Date(state.currentSprint.endDate.slice(0,10))
-        : null;
+      const end = sprintEnd ? new Date(sprintEnd) : null;
       const RATE = 6;
-      // Pace: working days from start through today (inclusive).
+      // Pace: working days from start through today (inclusive), but never past
+      // the sprint end — so after the sprint closes the pace marker rests at the
+      // full budget rather than drifting beyond it.
+      const paceCutoff = (end && today > end) ? end : today;
       let elapsed = 0;
-      for (let d = new Date(start); d <= today; d.setDate(d.getDate()+1)) {
+      for (let d = new Date(start); d <= paceCutoff; d.setDate(d.getDate()+1)) {
         if (wds.includes(d.getDay())) elapsed++;
       }
       capPace = elapsed * RATE;

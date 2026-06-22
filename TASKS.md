@@ -52,6 +52,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.19.9 | Fixed time-logged chart showing only cap (pace now uses same date source as rest of chart + clamped to sprint end); richer demo Gantt — 16 subtasks across 6 parents (was 7/3). |
 | v2.19.8 | Demo data realism: burndown now computed by the real computeBurndownSeries engine (ideal/estimate/actual diverge) instead of hand-rolled arrays; +5 Gantt subtasks. Ported from DevPulse without its data genericization. |
 | v2.19.7 | Ported mock-role-preview buttons (Mock as EM/Engineer, session-only) + My-Tasks role gating from DevPulse; skipped icon refresh (already present); Today Meetings card now collapsed by default. |
 | v2.19.6 | Ported SLA breach surfacing in Support Board Breakdown from DevPulse fork (red per-row marker + summary; demo flags; +3 tests). Other fork commits reviewed and intentionally skipped (icons already done; role-preview-dependent; white-label-only). |
