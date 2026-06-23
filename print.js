@@ -119,7 +119,10 @@ async function render() {
     if (!raw) throw new Error('No data param in URL');
     data = JSON.parse(decodeURIComponent(raw));
   } catch (e) {
-    document.body.innerHTML = `<p style="padding:40px;color:#ef4444;">Could not load export data: ${e.message}.<br>Please press the ⬇ button on the Sentry trend chart to export again.</p>`;
+    // The data param is attacker-influenceable; escape the error before innerHTML.
+    const safeMsg = String((e && e.message) || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    document.body.innerHTML = `<p style="padding:40px;color:#ef4444;">Could not load export data: ${safeMsg}.<br>Please press the ⬇ button on the Sentry trend chart to export again.</p>`;
     return;
   }
 

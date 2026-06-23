@@ -58,7 +58,11 @@ async function init() {
       container.addEventListener('click', e => {
         const el = e.target.closest('[data-jira-key]');
         if (!el) return;
-        window.open(`${base}/browse/${el.dataset.jiraKey}`, '_blank');
+        // Only open http(s) — base comes from stored settings; guard the scheme.
+        try {
+          const u = new URL(`${base}/browse/${el.dataset.jiraKey}`);
+          if (u.protocol === 'https:' || u.protocol === 'http:') window.open(u.href, '_blank', 'noopener');
+        } catch { /* invalid URL — ignore */ }
       });
     }
   } catch (e) {

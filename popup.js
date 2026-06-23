@@ -467,7 +467,7 @@ function setupEventHandlers() {
     if (!el) return;
     const key  = el.dataset.jiraKey;
     const base = (state.settings?.jira?.baseUrl || '').replace(/\/$/, '');
-    if (base && key) { trackAction('ticket_clicked'); window.open(`${base}/browse/${key}`, '_blank'); }
+    if (base && key) { trackAction('ticket_clicked'); openExternal(`${base}/browse/${key}`); }
   });
 
   // Demo mode banner × button — turns off mock mode and reboots
@@ -2561,7 +2561,7 @@ function renderTodayScreen() {
   spikes.querySelectorAll('.sentry-issue').forEach(card => {
     card.addEventListener('click', () => {
       const url = card.getAttribute('data-url');
-      if (url && url !== '#') window.open(url, '_blank');
+      if (url && url !== '#') openExternal(url);
     });
   });
 }
@@ -2852,7 +2852,7 @@ function wireBurndownHover() {
     pt.addEventListener('mouseenter', () => {
       const date = pt.getAttribute('data-date') || '';
       const change = pt.getAttribute('data-change') || '';
-      tip.innerHTML = `<div style="font-weight:600;">${date}</div><div style="color:var(--text-muted);">${change}</div>`;
+      tip.innerHTML = `<div style="font-weight:600;">${escapeHtml(date)}</div><div style="color:var(--text-muted);">${escapeHtml(change)}</div>`;
       tip.style.display = 'block';
       const wrapRect = wrap.getBoundingClientRect();
       const ptRect = pt.getBoundingClientRect();
@@ -3044,8 +3044,13 @@ function wireTimesheetHover() {
         const name = seg.getAttribute('data-ts-name') || '';
         const proj = seg.getAttribute('data-ts-proj') || '';
         const hrs  = seg.getAttribute('data-ts-hrs') || '';
-        tip.innerHTML = `<span style="font-weight:600;">${proj}</span> · ${hrs}h`
-          + (name ? `<div style="color:var(--text-muted);font-size:var(--fs-caption);">${name}</div>` : '');
+        // proj (project key) and name (worklog author display name) originate from
+        // Jira and are attacker-controllable. getAttribute() returns the HTML-DECODED
+        // value, so any escaping applied when the attribute was written (see
+        // timesheet-svg.js) is undone here — assigning it straight to innerHTML
+        // re-parses it as markup (stored XSS in this token-bearing page). Re-escape.
+        tip.innerHTML = `<span style="font-weight:600;">${escapeHtml(proj)}</span> · ${escapeHtml(hrs)}h`
+          + (name ? `<div style="color:var(--text-muted);font-size:var(--fs-caption);">${escapeHtml(name)}</div>` : '');
         tip.style.display = 'block';
         const wrapRect = wrap.getBoundingClientRect();
         const segRect  = seg.getBoundingClientRect();
@@ -3110,7 +3115,7 @@ function priorityDot(p) {
   const key = (p || 'medium').toLowerCase();
   const color = PRIORITY_DOT_COLOR[key] || PRIORITY_DOT_COLOR.medium;
   const label = key.charAt(0).toUpperCase() + key.slice(1);
-  return `<span title="${label}" style="color:${color};font-size:9px;flex-shrink:0;">●</span>`;
+  return `<span title="${escapeHtml(label)}" style="color:${color};font-size:9px;flex-shrink:0;">●</span>`;
 }
 function ticketStatusColor(s){ return statusColor(s); }
 function ticketStatusIcon(cat){ return statusCategoryIcon(cat); }
@@ -3168,20 +3173,45 @@ function ticketSummaryHTML(stories, isSupport) {
   return collapsedBoardSummary(stories, isSupport);
 }
 
+/**
+ * Open a URL in a new tab only if it is http(s). Jira/Sentry-derived URLs flow
+ * into these click handlers; without a scheme check a crafted data-url
+ * (javascript:, data:, etc.) could run script or redirect. Always sets noopener.
+ */
+function openExternal(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'https:' || u.protocol === 'http:') {
+      window.open(u.href, '_blank', 'noopener');
+    }
+  } catch { /* invalid URL — ignore */ }
+}
+
 /** Wire click events on ticket rows inside a container element */
 function wireTicketClicks(container) {
   container.querySelectorAll('.ticket-row[data-url]').forEach(row => {
-    row.addEventListener('click', () => { trackAction('ticket_clicked'); window.open(row.dataset.url, '_blank'); });
+    row.addEventListener('click', () => { trackAction('ticket_clicked'); openExternal(row.dataset.url); });
   });
 }
 
 /**
- * Utility: escape HTML
+ * Utility: escape HTML.
+ *
+ * Escapes the five HTML-significant characters INCLUDING quotes. The previous
+ * DOM-based implementation (div.textContent -> div.innerHTML) did NOT encode
+ * " or ', so values passed through it inside an attribute context — e.g.
+ * href="${escapeHtml(url)}" or data-url="${escapeHtml(permalink)}" — could break
+ * out of the attribute when the value contained a double quote, re-enabling XSS
+ * in this token-bearing extension page. This regex form is safe in both element
+ * and attribute contexts.
  */
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return String(text == null ? '' : text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**

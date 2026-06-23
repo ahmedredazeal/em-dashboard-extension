@@ -298,10 +298,10 @@ function updateRowPreview(urlInput, previewEl, trackBtn) {
 
   urlInput.style.borderColor = 'rgba(34,197,94,0.5)';
   const parts = [
-    `View ${parsed.viewId}`,
+    `View ${escapeAttr(parsed.viewId)}`,
     parsed.projectIds.length > 0 ? `${parsed.projectIds.length} project${parsed.projectIds.length > 1 ? 's' : ''}` : 'all projects',
-    parsed.environment || null,
-    parsed.query || null,
+    parsed.environment ? escapeAttr(parsed.environment) : null,
+    parsed.query ? escapeAttr(parsed.query) : null,
   ].filter(Boolean);
   previewEl.innerHTML = `<span style="color:#22c55e;">✓</span> ${parts.join(' · ')}`;
 }
