@@ -81,6 +81,103 @@ export function dayColIndex(dateISO, workingDayList) {
 /** Format ISO date as "23 May" */
 export function fmtDay(iso) { return fmtDate(iso); }
 
+// ── Subtask phase scheduling ─────────────────────────────────────────────────
+// Subtasks are laid out by phase so a parent row reads as a plan, not a pile of
+// parallel bars: implementation → code review (sequential within a function),
+// each function (BE/FE/POS) on its own lane in parallel, QA on one lane AFTER all
+// function work. Bar WIDTH = effort (estimate hours → days), POSITION = queue
+// order within the lane, anchored to the row's earliest start so real dates are
+// still respected. Presentation only — NOT a capacity/ceremony scheduler.
+const GANTT_HOURS_PER_DAY   = 6;
+const GANTT_MIN_DUR_DAYS    = 0.25;   // floor so a tiny estimate still draws + sequences
+const GANTT_DEFAULT_PHASE_H = { impl: 6, review: 3, qa: 4 }; // unestimated fallback
+
+/**
+ * Function prefix from a summary. Accepts bracketed "[BE] …" OR a bare leading
+ * "BE …" (case-insensitive), restricted to the team's set BE/FE/POS so an
+ * ordinary summary word is not mistaken for a function. Returns "" if none.
+ */
+export function getFunctionPrefix(summary = '') {
+  const m = String(summary).match(/^\s*\[?\s*(BE|FE|POS)\s*\]?\b/i);
+  return m ? m[1].toUpperCase() : '';
+}
+
+/** Phase of a subtask from its summary: 'qa' | 'review' | 'impl'. */
+export function detectPhase(summary = '') {
+  const s = String(summary).toLowerCase();
+  // QA: bracketed [QA] / leading qa / the word qa anywhere
+  if (/^\s*\[?\s*qa\s*\]?\b/.test(s) || /\bqa\b/.test(s)) return 'qa';
+  // Review: "review" or the shorthand "cr"
+  if (/\breview\b|\bcr\b/.test(s)) return 'review';
+  return 'impl';
+}
+
+/**
+ * Lay a parent's children out into phase-sequenced lanes.
+ * @returns {{ bars: {child,lane,leftPct,widthPct,phase}[], nLanes: number }}
+ *   Function lanes (BE/FE/POS…) run in parallel, each ordered impl → review.
+ *   QA shares one lane that starts after the latest function-lane work.
+ */
+export function scheduleChildren(children = [], sprint = {}, wdays = [], nDays = 1) {
+  const PHASE_RANK = { impl: 0, review: 1, qa: 2 };
+  const FN_PREF    = ['BE', 'FE', 'POS'];
+
+  const enriched = children.map(c => ({
+    c, phase: detectPhase(c.summary), fn: getFunctionPrefix(c.summary) || '—',
+  }));
+
+  const fnGroups = new Map();
+  const qa = [];
+  for (const e of enriched) {
+    if (e.phase === 'qa') qa.push(e);
+    else { if (!fnGroups.has(e.fn)) fnGroups.set(e.fn, []); fnGroups.get(e.fn).push(e); }
+  }
+  const fnNames = [...fnGroups.keys()].sort((a, b) => {
+    const ia = FN_PREF.indexOf(a), ib = FN_PREF.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+
+  const startIdxOf = (c) => {
+    const eff = (c.startDate && sprint.startDate && c.startDate >= sprint.startDate)
+      ? c.startDate : sprint.startDate;
+    return Math.max(0, dayColIndex(eff || sprint.startDate, wdays));
+  };
+  const rowStart = enriched.length ? Math.min(...enriched.map(e => startIdxOf(e.c))) : 0;
+  const durDaysOf = (c, phase) => {
+    const h = (c.estimateHours != null && c.estimateHours > 0) ? c.estimateHours : GANTT_DEFAULT_PHASE_H[phase];
+    return Math.max(h / GANTT_HOURS_PER_DAY, GANTT_MIN_DUR_DAYS);
+  };
+  const pct = (units) => Math.max(0, (units / (nDays || 1)) * 100);
+
+  const bars = [];
+  let lane = 0, maxFnEnd = rowStart;
+  for (const fn of fnNames) {
+    const items = fnGroups.get(fn).sort((a, b) =>
+      (PHASE_RANK[a.phase] - PHASE_RANK[b.phase]) ||
+      String(a.c.rank || '').localeCompare(String(b.c.rank || '')));
+    let cursor = rowStart;
+    for (const e of items) {
+      const dur = durDaysOf(e.c, e.phase);
+      bars.push({ child: e.c, lane, leftPct: Math.min(pct(cursor), 100), widthPct: pct(dur), phase: e.phase });
+      cursor += dur;
+    }
+    maxFnEnd = Math.max(maxFnEnd, cursor);
+    lane++;
+  }
+  if (qa.length) {
+    const items = qa.sort((a, b) => String(a.c.rank || '').localeCompare(String(b.c.rank || '')));
+    let cursor = maxFnEnd;
+    for (const e of items) {
+      const dur = durDaysOf(e.c, 'qa');
+      bars.push({ child: e.c, lane, leftPct: Math.min(pct(cursor), 100), widthPct: pct(dur), phase: 'qa' });
+      cursor += dur;
+    }
+    lane++;
+  }
+  return { bars, nLanes: Math.max(1, lane) };
+}
+
+
 // ── Story partitioning ─────────────────────────────────────────────────────
 const priIdx = priorityIndex; // shared from domain-constants
 
@@ -252,8 +349,12 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
 
     // Sub-lanes: one per distinct child assignee (fallback to a single lane
     // when the parent has no children — it draws its own bar instead).
-    const childAssignees = [...new Set(children.map(c => c.assignee || '—'))];
-    const nLanes = Math.max(1, childAssignees.length);
+    // Phase-sequenced layout (impl → review per function, QA after) drives the
+    // lanes now, instead of one-lane-per-assignee. Bars stay assignee-coloured.
+    const schedule = children.length > 0
+      ? scheduleChildren(children, sprint, wdays, nDays)
+      : { bars: [], nLanes: 1 };
+    const nLanes = Math.max(1, schedule.nLanes);
     const dynRowH = children.length > 0
       ? Math.max(rowH, nLanes * laneH + 10)
       : rowH;
@@ -345,13 +446,25 @@ export function buildGanttSVG(stories, sprint, workingDays = [0,1,2,3,4], accoun
     };
 
     if (children.length > 0) {
-      // One sub-lane per assignee; each child sits in its assignee's lane,
-      // positioned by its own start→due (sequential bars show dependency order).
-      childAssignees.forEach((a, li) => {
-        const top = 5 + li * laneH;
-        children.filter(c => (c.assignee || '—') === a).forEach(c => {
-          html += barFor(c, top, true);
-        });
+      // Phase-sequenced lanes: each bar positioned by the schedule (leftPct/
+      // widthPct = queue order + effort), coloured by assignee, labelled by phase.
+      const phaseLabel = { impl: '', review: 'review · ', qa: 'QA · ' };
+      schedule.bars.forEach(b => {
+        const t = b.child;
+        const top = 5 + b.lane * laneH;
+        const c = gc(t.assignee || t.key);
+        const left = Math.min(b.leftPct, 99.5);
+        const w = Math.max(b.widthPct, 0.5);
+        const estPart = (t.estimateHours > 0) ? ` · ${t.estimateHours}h` : (t.points > 0 ? ` · ${t.points}pt` : '');
+        const statusPart = t.status ? ` · ${esc(t.status)}` : '';
+        const fnPart = getFunctionPrefix(t.summary);
+        const tip = `${esc(t.summary)} · ${esc(t.assignee || 'Unassigned')}${estPart}${statusPart} · ${b.phase}`;
+        html += `<div title="${tip}" data-jira-key="${esc(t.key)}" style="pointer-events:auto;cursor:pointer;`
+          + `position:absolute;left:${left.toFixed(3)}%;width:calc(${w.toFixed(3)}% - 1px);min-width:18px;`
+          + `top:${top}px;height:${barH}px;background:${c.bg};border:0.5px solid ${c.bo};border-radius:3px;z-index:4;`
+          + `display:flex;align-items:center;overflow:hidden;${b.phase === 'qa' ? 'border-style:dashed;' : ''}">`
+          + `<span style="font-size:10px;padding:0 4px;color:${c.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">↳ ${phaseLabel[b.phase] || ''}${esc(t.summary)}</span>`
+          + `</div>`;
       });
     } else if (!isUnscheduled && story.dueDate) {
       // Childless parent: draw its own single bar.

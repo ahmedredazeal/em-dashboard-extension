@@ -413,7 +413,7 @@ export class JiraClient {
       'customfield_10026',
       'subtasks', 'created', 'updated',
       'duedate', 'startDate', 'customfield_10015', 'rank',
-      'labels'
+      'timeoriginalestimate', 'labels'
     ];
     if (withWorklogs) fields.push('worklog');
     
@@ -440,7 +440,7 @@ export class JiraClient {
       storyPointsField, 'customfield_10016', 'customfield_10026',
       'parent', 'created', 'updated',
       'duedate', 'startDate', 'customfield_10015', 'rank',
-      'labels'
+      'timeoriginalestimate', 'labels'
     ];
     const result = await this._search({ jql, fields, maxResults: 100 });
     console.log(`[jira] Found ${result.issues?.length || 0} subtasks in sprint`);

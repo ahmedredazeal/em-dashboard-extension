@@ -136,6 +136,11 @@ export function normalizeStory(issue, storyPointsField) {
     rank:      fields.rank       || fields.customfield_10019 || null,
     isSubtask: fields.issuetype?.subtask === true,
     parentKey: fields.parent?.key || null,
+    // Effort estimate in hours (Jira timeoriginalestimate is seconds). Used by the
+    // Gantt to size phase-sequenced subtask bars; null when unestimated.
+    estimateHours: (typeof fields.timeoriginalestimate === 'number' && fields.timeoriginalestimate > 0)
+      ? Math.round((fields.timeoriginalestimate / 3600) * 100) / 100
+      : null,
     labels: Array.isArray(fields.labels) ? fields.labels : []
   };
 }

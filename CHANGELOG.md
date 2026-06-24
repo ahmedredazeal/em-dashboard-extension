@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.20.0 (2026-06-22) - Phase-sequenced subtask Gantt (ported from DevPulse)
+
+Subtasks in the Sprint Timeline no longer all draw in parallel from the same
+start. They are laid out by phase using the team BE/FE/POS + QA convention:
+
+- Each function (BE/FE/POS) gets its own lane; within a lane, implementation is
+  followed by its review (sequential). Functions run in parallel.
+- QA shares one lane that starts after all function-lane work finishes.
+- Bar width reflects effort (estimate hours, at 6h/day), with a per-phase default
+  for unestimated subtasks and a small floor so tiny items still sequence.
+- Bars stay assignee-coloured (legend intact); the phase shows via order, the
+  arrow label, and the tooltip.
+
+Detection handles both the bracketed ([BE], [QA]) and bare (BE, BE Review, QA)
+forms the team uses. This is presentation-only — it does not compute a capacity or
+ceremony schedule (that remains the Sprint Planner role). Data: the story/subtask
+fetch now pulls timeoriginalestimate and the parser emits estimateHours; demo
+subtasks were relabelled to the convention with estimates so it shows in Demo Mode.
+
+Ported from the DevPulse fork with the phase/function detection corrected for the
+team naming, and without the fork generic demo data.
+
+30 suites + pre-flight green.
+
+---
+
 ## v2.19.9 (2026-06-22) - Time-logged pace line fix + richer Gantt subtasks
 
 - **Pace line:** the time-logged chart could show only the cap line and not the

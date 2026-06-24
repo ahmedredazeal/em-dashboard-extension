@@ -52,6 +52,7 @@ _Nothing currently in progress._
 
 | Version | What shipped |
 |---|---|
+| v2.20.0 | Phase-sequenced subtask Gantt: subtasks laid out impl→review per function (BE/FE/POS lanes in parallel), QA on a lane after all functions; bar width = effort estimate. Detection handles bracketed + bare team naming. Ported from DevPulse, detection corrected, no generic data. |
 | v2.19.9 | Fixed time-logged chart showing only cap (pace now uses same date source as rest of chart + clamped to sprint end); richer demo Gantt — 16 subtasks across 6 parents (was 7/3). |
 | v2.19.8 | Demo data realism: burndown now computed by the real computeBurndownSeries engine (ideal/estimate/actual diverge) instead of hand-rolled arrays; +5 Gantt subtasks. Ported from DevPulse without its data genericization. |
 | v2.19.7 | Ported mock-role-preview buttons (Mock as EM/Engineer, session-only) + My-Tasks role gating from DevPulse; skipped icon refresh (already present); Today Meetings card now collapsed by default. |

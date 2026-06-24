@@ -16,7 +16,12 @@
   <div class="settings-wrap">
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
-                                            <div class="cl-row">
+                                                <div class="cl-row">
+      <div class="cl-ver minor">v2.20.0</div>
+      <div class="cl-desc"><strong>Phase-sequenced subtask Gantt.</strong> Subtasks in the Sprint Timeline now lay out by phase using the BE/FE/POS + QA convention: each function on its own lane (implementation then review, sequential), functions in parallel, and QA on one lane after all function work. Bar width reflects the effort estimate. Detection handles both bracketed ([BE]) and bare (BE, BE Review, QA) forms. Presentation-only, not a capacity scheduler. Ported from the DevPulse fork with detection tuned to the team naming.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver patch">v2.19.9</div>
       <div class="cl-desc"><strong>Time-logged pace line fix + richer Gantt subtasks.</strong> Fixed the time-logged chart showing only the cap line: the pace calculation now uses the same sprint-date source as the rest of the chart (with a sprintAnalytics fallback) and is clamped to the sprint end, so both pace and cap draw. The demo Gantt now has 16 subtasks across 6 parent stories (was 7 across 3) for richer per-assignee breakdown. Note: the Gantt shows breakdown and sequence, not dependency arrows.</div>
     </div>

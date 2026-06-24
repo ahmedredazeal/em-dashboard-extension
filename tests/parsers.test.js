@@ -195,6 +195,7 @@ test('full Jira issue shape', () => {
     rank: null,
     isSubtask: false,
     parentKey: null,
+    estimateHours: null,
     labels: []
   });
 
