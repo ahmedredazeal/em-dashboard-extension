@@ -14,6 +14,16 @@
  * the status-*category* colours in domain-constants.js — so the map stays local.
  */
 
+/** HTML-escape Jira-sourced strings (status names) before they hit innerHTML. */
+function esc(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /** Status display-name → bar colour (support-board workflow specific). */
 const STATUS_COLORS = {
   'Open': '#94a3b8',
@@ -79,7 +89,7 @@ export function buildSupportBoardChart(boards) {
       blocked > 0 ? `<span style="font-size:10px;color:#f59e0b;white-space:nowrap;">⚠ ${blocked}</span>` : '',
     ].filter(Boolean).join(' ');
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-      <div style="width:90px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${status}</div>
+      <div style="width:90px;font-size:10px;color:var(--text-muted);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(status)}</div>
       <div style="flex:1;height:8px;background:var(--border);border-radius:3px;overflow:hidden;min-width:0;">
         <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
       </div>

@@ -40,9 +40,7 @@
     "https://api.github.com/*",
     "https://*.sentry.io/*",
     "https://sentry.io/*",
-    "https://calendar.google.com/*",
-    "https://*.google.com/*",
-    "https://*.googleusercontent.com/*"
+    "https://calendar.google.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

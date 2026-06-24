@@ -1370,6 +1370,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           return;
         }
+        // Only fetch https iCal feeds. Rejects file:, http:, and other schemes
+        // before the request is made (defense-in-depth alongside host_permissions).
+        let icsParsed;
+        try { icsParsed = new URL(icsUrl); } catch { icsParsed = null; }
+        if (!icsParsed || icsParsed.protocol !== 'https:') {
+          sendResponse({ success: false, reason: 'not-ics' });
+          return;
+        }
         let res;
         try {
           res = await fetch(icsUrl, { method: 'GET', redirect: 'follow' });
