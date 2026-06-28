@@ -9,6 +9,16 @@
 
 ## Last session: Ahmed + Claude — 2026-06-17
 
+> **Time Utilization (in progress).** Phase 1 landed: `src/utilization.js` (all-busy
+> compute, merges overlaps) + `src/gcal-auth.js` (Google free/busy auth via implicit
+> launchWebAuthFlow — no secret, client ID comes from Settings at runtime) + tests
+> (anchored to real freebusy data). No version bump yet (not user-visible).
+> **Next (phase 2):** Settings UI (client ID, Connect button, member→email map),
+> `fetch-freebusy` background handler, chart overlay in src/render/timesheet-svg.js +
+> rename to “Time Utilization”, popup wiring, manifest perms (`identity` +
+> `https://www.googleapis.com/*`). Then bump version + changelog. See docs/DECISIONS.md.
+
+
 ### Usage analytics arc (T-UA-1)
 
 Goal: the `zealer-dashboard` Sentry project wasn't showing useful usage insights.

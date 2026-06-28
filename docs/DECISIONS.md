@@ -214,3 +214,46 @@ See `docs/STABILITY-AUDIT.md` for the full audit. Notable: `fetchJiraData` was
 decomposed 476→42 lines; a single render scheduler was introduced; pre-flight now
 runs the *entire* test suite (it previously ran only 7 hard-coded files, which let
 v2.12.3 ship with red tests).
+
+---
+
+## Time Utilization overlay — Google free/busy (foundation landed; UI/chart pending)
+
+**Goal.** Show each team member's meeting/busy hours alongside logged hours in the
+Time Logged chart, renaming it "Time Utilization" (e.g. "logged 6h · busy 3h").
+
+**Data source — decided: Google Calendar `freebusy.query`, not iCal.** A user's iCal
+secret URL is bound to a single calendar (their own) and cannot see teammates'
+calendars. Feasibility was confirmed live: a normal, non-admin `@getzeal.io` user,
+authorized for the `calendar.freebusy` scope, can read colleagues' busy times
+(org exposes internal free/busy). `freebusy.query` returns ONLY busy {start,end}
+blocks — no titles/details — which also satisfies the hard requirement of never
+seeing what a meeting is about.
+
+**iCal is NOT replaced.** free/busy has no event titles, so it cannot power the
+"Today's Meetings" card (which shows the viewer's own meeting titles + countdown).
+The iCal stays for that. Retiring it would require upgrading to the broader
+`calendar.readonly` scope (full details, heavier consent) — out of scope for now.
+
+**Auth — decided: implicit flow via launchWebAuthFlow, client ID from Settings.**
+No secret anywhere (implicit flow uses none); the OAuth **client ID is entered in
+Settings at runtime and stored in chrome.storage — never in the repo**, so the
+public DevPulse fork carries no Zeal/personal Google config either. Only the
+`calendar.freebusy` scope is requested. Token (~1h) cached; silent re-auth on
+expiry, interactive prompt as fallback (no refresh token from implicit flow —
+acceptable for a periodically-refreshed dashboard).
+
+**Busy policy — decided (v1): count ALL busy time**, merging overlaps so concurrent
+invites aren't double-counted. (A later option may exclude all-day blocks or clip
+to working hours.)
+
+**Member → email mapping.** Worklogs/timesheet are keyed by display name and Jira
+Cloud hides emails by default, so member→email needs a small Settings mapping
+(reusing the monitored-members list). Pending in the UI phase.
+
+**Status.** Phase 1 (this commit): pure compute `src/utilization.js` + auth/fetch
+helper `src/gcal-auth.js`, both tested (`tests/utilization.test.js`, anchored to
+real captured data). Phase 2 (next): Settings UI (client ID, Connect, email map),
+`fetch-freebusy` background handler, the chart overlay in `src/render/timesheet-svg.js`,
+popup wiring, and manifest perms (`identity` + `https://www.googleapis.com/*`).
+Build em-dashboard first, then port to DevPulse (kept in sync like the classifiers).

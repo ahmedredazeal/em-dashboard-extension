@@ -6,6 +6,11 @@
 
 ## 🔄 In Progress
 
+- **Time Utilization overlay (free/busy).** Phase 1 done: tested compute
+  (`src/utilization.js`) + auth/fetch helper (`src/gcal-auth.js`). Phase 2: Settings UI
+  (client-ID + Connect + member→email map), `fetch-freebusy` handler, chart overlay +
+  rename, popup wiring, manifest perms. Then port to DevPulse. (docs/DECISIONS.md)
+
 _Nothing currently in progress._
 
 ---
