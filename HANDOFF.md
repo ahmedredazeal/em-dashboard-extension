@@ -13,7 +13,11 @@
 > compute, merges overlaps) + `src/gcal-auth.js` (Google free/busy auth via implicit
 > launchWebAuthFlow — no secret, client ID comes from Settings at runtime) + tests
 > (anchored to real freebusy data). No version bump yet (not user-visible).
-> **Next (phase 2):** Settings UI (client ID, Connect button, member→email map),
+> **Phase 2a landed (connect capability):** manifest perms (`identity` +
+> `https://www.googleapis.com/*`), `fetch-freebusy` background handler, and a Settings
+> section (Client ID + Connect button + per-member email map) wired to gcal-auth
+> (`getCachedToken` added). Client ID stored in settings only, never in code. No version
+> bump yet (chart not visible). **Next (phase 2b):** Settings UI (client ID, Connect button, member→email map),
 > `fetch-freebusy` background handler, chart overlay in src/render/timesheet-svg.js +
 > rename to “Time Utilization”, popup wiring, manifest perms (`identity` +
 > `https://www.googleapis.com/*`). Then bump version + changelog. See docs/DECISIONS.md.

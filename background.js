@@ -17,6 +17,7 @@ import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { buildMilestoneData } from './src/milestones.js';
 import { countReopens } from './src/bug-reports.js';
 import { parseICS as parseCalendarICS, todaysMeetings as calendarTodaysMeetings } from './src/calendar.js';
+import { getCachedToken, fetchFreeBusy } from './src/gcal-auth.js';
 import {
   emptyBucket, buildSnapshot, updateBucket, shouldRollover,
   finalizeMonth, pruneHistory, monthKey, DEFAULT_RETENTION_MONTHS,
@@ -1393,6 +1394,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, view });
       } catch (err) {
         console.warn('[calendar] fetch failed:', err?.message, err);
+        sendResponse({ success: false, reason: 'error', message: err?.message || String(err) });
+      }
+    })();
+    return true; // async sendResponse
+  }
+
+  if (message.type === 'fetch-freebusy') {
+    // Time Utilization: query Google free/busy for a set of member emails.
+    // Returns ONLY busy {start,end} blocks (no event details). Uses the token
+    // the Settings "Connect" flow cached; interactive auth never happens here.
+    (async () => {
+      try {
+        const stored = await chrome.storage.local.get(['settings']);
+        const util = (stored.settings && stored.settings.utilization) || {};
+        if (!util.clientId) { sendResponse({ success: false, reason: 'not-configured' }); return; }
+        const token = await getCachedToken();
+        if (!token) { sendResponse({ success: false, needsAuth: true }); return; }
+        const emails = Array.isArray(message.emails) ? message.emails : [];
+        if (emails.length === 0) { sendResponse({ success: false, reason: 'no-emails' }); return; }
+        const resp = await fetchFreeBusy(token, emails, message.timeMin, message.timeMax, message.timeZone || 'UTC');
+        sendResponse({ success: true, resp });
+      } catch (err) {
+        if (err && err.needsAuth) { sendResponse({ success: false, needsAuth: true }); return; }
+        console.warn('[freebusy] fetch failed:', err?.message);
         sendResponse({ success: false, reason: 'error', message: err?.message || String(err) });
       }
     })();

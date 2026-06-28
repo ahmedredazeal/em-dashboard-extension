@@ -32,7 +32,8 @@
     "notifications",
     "sidePanel",
     "tabs",
-    "downloads"
+    "downloads",
+    "identity"
   ],
   "host_permissions": [
     "https://*.atlassian.net/*",
@@ -42,7 +43,8 @@
     "https://sentry.io/*",
     "https://calendar.google.com/*",
     "https://*.google.com/*",
-    "https://*.googleusercontent.com/*"
+    "https://*.googleusercontent.com/*",
+    "https://www.googleapis.com/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

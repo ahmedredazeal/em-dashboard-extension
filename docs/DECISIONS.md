@@ -257,3 +257,10 @@ real captured data). Phase 2 (next): Settings UI (client ID, Connect, email map)
 `fetch-freebusy` background handler, the chart overlay in `src/render/timesheet-svg.js`,
 popup wiring, and manifest perms (`identity` + `https://www.googleapis.com/*`).
 Build em-dashboard first, then port to DevPulse (kept in sync like the classifiers).
+
+**Phase 2a (connect capability) landed.** manifest gained `identity` + `https://www.googleapis.com/*`;
+`fetch-freebusy` background handler (uses the cached token only — interactive auth lives on the
+Settings page, which holds the user gesture); Settings section with Client ID + Connect + per-member
+email map; `getCachedToken()` added to gcal-auth. No version bump (chart overlay = phase 2b is the
+user-visible part). Note: implicit-flow validation against a real client happens when 2b is tested;
+if Google requires auth-code+PKCE for the chosen client type, gcal-auth swaps to that (still no secret).

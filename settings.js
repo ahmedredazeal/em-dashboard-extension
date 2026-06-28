@@ -9,6 +9,7 @@ import { parseMilestoneLines } from './src/milestones.js';
 import { runMigrations } from './src/migrations.js';
 import { importTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
+import { getToken, getCachedToken } from './src/gcal-auth.js';
 
 // ── Sentry view row rendering ──────────────────────────────────────────────
 // ── Alert rule metadata (UI only — source of truth for labels/defaults) ──
@@ -410,6 +411,53 @@ function getTrackedViewIds() {
   document.getElementById('add-member-input')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); addMember(); }
   });
+
+  // ── Time Utilization (Google Calendar free/busy) ─────────────────────
+  (function initUtilizationSettings() {
+    const util = settings.utilization || {};
+    const cidEl = document.getElementById('util-client-id');
+    if (cidEl) cidEl.value = util.clientId || '';
+    const redirectEl = document.getElementById('util-redirect-uri');
+    if (redirectEl && chrome.identity?.getRedirectURL) redirectEl.textContent = chrome.identity.getRedirectURL();
+
+    // Per-member email inputs, prefilled from saved mapping.
+    const mapEl = document.getElementById('util-email-map');
+    if (mapEl) {
+      if (squadMembers.length === 0) {
+        mapEl.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin:0;">No squad members yet — add them above first.</p>';
+      } else {
+        const saved = util.emails || {};
+        mapEl.innerHTML = squadMembers.map(m =>
+          `<div style="display:flex;align-items:center;gap:8px;">
+             <span style="flex:0 0 120px;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeAttr(m.name)}</span>
+             <input type="email" class="util-email" data-name="${escapeAttr(m.name)}" value="${escapeAttr(saved[m.name] || '')}" placeholder="name@getzeal.io" autocomplete="off" spellcheck="false" style="flex:1;"/>
+           </div>`
+        ).join('');
+      }
+    }
+
+    const statusEl = document.getElementById('util-status');
+    const setStatus = (txt, ok) => { if (statusEl) { statusEl.textContent = txt; statusEl.style.color = ok ? 'var(--status-on-track)' : 'var(--text-muted)'; } };
+    getCachedToken().then(tok => setStatus(tok ? '✓ Connected' : 'Not connected', !!tok)).catch(() => {});
+
+    document.getElementById('util-connect-btn')?.addEventListener('click', async () => {
+      const clientId = (cidEl?.value || '').trim();
+      if (!clientId) { setStatus('Enter the Client ID first', false); return; }
+      // Persist the Client ID before auth so the cached token and ID stay aligned.
+      const fresh = (await chrome.storage.local.get(['settings'])).settings || settings;
+      fresh.utilization = { ...(fresh.utilization || {}), clientId, enabled: true };
+      await chrome.storage.local.set({ settings: fresh });
+      settings.utilization = fresh.utilization;
+      setStatus('Opening Google sign-in…', false);
+      try {
+        await getToken(clientId, true);
+        setStatus('✓ Connected', true);
+      } catch (e) {
+        setStatus('Connection failed: ' + (e?.message || 'dismissed'), false);
+      }
+    });
+  })();
+
   const roleHints = {
     em:       'Full squad view — team timesheet, burndown and alerts for everyone.',
     engineer: 'Personal view by default. Squad context available on demand.'
@@ -646,6 +694,15 @@ function getTrackedViewIds() {
         calendar: (() => {
           const icsUrl = (document.getElementById('calendar-ics-url')?.value || '').trim();
           return { icsUrl, enabled: !!icsUrl };
+        })(),
+        utilization: (() => {
+          const clientId = (document.getElementById('util-client-id')?.value || '').trim();
+          const emails = {};
+          document.querySelectorAll('#util-email-map .util-email').forEach(inp => {
+            const name = inp.dataset.name; const val = (inp.value || '').trim();
+            if (name && val) emails[name] = val;
+          });
+          return { clientId, emails, enabled: !!clientId };
         })(),
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',

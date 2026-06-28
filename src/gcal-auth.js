@@ -110,6 +110,17 @@ export async function disconnect() {
 }
 
 /**
+ * Return the cached access token if still valid, else null. Does NOT trigger an
+ * auth flow — used by the background worker (interactive auth belongs to the
+ * Settings page, which holds the user gesture).
+ * @returns {Promise<string|null>}
+ */
+export async function getCachedToken() {
+  const cached = await readCached();
+  return (cached && cached.accessToken && cached.expiresAt > Date.now()) ? cached.accessToken : null;
+}
+
+/**
  * Query free/busy for a set of emails. Returns the raw response body.
  * Throws {needsAuth:true} on 401 so the caller can prompt a reconnect.
  */

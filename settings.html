@@ -214,7 +214,30 @@
       </div>
     </div>
 
+    <!-- Time Utilization (Google Calendar free/busy) -->
+    <div class="settings-section em-only" id="utilization-section-settings">
+      <h2>📊 Time Utilization (Google Calendar)</h2>
+      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart. Uses Google Calendar <strong>free/busy</strong> — it reads only busy time blocks (start/end), never meeting titles or details. Requires a one-time Google Cloud OAuth client (see the guide). The Client ID is stored on your device only — never in code.</p>
+      <div class="field">
+        <label for="util-client-id">Google OAuth Client ID</label>
+        <input type="text" id="util-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"/>
+        <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → OAuth client ID (Web application). Add <code id="util-redirect-uri">https://&lt;extension-id&gt;.chromiumapp.org/</code> as an authorized redirect URI.</span>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;">
+        <button type="button" id="util-connect-btn" class="btn-secondary">Connect Google Calendar</button>
+        <span id="util-status" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div class="field">
+        <label>Member emails (for free/busy lookup)</label>
+        <span class="field-hint">Jira hides emails, so map each squad member to their Google address. Only mapped members appear in the utilization overlay.</span>
+        <div id="util-email-map" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+
+    <div style="display:none" id="util-section-end-marker"></div>
+
     <div class="settings-section" id="report-section">
+
       <h2><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:6px;"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>Monthly report</h2>
       <p class="hint">A monthly report builds itself from your dashboard data and is kept inside the extension (open it from the report button in the header). It finalizes automatically when the month rolls over.</p>
       <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
