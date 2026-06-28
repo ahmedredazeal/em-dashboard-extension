@@ -415,10 +415,9 @@ function getTrackedViewIds() {
   // ── Time Utilization (Google Calendar free/busy) ─────────────────────
   (function initUtilizationSettings() {
     const util = settings.utilization || {};
-    const cidEl = document.getElementById('util-client-id');
-    if (cidEl) cidEl.value = util.clientId || '';
-    const redirectEl = document.getElementById('util-redirect-uri');
-    if (redirectEl && chrome.identity?.getRedirectURL) redirectEl.textContent = chrome.identity.getRedirectURL();
+    // Show the live extension ID so it can be pasted into the OAuth client.
+    const idEl = document.getElementById('util-extension-id');
+    if (idEl) idEl.textContent = (chrome.runtime?.id) || 'load the extension to see its ID';
 
     // Per-member email inputs, prefilled from saved mapping.
     const mapEl = document.getElementById('util-email-map');
@@ -441,19 +440,16 @@ function getTrackedViewIds() {
     getCachedToken().then(tok => setStatus(tok ? '✓ Connected' : 'Not connected', !!tok)).catch(() => {});
 
     document.getElementById('util-connect-btn')?.addEventListener('click', async () => {
-      const clientId = (cidEl?.value || '').trim();
-      if (!clientId) { setStatus('Enter the Client ID first', false); return; }
-      // Persist the Client ID before auth so the cached token and ID stay aligned.
-      const fresh = (await chrome.storage.local.get(['settings'])).settings || settings;
-      fresh.utilization = { ...(fresh.utilization || {}), clientId, enabled: true };
-      await chrome.storage.local.set({ settings: fresh });
-      settings.utilization = fresh.utilization;
       setStatus('Opening Google sign-in…', false);
       try {
-        await getToken(clientId, true);
-        setStatus('✓ Connected', true);
+        // Client ID + scopes come from manifest.oauth2 (Chrome Extension client).
+        const tok = await getToken(true);
+        setStatus(tok ? '✓ Connected' : 'No token returned', !!tok);
       } catch (e) {
-        setStatus('Connection failed: ' + (e?.message || 'dismissed'), false);
+        const msg = e?.message || 'dismissed';
+        // The usual cause is the manifest client_id placeholder not yet replaced,
+        // or the extension ID not matching the OAuth client's Item ID.
+        setStatus('Connection failed: ' + msg, false);
       }
     });
   })();
@@ -696,13 +692,15 @@ function getTrackedViewIds() {
           return { icsUrl, enabled: !!icsUrl };
         })(),
         utilization: (() => {
-          const clientId = (document.getElementById('util-client-id')?.value || '').trim();
           const emails = {};
           document.querySelectorAll('#util-email-map .util-email').forEach(inp => {
             const name = inp.dataset.name; const val = (inp.value || '').trim();
             if (name && val) emails[name] = val;
           });
-          return { clientId, emails, enabled: !!clientId };
+          // Enabled once at least one member is mapped; the overlay also needs a
+          // connected Google account (manifest oauth2 client). Client ID is NOT
+          // stored here — it lives in manifest.oauth2 (getAuthToken).
+          return { emails, enabled: Object.keys(emails).length > 0 };
         })(),
         // Preserve role and viewScope across saves
         role:      settings.role      || 'em',

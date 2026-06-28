@@ -13,6 +13,13 @@
 > compute, merges overlaps) + `src/gcal-auth.js` (Google free/busy auth via implicit
 > launchWebAuthFlow — no secret, client ID comes from Settings at runtime) + tests
 > (anchored to real freebusy data). No version bump yet (not user-visible).
+> **Auth reworked → getAuthToken (Chrome Extension OAuth client).** Implicit/web-app
+> flow was blocked by Google; switched to chrome.identity.getAuthToken. manifest now has
+> `key` (stable ID `ilmemiomepdmbfiohjfeejbbaagfgcfd`) + `oauth2{client_id PLACEHOLDER, scopes:[freebusy]}`.
+> **User action:** create a Google Cloud OAuth client of type *Chrome Extension*, Item ID =
+> that extension ID, then paste the generated Client ID into manifest.oauth2.client_id and
+> reload → Settings ▸ Time Utilization ▸ Connect. **Then phase 2b:** the chart overlay.
+
 > **Phase 2a landed (connect capability):** manifest perms (`identity` +
 > `https://www.googleapis.com/*`), `fetch-freebusy` background handler, and a Settings
 > section (Client ID + Connect button + per-member email map) wired to gcal-auth

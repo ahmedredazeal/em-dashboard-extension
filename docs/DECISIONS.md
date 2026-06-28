@@ -264,3 +264,18 @@ Settings page, which holds the user gesture); Settings section with Client ID + 
 email map; `getCachedToken()` added to gcal-auth. No version bump (chart overlay = phase 2b is the
 user-visible part). Note: implicit-flow validation against a real client happens when 2b is tested;
 if Google requires auth-code+PKCE for the chosen client type, gcal-auth swaps to that (still no secret).
+
+**Auth switched to getAuthToken + Chrome Extension OAuth client.** The Web-application
+client + implicit flow (launchWebAuthFlow, response_type=token) failed — Google has
+disabled the implicit grant for web clients, and a no-secret auth-code flow needs a
+backend. Switched to chrome.identity.getAuthToken with a **Chrome Extension** OAuth
+client (created from the extension ID — NO Web Store URL needed) and manifest.oauth2.
+Chrome manages token cache/refresh; no secret; no redirect URI. Trade-offs accepted
+for the internal tool: client ID lives in manifest (public, not secret) and getAuthToken
+is Chrome-only (not Brave). A stable extension ID is pinned via **manifest.key** so the
+OAuth client keeps matching across reloads/machines — ID: ilmemiomepdmbfiohjfeejbbaagfgcfd.
+gcal-auth rewritten (getToken/getCachedToken/removeCachedToken/fetchFreeBusy with a
+401-retry); Settings now shows the extension ID + a Connect button (no client-ID field);
+background fetch-freebusy uses the Chrome-managed token. manifest.oauth2.client_id is a
+PLACEHOLDER to be replaced with the real client ID after the OAuth client is created.
+For public DevPulse: ship no client ID (forkers add their own + their own key).

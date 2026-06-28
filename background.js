@@ -1406,9 +1406,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // the Settings "Connect" flow cached; interactive auth never happens here.
     (async () => {
       try {
-        const stored = await chrome.storage.local.get(['settings']);
-        const util = (stored.settings && stored.settings.utilization) || {};
-        if (!util.clientId) { sendResponse({ success: false, reason: 'not-configured' }); return; }
+        // Client ID + scopes come from manifest.oauth2 (Chrome Extension OAuth
+        // client); the token is managed by chrome.identity.getAuthToken.
         const token = await getCachedToken();
         if (!token) { sendResponse({ success: false, needsAuth: true }); return; }
         const emails = Array.isArray(message.emails) ? message.emails : [];

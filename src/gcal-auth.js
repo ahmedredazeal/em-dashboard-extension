@@ -1,53 +1,29 @@
 /**
  * src/gcal-auth.js — em-dashboard
  *
- * Minimal Google Calendar auth for the Time Utilization overlay. Uses the OAuth
- * implicit flow via chrome.identity.launchWebAuthFlow, so:
- *   - the only credential is a CLIENT ID, supplied at runtime from Settings —
- *     never hardcoded in the repo, and not a secret (public by design);
- *   - there is NO client secret anywhere (implicit flow doesn't use one);
- *   - the only scope requested is calendar.freebusy (busy times, no details).
+ * Google Calendar free/busy auth via chrome.identity.getAuthToken.
  *
- * The access token (~1h) is cached in chrome.storage.local. On expiry we try a
- * silent re-auth (interactive:false); if that fails the caller prompts the user
- * to reconnect. No refresh token is issued by the implicit flow — acceptable for
- * a periodically-refreshed dashboard. See docs/DECISIONS.md.
+ * Why getAuthToken (not launchWebAuthFlow): Google disabled the implicit grant
+ * for "Web application" OAuth clients, and a no-secret auth-code flow for a web
+ * client isn't possible without a backend. The Chrome-native path uses a
+ * **Chrome Extension** OAuth client (created with the extension's ID — no Web
+ * Store URL needed) plus the `oauth2` block in manifest.json. Chrome then:
+ *   - manages the access-token cache and refresh for us;
+ *   - needs no client secret and no redirect URI;
+ *   - reads the client ID + scopes from manifest.oauth2.
+ *
+ * Trade-offs (accepted for the internal dashboard): the client ID lives in the
+ * manifest (it's public, not a secret), and getAuthToken is Chrome-only (not
+ * Brave). A stable extension ID is pinned via manifest.key so the OAuth client
+ * keeps matching across reloads/machines. The public DevPulse fork ships no
+ * client ID (forkers add their own). See docs/DECISIONS.md.
+ *
+ * Only the calendar.freebusy scope is used — busy times only, never details.
  */
 
-const SCOPE = 'https://www.googleapis.com/auth/calendar.freebusy';
-const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const FREEBUSY_ENDPOINT = 'https://www.googleapis.com/calendar/v3/freeBusy';
-const TOKEN_KEY = 'gcalFreebusyToken';
 
-/** Build the Google implicit-flow auth URL. Pure → unit-testable. */
-export function buildAuthUrl(clientId, redirectUri, scope = SCOPE) {
-  const p = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'token',
-    scope,
-    include_granted_scopes: 'true',
-    prompt: 'consent',
-  });
-  return `${AUTH_ENDPOINT}?${p.toString()}`;
-}
-
-/**
- * Parse the access token + expiry from the redirect URL fragment. Pure.
- * @returns {{accessToken:string, expiresAt:number}|null}
- */
-export function parseTokenFromRedirect(redirectUrl) {
-  if (!redirectUrl) return null;
-  const frag = redirectUrl.includes('#') ? redirectUrl.split('#')[1] : '';
-  const q = new URLSearchParams(frag);
-  const token = q.get('access_token');
-  if (!token) return null;
-  const expiresIn = parseInt(q.get('expires_in') || '3600', 10);
-  // Refresh a minute early to avoid edge-of-expiry 401s.
-  return { accessToken: token, expiresAt: Date.now() + (expiresIn - 60) * 1000 };
-}
-
-/** Build the freebusy.query request body. Pure. */
+/** Build the freebusy.query request body. Pure → unit-testable. */
 export function buildFreeBusyBody(emails, timeMinISO, timeMaxISO, timeZone = 'UTC') {
   return {
     timeMin: timeMinISO,
@@ -57,80 +33,66 @@ export function buildFreeBusyBody(emails, timeMinISO, timeMaxISO, timeZone = 'UT
   };
 }
 
-const redirectUri = () =>
-  (typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getRedirectURL)
-    ? chrome.identity.getRedirectURL()
-    : '';
-
-function readCached() {
-  return new Promise(resolve => {
-    chrome.storage.local.get(TOKEN_KEY, d => resolve(d[TOKEN_KEY] || null));
-  });
-}
-function writeCached(tok) {
-  return new Promise(resolve => chrome.storage.local.set({ [TOKEN_KEY]: tok }, resolve));
-}
-
-/** Run launchWebAuthFlow and cache the resulting token. */
-async function runAuthFlow(clientId, interactive) {
-  const url = buildAuthUrl(clientId, redirectUri());
-  const redirect = await new Promise((resolve, reject) => {
-    chrome.identity.launchWebAuthFlow({ url, interactive }, r => {
-      const err = chrome.runtime.lastError;
-      if (err || !r) return reject(new Error(err ? err.message : 'auth_dismissed'));
-      resolve(r);
-    });
-  });
-  const tok = parseTokenFromRedirect(redirect);
-  if (!tok) throw new Error('no_token_in_redirect');
-  await writeCached(tok);
-  return tok.accessToken;
+/** Normalize getAuthToken's result (string in callback form, object in promise form). */
+function tokenOf(result) {
+  if (!result) return null;
+  return typeof result === 'string' ? result : (result.token || null);
 }
 
 /**
- * Get a valid access token: cached → silent re-auth → (if allowed) interactive.
- * @param {string} clientId
- * @param {boolean} [interactive=false]  prompt the user if needed
- * @returns {Promise<string>} access token
+ * Get an access token. interactive:true prompts the user (consent / account
+ * picker) and MUST be triggered by a user gesture (the Settings "Connect"
+ * button). interactive:false returns a cached/refreshed token or null.
+ * @returns {Promise<string|null>}
  */
-export async function getToken(clientId, interactive = false) {
-  if (!clientId) throw new Error('missing_client_id');
-  const cached = await readCached();
-  if (cached && cached.accessToken && cached.expiresAt > Date.now()) return cached.accessToken;
-  try { return await runAuthFlow(clientId, false); }       // silent
-  catch (e) {
-    if (interactive) return await runAuthFlow(clientId, true);
-    throw e;
+export async function getToken(interactive = false) {
+  try {
+    const result = await chrome.identity.getAuthToken({ interactive });
+    return tokenOf(result);
+  } catch (e) {
+    if (interactive) throw e;   // surface real errors to the Connect button
+    return null;                // silent path: just report "not connected"
   }
 }
 
-/** Clear the cached token (used by a "Disconnect" action). */
-export async function disconnect() {
-  await new Promise(resolve => chrome.storage.local.remove(TOKEN_KEY, resolve));
+/** Cached/refreshed token without prompting (for the background worker). */
+export async function getCachedToken() {
+  return getToken(false);
 }
 
-/**
- * Return the cached access token if still valid, else null. Does NOT trigger an
- * auth flow — used by the background worker (interactive auth belongs to the
- * Settings page, which holds the user gesture).
- * @returns {Promise<string|null>}
- */
-export async function getCachedToken() {
-  const cached = await readCached();
-  return (cached && cached.accessToken && cached.expiresAt > Date.now()) ? cached.accessToken : null;
+/** Drop a token Chrome has cached (used after a 401, or to "Disconnect"). */
+export async function removeCachedToken(token) {
+  if (!token) return;
+  try { await chrome.identity.removeCachedAuthToken({ token }); } catch { /* noop */ }
+}
+
+/** Fully disconnect: clear the cached token so the next Connect re-prompts. */
+export async function disconnect() {
+  const token = await getToken(false);
+  if (token) await removeCachedToken(token);
 }
 
 /**
  * Query free/busy for a set of emails. Returns the raw response body.
- * Throws {needsAuth:true} on 401 so the caller can prompt a reconnect.
+ * On 401 the stale token is dropped and the call retried once with a fresh one;
+ * if that still fails it throws {needsAuth:true} so the caller can prompt.
  */
 export async function fetchFreeBusy(token, emails, timeMinISO, timeMaxISO, timeZone = 'UTC') {
-  const resp = await fetch(FREEBUSY_ENDPOINT, {
+  const body = JSON.stringify(buildFreeBusyBody(emails, timeMinISO, timeMaxISO, timeZone));
+  const call = (tok) => fetch(FREEBUSY_ENDPOINT, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildFreeBusyBody(emails, timeMinISO, timeMaxISO, timeZone)),
+    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    body,
   });
-  if (resp.status === 401) { const e = new Error('unauthorized'); e.needsAuth = true; throw e; }
+
+  let resp = await call(token);
+  if (resp.status === 401) {
+    await removeCachedToken(token);
+    const fresh = await getToken(false);
+    if (!fresh) { const e = new Error('unauthorized'); e.needsAuth = true; throw e; }
+    resp = await call(fresh);
+    if (resp.status === 401) { const e = new Error('unauthorized'); e.needsAuth = true; throw e; }
+  }
   if (!resp.ok) throw new Error(`freebusy_http_${resp.status}`);
   return resp.json();
 }

@@ -6,7 +6,7 @@
  * feasibility check so the totals are anchored to real data.
  */
 import { mergeIntervals, busyHours, busyHoursByEmail, attachBusyToMembers } from '../src/utilization.js';
-import { buildAuthUrl, parseTokenFromRedirect, buildFreeBusyBody } from '../src/gcal-auth.js';
+import { buildFreeBusyBody } from '../src/gcal-auth.js';
 import assert from 'node:assert';
 
 let pass = 0, fail = 0;
@@ -66,19 +66,6 @@ test('attachBusyToMembers maps member name → email → hours (0 when unmapped)
 });
 
 // ── auth pure helpers ───────────────────────────────────────────────────────
-test('buildAuthUrl uses implicit flow, the freebusy scope, and no secret', () => {
-  const url = buildAuthUrl('CID.apps.googleusercontent.com', 'https://abc.chromiumapp.org/');
-  assert.ok(url.includes('response_type=token'));
-  assert.ok(url.includes('client_id=CID.apps.googleusercontent.com'));
-  assert.ok(url.includes('calendar.freebusy'));
-  assert.ok(!/secret/i.test(url));
-});
-test('parseTokenFromRedirect extracts the token and a future expiry', () => {
-  const t = parseTokenFromRedirect('https://abc.chromiumapp.org/#access_token=ya29.AAA&expires_in=3600&token_type=Bearer');
-  assert.strictEqual(t.accessToken, 'ya29.AAA');
-  assert.ok(t.expiresAt > Date.now());
-  assert.strictEqual(parseTokenFromRedirect('https://abc.chromiumapp.org/#error=access_denied'), null);
-});
 test('buildFreeBusyBody shapes items as {id} and drops blanks', () => {
   const b = buildFreeBusyBody(['a@x.io', '', 'b@x.io'], '2026-06-22T00:00:00Z', '2026-06-26T00:00:00Z');
   assert.deepStrictEqual(b.items, [{ id: 'a@x.io' }, { id: 'b@x.io' }]);

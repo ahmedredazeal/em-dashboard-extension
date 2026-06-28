@@ -217,11 +217,11 @@
     <!-- Time Utilization (Google Calendar free/busy) -->
     <div class="settings-section em-only" id="utilization-section-settings">
       <h2>📊 Time Utilization (Google Calendar)</h2>
-      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart. Uses Google Calendar <strong>free/busy</strong> — it reads only busy time blocks (start/end), never meeting titles or details. Requires a one-time Google Cloud OAuth client (see the guide). The Client ID is stored on your device only — never in code.</p>
+      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart. Uses Google Calendar <strong>free/busy</strong> — it reads only busy time blocks (start/end), never meeting titles or details. One-time setup: create a Google Cloud <strong>Chrome Extension</strong> OAuth client using the extension ID below (no Web Store URL needed), put its Client ID in <code>manifest.json → oauth2</code>, then Connect.</p>
       <div class="field">
-        <label for="util-client-id">Google OAuth Client ID</label>
-        <input type="text" id="util-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"/>
-        <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → OAuth client ID (Web application). Add <code id="util-redirect-uri">https://&lt;extension-id&gt;.chromiumapp.org/</code> as an authorized redirect URI.</span>
+        <label>Extension ID (for the OAuth client's “Item ID”)</label>
+        <code id="util-extension-id" style="display:inline-block;padding:4px 8px;background:var(--surface-raised,#1f2937);border-radius:4px;font-size:12px;user-select:all;">…</code>
+        <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → Create OAuth client ID → <strong>Chrome Extension</strong> → paste this in <strong>Item ID</strong>. Copy the generated Client ID into <code>manifest.json → oauth2.client_id</code> and reload the extension.</span>
       </div>
       <div class="field" style="display:flex;align-items:center;gap:10px;">
         <button type="button" id="util-connect-btn" class="btn-secondary">Connect Google Calendar</button>

@@ -50,5 +50,12 @@
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "options_page": "settings.html",
-  "minimum_chrome_version": "114"
+  "minimum_chrome_version": "114",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwkKVMvEWb0DYolXtAqbS8aGVCAsMmRqh1IHCuY8RMzJfV9X2AQ+8+EMYnlGgFwtPINXC2l/fY/grVvH+oV4lBZ9hFTBFZD8HLIvxBDKQC/vHThiE0ZEoPvrCBl/jcpQ0iUzsR7v+1vw21vGsFnPRjzSsFKeLde4G5f4WihwkD3n1V5onE83iQB6gK5e/H7PrgFjwO45nXpQKVatRgC5qo69S5eePOkS+UbVS8HVcFhmCv548DtgSFoY0WHzZ5Pc0GsAMXFqTPcwl357Ltt1bKO09csYB/z5VM4JvcR7fMIs4LbJV19qr0kLv4gqK1v6pvGK1HbBgJCj3Ysvre6Ql8wIDAQAB",
+  "oauth2": {
+    "client_id": "PASTE_YOUR_CHROME_EXTENSION_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.freebusy"
+    ]
+  }
 }
