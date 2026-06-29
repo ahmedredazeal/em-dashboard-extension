@@ -200,6 +200,39 @@ function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDat
 function icsWeekday(d) { return ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][d.getDay()]; }
 
 /**
+ * Map Google Calendar events.list items to the internal meeting shape, so the
+ * same todaysMeetings()/countdownState() logic powers both sources. Google
+ * (with calendar.readonly) gives real titles, unlike the busy-only iCal feed.
+ * Recurring events are already expanded (singleEvents=true), so no rrule work.
+ * @param {Array} items  events.list `items`
+ * @returns {Array} meetings: { id, title, start, end, allDay, location, attendeesCount }
+ */
+export function googleEventsToMeetings(items) {
+  return (items || [])
+    .filter(ev => ev && ev.status !== 'cancelled' && ev.start)
+    .map(ev => {
+      const allDay = !!(ev.start.date && !ev.start.dateTime);
+      const toISO = (slot) => {
+        if (!slot) return null;
+        if (slot.dateTime) return new Date(slot.dateTime).toISOString();
+        if (slot.date) return new Date(slot.date + 'T00:00:00').toISOString(); // local midnight
+        return null;
+      };
+      const start = toISO(ev.start);
+      return {
+        id: ev.id || ('g-' + (ev.summary || '') + '-' + (start || Math.random())),
+        title: ev.summary || '(no title)',
+        start,
+        end: toISO(ev.end),
+        allDay,
+        location: ev.location || '',
+        attendeesCount: Array.isArray(ev.attendees) ? ev.attendees.length : 0,
+      };
+    })
+    .filter(m => m.start);
+}
+
+/**
  * Reduce parsed meetings to today's view.
  * @returns {{ timed: [], allDay: [], next: meeting|null }}
  *   timed sorted by start; allDay separate; next = earliest upcoming or in-progress.

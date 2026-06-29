@@ -22,6 +22,7 @@
  */
 
 const FREEBUSY_ENDPOINT = 'https://www.googleapis.com/calendar/v3/freeBusy';
+const EVENTS_ENDPOINT = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
 /** Build the freebusy.query request body. Pure → unit-testable. */
 export function buildFreeBusyBody(emails, timeMinISO, timeMaxISO, timeZone = 'UTC') {
@@ -94,5 +95,34 @@ export async function fetchFreeBusy(token, emails, timeMinISO, timeMaxISO, timeZ
     if (resp.status === 401) { const e = new Error('unauthorized'); e.needsAuth = true; throw e; }
   }
   if (!resp.ok) throw new Error(`freebusy_http_${resp.status}`);
+  return resp.json();
+}
+
+/**
+ * List the user's own (primary) calendar events in [timeMin,timeMax]. Returns
+ * the raw events.list body ({ items:[...] }). Requires the calendar.readonly
+ * scope (gives real titles, unlike free/busy). Same 401 drop-and-retry as above.
+ * Powers the "Today's Meetings" card in Google mode (Chrome only).
+ */
+export async function fetchEvents(token, timeMinISO, timeMaxISO) {
+  const params = new URLSearchParams({
+    timeMin: timeMinISO,
+    timeMax: timeMaxISO,
+    singleEvents: 'true',        // expand recurring events → concrete instances
+    orderBy: 'startTime',
+    maxResults: '50',
+  });
+  const url = `${EVENTS_ENDPOINT}?${params.toString()}`;
+  const call = (tok) => fetch(url, { headers: { Authorization: `Bearer ${tok}` } });
+
+  let resp = await call(token);
+  if (resp.status === 401) {
+    await removeCachedToken(token);
+    const fresh = await getToken(false);
+    if (!fresh) { const e = new Error('unauthorized'); e.needsAuth = true; throw e; }
+    resp = await call(fresh);
+    if (resp.status === 401) { const e = new Error('unauthorized'); e.needsAuth = true; throw e; }
+  }
+  if (!resp.ok) throw new Error(`events_http_${resp.status}`);
   return resp.json();
 }

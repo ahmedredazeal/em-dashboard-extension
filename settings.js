@@ -9,7 +9,7 @@ import { parseMilestoneLines } from './src/milestones.js';
 import { runMigrations } from './src/migrations.js';
 import { importTrendSamples } from './src/sentry-trend.js';
 import { colorForIndex } from './src/trend-colors.js';
-import { getToken, getCachedToken } from './src/gcal-auth.js';
+import { getToken, getCachedToken, disconnect as gcalDisconnect } from './src/gcal-auth.js';
 
 // ── Sentry view row rendering ──────────────────────────────────────────────
 // ── Alert rule metadata (UI only — source of truth for labels/defaults) ──
@@ -454,6 +454,13 @@ function getTrackedViewIds() {
         // or the extension ID not matching the OAuth client's Item ID.
         setStatus('Connection failed: ' + msg, false);
       }
+    });
+
+    document.getElementById('util-disconnect-btn')?.addEventListener('click', async () => {
+      try { await gcalDisconnect(); } catch { /* noop */ }
+      setStatus('Not connected', false);
+      // Let the dashboard reload so the Today card reverts to the iCal fallback.
+      chrome.runtime.sendMessage({ type: 'settings-updated' }).catch(() => {});
     });
   })();
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.22.0 (2026-06-29) - Time Utilization completed + Google Calendar for Today's Meetings
+
+Finishes the Time Utilization feature and lets Google Calendar (when connected)
+power the Today's Meetings card with real titles, with the iCal feed kept as a
+cross-browser fallback.
+
+- Scope upgraded to `calendar.readonly` (superset of free/busy): still busy-only
+  for teammates, but reads your own primary calendar for real meeting titles.
+- Today's Meetings card now has two modes: **Google** (connected, Chrome) shows
+  the full meeting list with titles + a named countdown; **iCal** (fallback / non-
+  Chrome) shows a generic next-meeting countdown only — no list — since the iCal
+  feed is busy-only. The <30-min red alert works in both.
+- Member→email matching is now case/space-insensitive, so the overlay lines up
+  reliably with chart names.
+- Added a Disconnect button in Settings.
+- Note: connecting now re-consents once (broader scope). Google mode is Chrome-only
+  (getAuthToken); the iCal URL remains the fallback for other browsers.
+
 ## v2.21.1 (2026-06-29) - Time Utilization fixes: overlay appears after Connect; legend shows top projects
 
 - The busy overlay now appears right after connecting: the Connect button signals

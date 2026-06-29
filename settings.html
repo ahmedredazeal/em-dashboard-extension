@@ -217,14 +217,15 @@
     <!-- Time Utilization (Google Calendar free/busy) -->
     <div class="settings-section em-only" id="utilization-section-settings">
       <h2>📊 Time Utilization (Google Calendar)</h2>
-      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart. Uses Google Calendar <strong>free/busy</strong> — it reads only busy time blocks (start/end), never meeting titles or details. One-time setup: create a Google Cloud <strong>Chrome Extension</strong> OAuth client using the extension ID below (no Web Store URL needed), put its Client ID in <code>manifest.json → oauth2</code>, then Connect.</p>
+      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart, and (when connected) power the Today's Meetings card with your real meeting titles. Uses Google Calendar with the <code>calendar.readonly</code> scope — team data is still busy-times-only, while your own primary calendar is read for titles. One-time setup: create a Google Cloud <strong>Chrome Extension</strong> OAuth client using the extension ID below (no Web Store URL needed), put its Client ID in <code>manifest.json → oauth2</code>, then Connect. Chrome only; the iCal URL below stays as a fallback.</p>
       <div class="field">
         <label>Extension ID (for the OAuth client's “Item ID”)</label>
         <code id="util-extension-id" style="display:inline-block;padding:4px 8px;background:var(--surface-raised,#1f2937);border-radius:4px;font-size:12px;user-select:all;">…</code>
         <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → Create OAuth client ID → <strong>Chrome Extension</strong> → paste this in <strong>Item ID</strong>. Copy the generated Client ID into <code>manifest.json → oauth2.client_id</code> and reload the extension.</span>
       </div>
-      <div class="field" style="display:flex;align-items:center;gap:10px;">
+      <div class="field" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <button type="button" id="util-connect-btn" class="btn-secondary">Connect Google Calendar</button>
+        <button type="button" id="util-disconnect-btn" class="btn-secondary">Disconnect</button>
         <span id="util-status" style="font-size:12px;color:var(--text-muted);"></span>
       </div>
       <div class="field">

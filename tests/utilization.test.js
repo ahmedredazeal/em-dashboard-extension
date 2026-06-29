@@ -72,5 +72,11 @@ test('buildFreeBusyBody shapes items as {id} and drops blanks', () => {
   assert.strictEqual(b.timeMin, '2026-06-22T00:00:00Z');
 });
 
+test('attachBusyToMembers matches names case/space-insensitively', () => {
+  const members = [{ name: ' Ahmed Reda ', total: 20, byProject: {} }];
+  const out = attachBusyToMembers(members, { 'ahmed reda': 'A.Reda@GetZeal.io' }, { 'a.reda@getzeal.io': 15.75 });
+  assert.strictEqual(out[0].busyHours, 15.75);
+});
+
 console.log(`\nutilization: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

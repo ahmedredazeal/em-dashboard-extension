@@ -6,7 +6,7 @@
 
 ## 🔄 In Progress
 
-- **Time Utilization overlay (free/busy)** — shipped v2.21.0; DevPulse port pending. Was: Phase 1 done: tested compute
+- **Time Utilization** — completed v2.22.0 (overlay + Google-powered Today's Meetings, iCal hybrid). DevPulse port pending. Was: Phase 1 done: tested compute
   (`src/utilization.js`) + auth/fetch helper (`src/gcal-auth.js`). Phase 2: Settings UI
   (client-ID + Connect + member→email map), `fetch-freebusy` handler, chart overlay +
   rename, popup wiring, manifest perms. Then port to DevPulse. (docs/DECISIONS.md)

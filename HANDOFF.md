@@ -5,7 +5,15 @@
 
 ---
 
-## Current version: v2.21.1
+## Current version: v2.22.0
+
+> **v2.22.0 — feature completed + iCal hybrid.** Scope → calendar.readonly. Today's
+> Meetings card: Google mode (connected, Chrome) = titled list + named countdown; iCal mode
+> (fallback/non-Chrome) = generic countdown only, no list. New: src/gcal-auth.fetchEvents,
+> src/calendar.googleEventsToMeetings, bg fetch-gcal-events; popup refreshCalendar prefers
+> Google then iCal (_calSource); attachBusyToMembers name-normalized; Disconnect button.
+> **Next: port everything to DevPulse (no client ID shipped).**
+
 
 > **Phase 2b shipped (v2.21.0): the visible overlay.** timesheet-svg.js draws a hatched
 > slate busy sub-bar (+ busy total + legend) under each logged bar when a member has

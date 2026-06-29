@@ -279,3 +279,15 @@ gcal-auth rewritten (getToken/getCachedToken/removeCachedToken/fetchFreeBusy wit
 background fetch-freebusy uses the Chrome-managed token. manifest.oauth2.client_id is a
 PLACEHOLDER to be replaced with the real client ID after the OAuth client is created.
 For public DevPulse: ship no client ID (forkers add their own + their own key).
+
+**v2.22.0 — feature completed; iCal hybrid; scope → calendar.readonly.** Upgraded the
+OAuth scope from calendar.freebusy to calendar.readonly (superset): teammates remain
+busy-only via freebusy.query, while the user's own primary calendar is read via
+events.list for real titles. Today's Meetings card is now hybrid: Google mode (connected,
+Chrome) shows a titled list + named countdown; iCal mode (fallback / non-Chrome) shows a
+generic next-meeting countdown only — no list — because the iCal feed is busy-only.
+[DECISION] Hybrid (not full replace) was chosen so non-Chrome browsers keep a working
+Today card (getAuthToken is Chrome-only). The card prefers Google whenever utilization is
+enabled, else falls back to the iCal URL; visibility shows when either source is set up.
+Also: attachBusyToMembers now matches names case/space-insensitively; added a Disconnect
+button. Connecting re-consents once for the broader scope.

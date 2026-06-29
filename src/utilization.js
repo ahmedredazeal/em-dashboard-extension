@@ -106,9 +106,16 @@ export function busyHoursByEmailPerDay(resp, tzOffsetMinutes = 0) {
  * @returns {Array} members with `busyHours` added (0 when unmapped/unknown)
  */
 export function attachBusyToMembers(members, emailByMember, busyByEmail) {
+  const norm = s => String(s ?? '').trim().toLowerCase();
+  // Normalize both sides so trivial case/whitespace differences still match
+  // (member display names vs. the Settings map; emails vs. Google's keys).
+  const emailByNameN = {};
+  for (const [name, email] of Object.entries(emailByMember || {})) emailByNameN[norm(name)] = norm(email);
+  const busyByEmailN = {};
+  for (const [email, h] of Object.entries(busyByEmail || {})) busyByEmailN[norm(email)] = h;
   return (members || []).map(m => {
-    const email = emailByMember && emailByMember[m.name];
-    const busy = (email && busyByEmail && busyByEmail[email]) || 0;
+    const email = emailByNameN[norm(m.name)];
+    const busy = (email && busyByEmailN[email]) || 0;
     return { ...m, busyHours: Math.round(busy * 100) / 100 };
   });
 }

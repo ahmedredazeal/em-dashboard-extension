@@ -16,8 +16,8 @@ import { extractWorklogs, computeTimesheet, sortTimesheetMembers } from './src/t
 import { setCachedSprintData, detectSprintChange } from './src/sprint-cache.js';
 import { buildMilestoneData } from './src/milestones.js';
 import { countReopens } from './src/bug-reports.js';
-import { parseICS as parseCalendarICS, todaysMeetings as calendarTodaysMeetings } from './src/calendar.js';
-import { getCachedToken, fetchFreeBusy } from './src/gcal-auth.js';
+import { parseICS as parseCalendarICS, todaysMeetings as calendarTodaysMeetings, googleEventsToMeetings } from './src/calendar.js';
+import { getCachedToken, fetchFreeBusy, fetchEvents } from './src/gcal-auth.js';
 import {
   emptyBucket, buildSnapshot, updateBucket, shouldRollover,
   finalizeMonth, pruneHistory, monthKey, DEFAULT_RETENTION_MONTHS,
@@ -1394,6 +1394,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true, view });
       } catch (err) {
         console.warn('[calendar] fetch failed:', err?.message, err);
+        sendResponse({ success: false, reason: 'error', message: err?.message || String(err) });
+      }
+    })();
+    return true; // async sendResponse
+  }
+
+  if (message.type === 'fetch-gcal-events') {
+    // Today's Meetings (Google mode): read the user's primary calendar with real
+    // titles via calendar.readonly. Uses the cached token; returns the same view
+    // shape as fetch-calendar so the popup renders identically (plus source flag).
+    (async () => {
+      try {
+        const token = await getCachedToken();
+        if (!token) { sendResponse({ success: false, needsAuth: true }); return; }
+        const now = new Date();
+        const start = new Date(now); start.setHours(0, 0, 0, 0);
+        const end = new Date(now); end.setHours(23, 59, 59, 999);
+        const data = await fetchEvents(token, start.toISOString(), end.toISOString());
+        const view = calendarTodaysMeetings(googleEventsToMeetings(data.items || []), now);
+        await chrome.storage.session.set({ calendarCache: { at: now.toISOString(), view, source: 'google' } });
+        sendResponse({ success: true, view, source: 'google' });
+      } catch (err) {
+        if (err && err.needsAuth) { sendResponse({ success: false, needsAuth: true }); return; }
+        console.warn('[gcal-events] fetch failed:', err?.message);
         sendResponse({ success: false, reason: 'error', message: err?.message || String(err) });
       }
     })();

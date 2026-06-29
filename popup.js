@@ -272,6 +272,7 @@ async function loadAndApplyTheme() {
 // parses the ICS URL), or use mock meetings in demo mode. The countdown ticks
 // client-side off the already-fetched view; a poll refreshes the list.
 let _calView = null;          // { timed, allDay }
+let _calSource = null;        // 'google' (titles + list) | 'ical' (countdown only)
 let _calError = null;         // last fetch error reason (so the 1s tick does not clobber it)
 let _calErrorMsg = '';        // detail message for the 'error' reason
 let _calTickTimer = null;
@@ -284,10 +285,10 @@ async function initCalendar() {
   const section = document.getElementById('calendar-section');
   if (!section) return;
 
-  // Show the card when configured. Having an ICS URL IS the intent — we do not
-  // also require the separate enable toggle to be on (a common gotcha: URL pasted
-  // but toggle left off → blank card). Demo mode always shows it.
-  const configured = !!cal.icsUrl;
+  // Show the card when configured by EITHER source: an iCal URL, or Google
+  // Calendar connected for utilization (which also powers the meetings list).
+  const util = (state.settings && state.settings.utilization) || {};
+  const configured = !!cal.icsUrl || !!util.enabled;
   if (!state.mockMode && !configured) {
     section.classList.add('hidden');
     return;
@@ -331,27 +332,50 @@ async function refreshCalendar() {
     if (state.mockMode) {
       const now = new Date();
       _calView = generateMockMeetings(now);
+      _calSource = 'google';                 // mock meetings have titles → list view
+      _calError = null; _calErrorMsg = '';
       renderCalendarCard();
       trackSection('calendar');
       return;
     }
     const cal = (state.settings && state.settings.calendar) || {};
-    const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar', icsUrl: cal.icsUrl || '' });
-    if (resp && resp.success) {
-      _calView = resp.view;
-      _calError = null;
-      _calErrorMsg = '';
-      trackSection('calendar');
-    } else {
-      _calView = null;
-      _calError = (resp && resp.reason) || 'error';
-      _calErrorMsg = (resp && resp.message) || '';
+    const util = (state.settings && state.settings.utilization) || {};
+
+    // Prefer Google when the user has set it up: real titles + full list (Chrome
+    // only). Falls through to the iCal feed if not connected / not Chrome / error.
+    if (util.enabled) {
+      try {
+        const g = await chrome.runtime.sendMessage({ type: 'fetch-gcal-events' });
+        if (g && g.success) {
+          _calView = g.view; _calSource = 'google'; _calError = null; _calErrorMsg = '';
+          trackSection('calendar');
+          renderCalendarCard();
+          return;
+        }
+      } catch (e) { /* fall through to iCal */ }
+    }
+
+    // iCal fallback — busy-only feed, so the card shows a countdown, not a list.
+    if (cal.icsUrl) {
+      const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar', icsUrl: cal.icsUrl || '' });
+      if (resp && resp.success) {
+        _calView = resp.view; _calSource = 'ical'; _calError = null; _calErrorMsg = '';
+        trackSection('calendar');
+      } else {
+        _calView = null; _calSource = null;
+        _calError = (resp && resp.reason) || 'error';
+        _calErrorMsg = (resp && resp.message) || '';
+      }
       renderCalendarCard();
       return;
     }
+
+    // Google was expected (enabled) but not connected, and no iCal fallback set.
+    _calView = null; _calSource = null;
+    _calError = util.enabled ? 'needs-google' : 'not-configured';
     renderCalendarCard();
   } catch (e) {
-    _calView = null;
+    _calView = null; _calSource = null;
     _calError = 'error';
     renderCalendarCard();
   }
@@ -391,7 +415,8 @@ function renderCalendarCard() {
     if (_calError) {
       const r = String(_calError);
       let msg;
-      if (r === 'not-configured') msg = 'Add your iCal URL in Settings to see today\'s meetings.';
+      if (r === 'not-configured') msg = 'Add your iCal URL — or connect Google Calendar — in Settings to see today\'s meetings.';
+      else if (r === 'needs-google') msg = 'Connect Google Calendar in Settings to see today\'s meetings (or add an iCal URL as a fallback).';
       else if (r === 'network') msg = 'Could not reach the calendar. Check the URL is the secret iCal address and that you are online.';
       else if (r === 'not-ics') msg = 'That URL did not return an iCal feed. Use the "Secret address in iCal format" (ends in .ics), not the share link.';
       else if (r.startsWith('http-')) msg = `The calendar URL returned an error (${r.replace('http-', 'HTTP ')}). Re-copy the secret iCal address from Google Calendar.`;
@@ -427,6 +452,22 @@ function renderCalendarCard() {
     }
   }
 
+  // iCal mode: the feed is busy-only (titles aren't meaningful), so show just a
+  // generic next-meeting countdown — no list, no titles.
+  if (_calSource === 'ical') {
+    let line;
+    if (cd.status === 'none') line = `<div class="cal-next cal-none">No more meetings today</div>`;
+    else if (cd.status === 'in_progress') line = `<div class="cal-next cal-inprogress">● Meeting in progress</div>`;
+    else {
+      const alertCls = cd.alert ? ' cal-alert' : '';
+      const dot = cd.alert ? `<span class="cal-flash">●</span> ` : '';
+      line = `<div class="cal-next${alertCls}">${dot}Next meeting <strong>${cd.label}</strong> (${timeLabel(view.next.start)})</div>`;
+    }
+    el.innerHTML = line;
+    return;
+  }
+
+  // Google mode (and mock): real titles → named banner + full list.
   // Body banner (full next-meeting line) + list — these collapse together.
   const banner = (() => {
     if (cd.status === 'none') return `<div class="cal-next cal-none">No more meetings today</div>`;
