@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.23.0 (2026-06-29) - Auto-fill member emails from Jira
+
+- Added a "Fetch emails from Jira" button in Time Utilization settings: it resolves
+  each squad member's email from their Jira accountId, so the busy-overlay email map
+  no longer has to be typed by hand. Emails Jira won't disclose (instance privacy /
+  permissions) are left for manual entry.
+- The per-member manual email fields are now in a collapsed section to keep the
+  Settings page compact; the Fetch button + status stay visible above it.
+
 ## v2.22.1 (2026-06-29) - Today's Meetings shows on Google connection alone
 
 - Fixed: the Today's Meetings card no longer requires a saved team email map. Your

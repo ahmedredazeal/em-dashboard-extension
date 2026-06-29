@@ -78,6 +78,29 @@ export class JiraClient {
   }
 
   /**
+   * Look up email addresses for a list of accountIds (GET /rest/api/3/user).
+   * Jira Cloud only returns `emailAddress` when the instance exposes it and the
+   * caller has permission — members it won't disclose are simply omitted (the
+   * caller leaves those for manual entry). One GET per id (squads are small).
+   * @param {string[]} accountIds
+   * @returns {Promise<Object<string,string>>} { accountId: email } (present only)
+   */
+  async getUserEmails(accountIds) {
+    const out = {};
+    for (const id of (accountIds || [])) {
+      if (!id) continue;
+      try {
+        const u = await this._get(`/rest/api/3/user?accountId=${encodeURIComponent(id)}`);
+        if (u && u.emailAddress) out[id] = u.emailAddress;
+      } catch (e) {
+        // hidden / not found / error → skip; stays manual
+        console.warn('[jira] getUserEmails: could not resolve', id, '—', e?.message);
+      }
+    }
+    return out;
+  }
+
+  /**
    * Fetch the authenticated user's profile (accountId + displayName).
    * Used to seed the engineer "me" scope for role-based views.
    */

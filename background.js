@@ -1400,6 +1400,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // async sendResponse
   }
 
+  if (message.type === 'fetch-jira-emails') {
+    // Resolve squad members' emails from their Jira accountIds, so the utilization
+    // email map can be auto-filled instead of typed. Returns only emails Jira
+    // actually discloses (instance privacy + permissions); the rest stay manual.
+    (async () => {
+      try {
+        const stored = await chrome.storage.local.get(['settings']);
+        const jira = stored.settings && stored.settings.jira;
+        if (!jira || !jira.baseUrl || !jira.email || !jira.token) {
+          sendResponse({ success: false, reason: 'no-jira-creds' }); return;
+        }
+        const ids = Array.isArray(message.accountIds) ? message.accountIds.filter(Boolean) : [];
+        if (ids.length === 0) { sendResponse({ success: false, reason: 'no-account-ids' }); return; }
+        const client = new jiraAPI.JiraClient(jira.baseUrl, jira.email, jira.token);
+        const emails = await client.getUserEmails(ids);
+        sendResponse({ success: true, emails });
+      } catch (err) {
+        console.warn('[jira-emails] failed:', err?.message);
+        sendResponse({ success: false, reason: 'error', message: err?.message || String(err) });
+      }
+    })();
+    return true; // async sendResponse
+  }
+
   if (message.type === 'fetch-gcal-events') {
     // Today's Meetings (Google mode): read the user's primary calendar with real
     // titles via calendar.readonly. Uses the cached token; returns the same view

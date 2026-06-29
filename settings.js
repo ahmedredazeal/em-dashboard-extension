@@ -462,6 +462,34 @@ function getTrackedViewIds() {
       // Let the dashboard reload so the Today card reverts to the iCal fallback.
       chrome.runtime.sendMessage({ type: 'settings-updated' }).catch(() => {});
     });
+
+    // Auto-fill member emails from Jira (resolves each member's accountId → email).
+    const emailsStatusEl = document.getElementById('util-emails-status');
+    const setEmailsStatus = (txt, ok) => { if (emailsStatusEl) { emailsStatusEl.textContent = txt; emailsStatusEl.style.color = ok ? 'var(--status-on-track)' : 'var(--text-muted)'; } };
+    document.getElementById('util-fetch-emails-btn')?.addEventListener('click', async () => {
+      const withIds = squadMembers.filter(m => m.accountId);
+      if (withIds.length === 0) { setEmailsStatus('No Jira accountIds on the squad list — add emails manually below.', false); return; }
+      setEmailsStatus('Fetching from Jira…', false);
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'fetch-jira-emails', accountIds: withIds.map(m => m.accountId) });
+        if (!resp || !resp.success) {
+          const why = resp && resp.reason === 'no-jira-creds' ? 'connect Jira first' : (resp && resp.message) || (resp && resp.reason) || 'error';
+          setEmailsStatus('Could not fetch from Jira: ' + why, false);
+          return;
+        }
+        let filled = 0;
+        for (const m of withIds) {
+          const email = resp.emails[m.accountId];
+          if (!email) continue;
+          const inp = document.querySelector(`#util-email-map .util-email[data-name="${(window.CSS && CSS.escape) ? CSS.escape(m.name) : m.name}"]`);
+          if (inp) { inp.value = email; filled++; }
+        }
+        const missing = squadMembers.length - filled;
+        setEmailsStatus(`Filled ${filled} of ${squadMembers.length}.` + (missing > 0 ? ` ${missing} not disclosed by Jira — add manually below.` : '') + ' Click Save to apply.', filled > 0);
+      } catch (e) {
+        setEmailsStatus('Could not fetch from Jira: ' + (e?.message || 'error'), false);
+      }
+    });
   })();
 
   const roleHints = {

@@ -291,3 +291,10 @@ Today card (getAuthToken is Chrome-only). The card prefers Google whenever utili
 enabled, else falls back to the iCal URL; visibility shows when either source is set up.
 Also: attachBusyToMembers now matches names case/space-insensitively; added a Disconnect
 button. Connecting re-consents once for the broader scope.
+
+**v2.23.0 — auto-fill member emails from Jira.** Jira Cloud hides teammates' emails by
+default, which is why the utilization overlay needed a manual email map. Added a "Fetch
+emails from Jira" button: background 'fetch-jira-emails' → JiraClient.getUserEmails resolves
+each squad member's accountId → emailAddress via GET /rest/api/3/user. Only emails the
+instance discloses are filled; the rest stay manual (now in a collapsed section to keep
+Settings compact). The Today's Meetings card needs none of this — own calendar only.

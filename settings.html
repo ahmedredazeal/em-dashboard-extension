@@ -229,9 +229,16 @@
         <span id="util-status" style="font-size:12px;color:var(--text-muted);"></span>
       </div>
       <div class="field">
-        <label>Member emails (for free/busy lookup)</label>
-        <span class="field-hint">Jira hides emails, so map each squad member to their Google address. Only mapped members appear in the utilization overlay.</span>
-        <div id="util-email-map" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+        <label>Member emails (for the squad busy overlay)</label>
+        <span class="field-hint">Only needed for the time-chart busy overlay (not the Today's Meetings card). Click “Fetch from Jira” to fill these from each member’s Jira account; edit any that Jira won’t disclose.</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+          <button type="button" id="util-fetch-emails-btn" class="btn-secondary">Fetch emails from Jira</button>
+          <span id="util-emails-status" style="font-size:12px;color:var(--text-muted);"></span>
+        </div>
+        <details style="margin-top:8px;">
+          <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);">Member emails (manual / fallback)</summary>
+          <div id="util-email-map" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+        </details>
       </div>
     </div>
 
