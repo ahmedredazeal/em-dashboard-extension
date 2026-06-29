@@ -281,19 +281,12 @@ const CAL_POLL_MS = 5 * 60 * 1000;  // re-fetch every 5 min while panel is open
 const CAL_TICK_MS = 1000;           // countdown updates every second
 
 async function initCalendar() {
-  const cal = (state.settings && state.settings.calendar) || {};
   const section = document.getElementById('calendar-section');
   if (!section) return;
 
-  // Show the card when configured by EITHER source: an iCal URL, or Google
-  // Calendar connected for utilization (which also powers the meetings list).
-  const util = (state.settings && state.settings.utilization) || {};
-  const configured = !!cal.icsUrl || !!util.enabled;
-  if (!state.mockMode && !configured) {
-    section.classList.add('hidden');
-    return;
-  }
-  section.classList.remove('hidden');
+  // Visibility is decided by refreshCalendar (below) based on what actually
+  // resolves — Google connection, iCal URL, or neither. We still wire the
+  // collapse handlers up front so they're ready when the card is revealed.
 
   // Collapsed by default: hide the meeting list, keep the header + countdown
   // visible. (Set once per session via the calCollapsedInit guard so a user who
@@ -320,6 +313,8 @@ async function initCalendar() {
   }
 
   await refreshCalendar();
+  // If nothing resolved (card hidden), don't bother polling.
+  if (section.classList.contains('hidden')) return;
   // Start client-side countdown tick + periodic poll.
   if (_calTickTimer) clearInterval(_calTickTimer);
   _calTickTimer = setInterval(() => renderCalendarCard(), CAL_TICK_MS);
@@ -328,52 +323,54 @@ async function initCalendar() {
 }
 
 async function refreshCalendar() {
+  const section = document.getElementById('calendar-section');
+  const show = () => section && section.classList.remove('hidden');
+  const hide = () => section && section.classList.add('hidden');
   try {
     if (state.mockMode) {
       const now = new Date();
       _calView = generateMockMeetings(now);
       _calSource = 'google';                 // mock meetings have titles → list view
       _calError = null; _calErrorMsg = '';
-      renderCalendarCard();
-      trackSection('calendar');
+      show(); trackSection('calendar'); renderCalendarCard();
       return;
     }
     const cal = (state.settings && state.settings.calendar) || {};
     const util = (state.settings && state.settings.utilization) || {};
 
-    // Prefer Google when the user has set it up: real titles + full list (Chrome
-    // only). Falls through to the iCal feed if not connected / not Chrome / error.
-    if (util.enabled) {
-      try {
-        const g = await chrome.runtime.sendMessage({ type: 'fetch-gcal-events' });
-        if (g && g.success) {
-          _calView = g.view; _calSource = 'google'; _calError = null; _calErrorMsg = '';
-          trackSection('calendar');
-          renderCalendarCard();
-          return;
-        }
-      } catch (e) { /* fall through to iCal */ }
-    }
+    // 1) Prefer Google whenever connected — your OWN calendar (titles + list)
+    //    needs only the sign-in, NOT the team email map. The background returns
+    //    needsAuth quickly when there is no token, so this is cheap when unused.
+    try {
+      const g = await chrome.runtime.sendMessage({ type: 'fetch-gcal-events' });
+      if (g && g.success) {
+        _calView = g.view; _calSource = 'google'; _calError = null; _calErrorMsg = '';
+        show(); trackSection('calendar'); renderCalendarCard();
+        return;
+      }
+    } catch (e) { /* fall through to iCal */ }
 
-    // iCal fallback — busy-only feed, so the card shows a countdown, not a list.
+    // 2) iCal fallback — busy-only feed, so the card shows a countdown, not a list.
     if (cal.icsUrl) {
       const resp = await chrome.runtime.sendMessage({ type: 'fetch-calendar', icsUrl: cal.icsUrl || '' });
       if (resp && resp.success) {
         _calView = resp.view; _calSource = 'ical'; _calError = null; _calErrorMsg = '';
-        trackSection('calendar');
+        show(); trackSection('calendar');
       } else {
         _calView = null; _calSource = null;
         _calError = (resp && resp.reason) || 'error';
         _calErrorMsg = (resp && resp.message) || '';
+        show();
       }
       renderCalendarCard();
       return;
     }
 
-    // Google was expected (enabled) but not connected, and no iCal fallback set.
+    // 3) Neither source produced data. If the user set up utilization, nudge them
+    //    to connect; otherwise the card is genuinely unconfigured → hide it.
     _calView = null; _calSource = null;
-    _calError = util.enabled ? 'needs-google' : 'not-configured';
-    renderCalendarCard();
+    if (util.enabled) { _calError = 'needs-google'; show(); renderCalendarCard(); }
+    else { _calError = 'not-configured'; hide(); }
   } catch (e) {
     _calView = null; _calSource = null;
     _calError = 'error';

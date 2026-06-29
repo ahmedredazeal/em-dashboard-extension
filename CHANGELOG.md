@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.22.1 (2026-06-29) - Today's Meetings shows on Google connection alone
+
+- Fixed: the Today's Meetings card no longer requires a saved team email map. Your
+  own calendar needs only the Google sign-in, so the card now appears (with your
+  real meeting titles) as soon as you're connected — the email map is only for the
+  squad overlay on the time chart.
+- The card now reveals/hides itself based on what actually resolves (Google
+  connection, then iCal URL, then neither) instead of a pre-check, so a connected
+  user with no iCal URL still sees it.
+
 ## v2.22.0 (2026-06-29) - Time Utilization completed + Google Calendar for Today's Meetings
 
 Finishes the Time Utilization feature and lets Google Calendar (when connected)
