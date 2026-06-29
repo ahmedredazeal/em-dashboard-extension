@@ -168,10 +168,15 @@ export function buildTimesheetSVG(members, capacity = 0) {
              + `<text x="${labelX.toFixed(1)}" y="${paceLabelY.toFixed(1)}" text-anchor="${labelAnchor}" fill="#94a3b8" font-size="9" font-weight="600" font-family="system-ui">pace ${paceMark}h</text>`;
   }
 
-  // Legend (up to 4 projects shown inline, rest omitted)
+  // Legend: show the largest projects BY HOURS (not alphabetical), so the
+  // dominant project — e.g. the squad's main board — is always represented.
   const ly = H - 10;
   let legendX = baseX;
-  const legendItems = allProjects.slice(0, 4);
+  const projectTotals = {};
+  members.forEach(m => Object.entries(m.byProject || {}).forEach(([k, v]) => {
+    projectTotals[k] = (projectTotals[k] || 0) + (v || 0);
+  }));
+  const legendItems = Object.keys(projectTotals).sort((a, b) => projectTotals[b] - projectTotals[a]).slice(0, 4);
   let legendSvg = legendItems.map(pk => {
     const color = colorMap[pk];
     const label = pk.length > 8 ? pk.slice(0, 7) + '…' : pk;

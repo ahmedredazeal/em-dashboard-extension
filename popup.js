@@ -367,11 +367,12 @@ async function refreshUtilization(key, emails, timeMin, timeMax) {
     const resp = await chrome.runtime.sendMessage({ type: 'fetch-freebusy', emails, timeMin, timeMax });
     state.utilizationBusy = (resp && resp.success && resp.resp)
       ? { key, byEmail: busyHoursByEmail(resp.resp) }
-      // needsAuth / error: cache an empty result for this range so we don't loop;
-      // connecting in Settings fires settings-updated, which reloads + refetches.
-      : { key, byEmail: {}, error: (resp && (resp.reason || (resp.needsAuth && 'needs-auth'))) || 'error' };
+      // needsAuth / error: cache with a timestamp so render can retry after a
+      // short cooldown (e.g. once connected, or after a token expiry) without
+      // hammering. Connecting in Settings also fires settings-updated → reload.
+      : { key, byEmail: {}, error: (resp && (resp.reason || (resp.needsAuth && 'needs-auth'))) || 'error', ts: Date.now() };
   } catch (e) {
-    state.utilizationBusy = { key, byEmail: {}, error: 'error' };
+    state.utilizationBusy = { key, byEmail: {}, error: 'error', ts: Date.now() };
   } finally {
     state._utilFetching = null;
     renderCurrentScreen();
@@ -1519,12 +1520,16 @@ function renderInsights() {
       const emails = [...new Set(timesheetMembers.map(m => emailByMember[m.name]).filter(Boolean))];
       if (emails.length > 0) {
         const key = `${modeStart}_${modeEnd}`;
-        if (state.utilizationBusy?.key === key) {
-          tsMembers = attachBusyToMembers(timesheetMembers, emailByMember, state.utilizationBusy.byEmail);
-          utilizationActive = Object.values(state.utilizationBusy.byEmail || {}).some(h => h > 0);
+        const cache = state.utilizationBusy;
+        if (cache?.key === key && !cache.error) {
+          tsMembers = attachBusyToMembers(timesheetMembers, emailByMember, cache.byEmail);
+          utilizationActive = Object.values(cache.byEmail || {}).some(h => h > 0);
         } else {
-          // Kick off a fetch for this range (fire-and-forget); repaints on return.
-          refreshUtilization(key, emails, `${modeStart}T00:00:00Z`, `${modeEnd}T23:59:59Z`);
+          // No good data yet. Fetch — unless we errored on this exact range within
+          // the last 15s (avoids a tight retry loop while still recovering after
+          // connecting or a token refresh).
+          const coolingDown = cache?.key === key && cache.error && (Date.now() - (cache.ts || 0) < 15000);
+          if (!coolingDown) refreshUtilization(key, emails, `${modeStart}T00:00:00Z`, `${modeEnd}T23:59:59Z`);
         }
       }
     }

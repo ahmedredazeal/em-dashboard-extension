@@ -444,7 +444,10 @@ function getTrackedViewIds() {
       try {
         // Client ID + scopes come from manifest.oauth2 (Chrome Extension client).
         const tok = await getToken(true);
-        setStatus(tok ? '✓ Connected' : 'No token returned', !!tok);
+        setStatus(tok ? '✓ Connected — reopen the dashboard to see meeting hours' : 'No token returned', !!tok);
+        // Tell the dashboard to reload so it re-fetches free/busy with the new
+        // token (otherwise it keeps the "not connected" result it cached earlier).
+        if (tok) chrome.runtime.sendMessage({ type: 'settings-updated' }).catch(() => {});
       } catch (e) {
         const msg = e?.message || 'dismissed';
         // The usual cause is the manifest client_id placeholder not yet replaced,

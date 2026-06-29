@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.21.0
+## Current version: v2.21.1
 
 > **Phase 2b shipped (v2.21.0): the visible overlay.** timesheet-svg.js draws a hatched
 > slate busy sub-bar (+ busy total + legend) under each logged bar when a member has

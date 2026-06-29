@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.21.1 (2026-06-29) - Time Utilization fixes: overlay appears after Connect; legend shows top projects
+
+- The busy overlay now appears right after connecting: the Connect button signals
+  the dashboard to reload and re-fetch free/busy (previously it kept the
+  "not connected" result cached from before sign-in, so the chart stayed blank).
+- A failed/expired free/busy fetch now retries after a short cooldown instead of
+  sticking, so the overlay recovers on its own (e.g. after a token refresh).
+- Time Logged legend now lists the largest projects by hours rather than the first
+  four alphabetically, so the squad's main board (e.g. HRM) is always shown.
+
 ## v2.21.0 (2026-06-29) - Time Utilization overlay (Google Calendar free/busy)
 
 The squad Time Logged chart can now overlay each member's meeting/busy hours, so

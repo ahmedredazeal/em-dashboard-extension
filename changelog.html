@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
                                                 <div class="cl-row">
+      <div class="cl-ver patch">v2.21.1</div>
+      <div class="cl-desc"><strong>Time Utilization fixes.</strong> The busy overlay now appears immediately after you connect (the Connect button tells the dashboard to reload and re-fetch free/busy; before, it kept the &ldquo;not connected&rdquo; result cached from before sign-in). A failed/expired fetch retries after a short cooldown instead of sticking. And the Time Logged legend now lists the largest projects by hours instead of the first four alphabetically, so the squad's main board (e.g.&nbsp;HRM) is always shown.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver minor">v2.21.0</div>
       <div class="cl-desc"><strong>Time Utilization overlay (Google Calendar free/busy).</strong> The squad Time Logged chart can now overlay each member's meeting/busy hours as a hatched sub-bar beneath the logged bar, and is renamed &ldquo;Time Utilization&rdquo; when active. Uses Google Calendar <em>free/busy</em> &mdash; busy times only, never meeting titles; overlapping blocks are merged so nothing is double-counted. Auth is <code>chrome.identity.getAuthToken</code> with a Chrome Extension OAuth client (client ID in <code>manifest.oauth2</code>, stable ID pinned via <code>key</code>); no secret, Chrome-only. Off by default &mdash; connect in Settings and map member emails to enable. Squad + sprint scope.</div>
     </div>

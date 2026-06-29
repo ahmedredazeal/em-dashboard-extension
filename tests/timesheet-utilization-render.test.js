@@ -43,5 +43,14 @@ test('busyHours of 0 on a member draws no busy bar for that member', () => {
   assert.strictEqual((on.match(/class="ts-busy"/g) || []).length, 1);
 });
 
+test('legend shows the biggest projects by hours (incl. HRM) even with >4 projects', () => {
+  const many = [{
+    name: 'Ahmed', total: 40,
+    byProject: { ALPHA: 1, BETA: 1, CARE: 1, DEV: 1, HRM: 36 }, // HRM dominant, alphabetically last
+  }];
+  const svg = buildTimesheetSVG(many, { fixed: 36 });
+  assert.ok(svg.includes('>HRM<'), 'HRM (largest) appears in the legend');
+});
+
 console.log(`\ntimesheet-utilization-render: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
