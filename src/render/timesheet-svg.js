@@ -64,7 +64,10 @@ export function buildTimesheetSVG(members, capacity = 0) {
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
 
   // Scale so the longest bar OR either reference line (whichever is largest) fits.
-  const maxLogged = Math.max(...members.map(m => m.total || 0), 0.1);
+  // When the Time Utilization overlay is active, a member's busy hours can exceed
+  // their logged hours, so the scale must accommodate busy too (kept in-bounds).
+  const anyBusy = members.some(m => (m.busyHours || 0) > 0);
+  const maxLogged = Math.max(...members.map(m => Math.max(m.total || 0, m.busyHours || 0)), 0.1);
   const maxRef    = Math.max(capacityHours, paceMark);
   const maxTotal  = maxRef > 0 ? Math.max(maxLogged, maxRef) : maxLogged;
   const bw = h => Math.max(1, (h / maxTotal) * PW);
@@ -96,9 +99,22 @@ export function buildTimesheetSVG(members, capacity = 0) {
     }).join('');
 
     const totalColor = over ? '#f59e0b' : 'var(--text)';
+    // Time Utilization overlay: a hatched slate sub-bar beneath the logged bar
+    // showing meeting/busy hours (durations only — no titles). Drawn only when
+    // this member has busy hours, so the chart is unchanged when the overlay is
+    // off. A faint busy total sits under the logged total.
+    const busy = m.busyHours || 0;
+    let busySvg = '';
+    if (busy > 0) {
+      const bwBusy = bw(busy);
+      busySvg = `<rect class="ts-busy" data-ts-name="${esc(m.name || '')}" data-ts-busy="${busy}" `
+              + `x="${baseX}" y="${(y1 + BAR_H + 0.5).toFixed(1)}" width="${bwBusy.toFixed(1)}" height="3.5" fill="url(#tsBusyHatch)" rx="1">`
+              + `<title>${esc(m.name || '')} — busy: ${busy}h</title></rect>`
+              + `<text x="${(segX + 3).toFixed(1)}" y="${(y1 + BAR_H + 4).toFixed(1)}" dominant-baseline="central" fill="#94a3b8" font-size="8" font-family="system-ui">${busy}h</text>`;
+    }
     rows += `
       <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${nameColor}" font-size="9.5" font-family="system-ui">${displayName}</text>
-      ${segSvg}
+      ${segSvg}${busySvg}
       <text x="${(segX + 3).toFixed(1)}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="${totalColor}" font-size="9" font-family="system-ui" font-weight="${over ? '600' : 'normal'}">${m.total}h</text>`;
   });
 
@@ -156,13 +172,25 @@ export function buildTimesheetSVG(members, capacity = 0) {
   const ly = H - 10;
   let legendX = baseX;
   const legendItems = allProjects.slice(0, 4);
-  const legendSvg = legendItems.map(pk => {
+  let legendSvg = legendItems.map(pk => {
     const color = colorMap[pk];
     const label = pk.length > 8 ? pk.slice(0, 7) + '…' : pk;
     const item = `<rect x="${legendX}" y="${ly - 5}" width="8" height="7" fill="${color}" rx="1"/><text x="${legendX + 11}" y="${ly}" dominant-baseline="central" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">${label}</text>`;
     legendX += 48;
     return item;
   }).join('');
+  // Busy swatch (hatched) when the utilization overlay is active.
+  if (anyBusy) {
+    legendSvg += `<rect x="${legendX}" y="${ly - 5}" width="8" height="7" fill="url(#tsBusyHatch)" rx="1"/><text x="${legendX + 11}" y="${ly}" dominant-baseline="central" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">busy</text>`;
+  }
+
+  // Diagonal-hatch pattern marks busy/meeting time, visually distinct from the
+  // solid project colours. Defined only when the overlay is active.
+  const defs = anyBusy
+    ? `<defs><pattern id="tsBusyHatch" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)">
+         <rect width="4" height="4" fill="#94a3b8" fill-opacity="0.18"/>
+         <line x1="0" y1="0" x2="0" y2="4" stroke="#94a3b8" stroke-width="1.4"/></pattern></defs>`
+    : '';
 
   return `<div class="ts-wrap" style="position:relative;">
     <div class="ts-tooltip" style="display:none;position:absolute;z-index:20;pointer-events:none;
@@ -170,6 +198,6 @@ export function buildTimesheetSVG(members, capacity = 0) {
       border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text,#e2e8f0);white-space:nowrap;
       box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:translate(-50%,-100%);"></div>
     <svg viewBox="0 -8 ${W} ${H + 12}" width="100%" xmlns="http://www.w3.org/2000/svg">
-    ${grid}${ax}${paceLine}${capLine}${rows}${legendSvg}</svg>
+    ${defs}${grid}${ax}${paceLine}${capLine}${rows}${legendSvg}</svg>
   </div>`;
 }

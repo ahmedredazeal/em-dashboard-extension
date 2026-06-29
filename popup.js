@@ -20,6 +20,7 @@ import { incomingVsResolved, openBugSnapshot, reopenRate, byAppName } from './sr
 import { buildBugReportsCard } from './src/render/bug-reports-svg.js';
 import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed, compareVersions } from './src/update-check.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
+import { busyHoursByEmail, attachBusyToMembers } from './src/utilization.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
 import { buildSupportBoardChart } from './src/render/support-board-svg.js';
 import { buildMultiTrendCardHTML } from './src/render/sentry-trend-svg.js';
@@ -353,6 +354,27 @@ async function refreshCalendar() {
     _calView = null;
     _calError = 'error';
     renderCalendarCard();
+  }
+}
+
+// ── Time Utilization: fetch free/busy for the visible squad over the sprint ──
+// Lazy + guarded: called from renderTimesheet when the overlay is on and the
+// cached range doesn't match. Stores busy-hours-by-email on state, then repaints.
+async function refreshUtilization(key, emails, timeMin, timeMax) {
+  if (state._utilFetching === key) return;           // already in flight for this range
+  state._utilFetching = key;
+  try {
+    const resp = await chrome.runtime.sendMessage({ type: 'fetch-freebusy', emails, timeMin, timeMax });
+    state.utilizationBusy = (resp && resp.success && resp.resp)
+      ? { key, byEmail: busyHoursByEmail(resp.resp) }
+      // needsAuth / error: cache an empty result for this range so we don't loop;
+      // connecting in Settings fires settings-updated, which reloads + refetches.
+      : { key, byEmail: {}, error: (resp && (resp.reason || (resp.needsAuth && 'needs-auth'))) || 'error' };
+  } catch (e) {
+    state.utilizationBusy = { key, byEmail: {}, error: 'error' };
+  } finally {
+    state._utilFetching = null;
+    renderCurrentScreen();
   }
 }
 
@@ -1418,6 +1440,7 @@ function renderInsights() {
   const sprintOnlyRange = sprintStart && sprintEnd ? `${fmtDate(sprintStart)} – ${fmtDate(sprintEnd)}` : '';
 
   let timesheetHtml = '';
+  let utilizationActive = false;   // set when the free/busy overlay is shown (squad + sprint)
   // ── Engineer me-mode: personal time-series chart ─────────────────────
   // accountId-based; only requires currentUser to be loaded.
   const isEngineerMe = state.settings?.role === 'engineer'
@@ -1486,7 +1509,26 @@ function renderInsights() {
         capFixed = totalWd * RATE;
       }
     }
-    timesheetHtml = buildTimesheetSVG(timesheetMembers, { fixed: capFixed, pace: capPace });
+    // Time Utilization overlay (squad + sprint only): attach each member's busy
+    // hours so the chart can draw the meeting/busy sub-bars. Free/busy is fetched
+    // lazily and cached per sprint range; nothing changes when it's not configured.
+    let tsMembers = timesheetMembers;
+    const util = state.settings?.utilization || {};
+    if (util.enabled && currentMode === 'sprint' && modeStart && modeEnd) {
+      const emailByMember = util.emails || {};
+      const emails = [...new Set(timesheetMembers.map(m => emailByMember[m.name]).filter(Boolean))];
+      if (emails.length > 0) {
+        const key = `${modeStart}_${modeEnd}`;
+        if (state.utilizationBusy?.key === key) {
+          tsMembers = attachBusyToMembers(timesheetMembers, emailByMember, state.utilizationBusy.byEmail);
+          utilizationActive = Object.values(state.utilizationBusy.byEmail || {}).some(h => h > 0);
+        } else {
+          // Kick off a fetch for this range (fire-and-forget); repaints on return.
+          refreshUtilization(key, emails, `${modeStart}T00:00:00Z`, `${modeEnd}T23:59:59Z`);
+        }
+      }
+    }
+    timesheetHtml = buildTimesheetSVG(tsMembers, { fixed: capFixed, pace: capPace });
   } else {
     timesheetHtml = emptyState('No worklog data yet.', '⏱', 'Open the panel daily to populate.');
   }
@@ -1730,7 +1772,7 @@ function renderInsights() {
     <div style="${outerStyle2}">
       <div style="${chartWrap2}">
         <div style="${cardStyle}">
-          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${isEngineerMe ? 'MY TIME' : 'TIME LOGGED'}</div>
+          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">${isEngineerMe ? 'MY TIME' : (utilizationActive ? 'TIME UTILIZATION' : 'TIME LOGGED')}</div>
           ${dateSubtitle(modeRange)}
           <div style="margin-top:6px;">${timesheetHtml}</div>
           ${qRefreshNote}

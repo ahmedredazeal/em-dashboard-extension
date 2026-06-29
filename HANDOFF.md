@@ -5,7 +5,14 @@
 
 ---
 
-## Current version: v2.20.0
+## Current version: v2.21.0
+
+> **Phase 2b shipped (v2.21.0): the visible overlay.** timesheet-svg.js draws a hatched
+> slate busy sub-bar (+ busy total + legend) under each logged bar when a member has
+> busyHours; popup.js fetches free/busy lazily per sprint range (refreshUtilization),
+> attaches busy via attachBusyToMembers, and renames the card to TIME UTILIZATION when
+> active. Off by default; squad + sprint scope. Render test added. **Next: port to DevPulse.**
+
 
 ## Last session: Ahmed + Claude — 2026-06-17
 

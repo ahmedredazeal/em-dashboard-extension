@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.21.0 (2026-06-29) - Time Utilization overlay (Google Calendar free/busy)
+
+The squad Time Logged chart can now overlay each member's meeting/busy hours, so
+logged work and meeting load read at a glance. Renamed to "Time Utilization" when
+the overlay is active.
+
+- Source is Google Calendar free/busy — busy time blocks only, never meeting
+  titles or details. All busy time is counted, with overlapping blocks merged so
+  concurrent invites are not double-counted.
+- A hatched slate sub-bar under each logged bar shows busy hours (with a busy
+  total label and legend entry); the logged bars and project colours are unchanged.
+- Auth uses chrome.identity.getAuthToken with a Chrome Extension OAuth client
+  (manifest oauth2 client_id + a pinned key for a stable extension ID). No secret,
+  no redirect URI; Chrome-only. Connect from Settings ▸ Time Utilization.
+- Squad + sprint scope; off by default (configure a client ID, connect, and map
+  member emails to enable). Free/busy is fetched per sprint range and cached.
+
 ## v2.20.0 (2026-06-22) - Phase-sequenced subtask Gantt (ported from DevPulse)
 
 Subtasks in the Sprint Timeline no longer all draw in parallel from the same

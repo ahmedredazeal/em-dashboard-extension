@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
                                                 <div class="cl-row">
+      <div class="cl-ver minor">v2.21.0</div>
+      <div class="cl-desc"><strong>Time Utilization overlay (Google Calendar free/busy).</strong> The squad Time Logged chart can now overlay each member's meeting/busy hours as a hatched sub-bar beneath the logged bar, and is renamed &ldquo;Time Utilization&rdquo; when active. Uses Google Calendar <em>free/busy</em> &mdash; busy times only, never meeting titles; overlapping blocks are merged so nothing is double-counted. Auth is <code>chrome.identity.getAuthToken</code> with a Chrome Extension OAuth client (client ID in <code>manifest.oauth2</code>, stable ID pinned via <code>key</code>); no secret, Chrome-only. Off by default &mdash; connect in Settings and map member emails to enable. Squad + sprint scope.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver minor">v2.20.0</div>
       <div class="cl-desc"><strong>Phase-sequenced subtask Gantt.</strong> Subtasks in the Sprint Timeline now lay out by phase using the BE/FE/POS + QA convention: each function on its own lane (implementation then review, sequential), functions in parallel, and QA on one lane after all function work. Bar width reflects the effort estimate. Detection handles both bracketed ([BE]) and bare (BE, BE Review, QA) forms. Presentation-only, not a capacity scheduler. Ported from the DevPulse fork with detection tuned to the team naming.</div>
     </div>
