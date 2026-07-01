@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.25.1 (2026-06-29) - Chart + header polish
+
+- Added a small ALPHA badge in the side-panel header (smaller than the chart-card ones)
+  to signal the tool is still in active development.
+- Time Utilization chart: capitalized the "Cap" and "Pace" reference labels, added
+  headroom/spacing so they no longer crowd the lines, and fixed the busy/meetings legend
+  entry that was being clipped off the right edge (now labeled "meetings" and always
+  visible; project legend caps at 3 when the overlay is on to make room).
+
 ## v2.25.0 (2026-06-29) - Grouped Settings UI + auto-fill emails from Jira
 
 - Settings page reorganized (ported from DevPulse): each section is now a card, grouped

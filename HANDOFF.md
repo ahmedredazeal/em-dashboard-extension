@@ -5,7 +5,7 @@
 
 ---
 
-## Current version: v2.25.0
+## Current version: v2.25.1
 
 > **v2.22.0 — feature completed + iCal hybrid.** Scope → calendar.readonly. Today's
 > Meetings card: Google mode (connected, Chrome) = titled list + named countdown; iCal mode

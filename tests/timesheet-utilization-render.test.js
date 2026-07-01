@@ -22,7 +22,7 @@ test('overlay OFF (no busyHours) — no hatch, no busy bars, no defs', () => {
   assert.ok(!off.includes('tsBusyHatch'), 'no hatch pattern');
   assert.ok(!off.includes('ts-busy'), 'no busy sub-bars');
   assert.ok(!off.includes('<defs>'), 'no defs block');
-  assert.ok(!off.includes('>busy<'), 'no busy legend');
+  assert.ok(!off.includes('>meetings<'), 'no meetings legend');
 });
 
 test('overlay ON (busyHours present) — hatch, busy bars, legend, busy label', () => {
@@ -30,7 +30,7 @@ test('overlay ON (busyHours present) — hatch, busy bars, legend, busy label', 
   const on = buildTimesheetSVG(withBusy, cap);
   assert.ok(on.includes('tsBusyHatch'), 'hatch pattern present');
   assert.ok(on.includes('ts-busy'), 'busy sub-bars present');
-  assert.ok(on.includes('>busy<'), 'busy legend present');
+  assert.ok(on.includes('>meetings<'), 'meetings legend present');
   assert.ok(on.includes('>15.75h<'), 'busy total label present');
   // Logged totals + names are still there (overlay is additive).
   assert.ok(on.includes('>22h<') && on.includes('Ahmed'), 'logged data intact');

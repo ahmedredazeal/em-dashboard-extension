@@ -59,7 +59,7 @@ export function buildTimesheetSVG(members, capacity = 0) {
   const PW      = W - NAME_W - 8 - TOTAL_W;
   const BAR_H   = 9;
   const ROW_H   = 20;
-  const PAD_TOP = 8;
+  const PAD_TOP = 24;  // headroom for the Cap/Pace labels above the reference lines
   const PAD_BOT = 28;  // room for legend
   const H = PAD_TOP + members.length * ROW_H + PAD_BOT;
 
@@ -140,7 +140,7 @@ export function buildTimesheetSVG(members, capacity = 0) {
   // the SAME label level (top), so cap and pace read as equal-height verticals.
   const LINE_Y1 = (PAD_TOP - 1).toFixed(1);
   const LINE_Y2 = (H - PAD_BOT).toFixed(1);
-  const LABEL_Y = PAD_TOP - 4;
+  const LABEL_Y = PAD_TOP - 8;
 
   const cxNum = capacityHours > 0 ? baseX + (capacityHours / maxTotal) * PW : null;
   const pxNum = (paceMark > 0 && paceMark !== capacityHours) ? baseX + (paceMark / maxTotal) * PW : null;
@@ -152,9 +152,9 @@ export function buildTimesheetSVG(members, capacity = 0) {
     const cx = cxNum.toFixed(1);
     const nearRight = cxNum > baseX + PW * 0.75;
     const labelAnchor = nearRight ? 'end' : 'middle';
-    const labelX = nearRight ? Math.min(cxNum + 2, W - 2) : cxNum;
+    const labelX = nearRight ? Math.min(cxNum + 5, W - 2) : cxNum;
     capLine = `<line x1="${cx}" y1="${LINE_Y1}" x2="${cx}" y2="${LINE_Y2}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3"/>`
-            + `<text x="${labelX.toFixed(1)}" y="${LABEL_Y}" text-anchor="${labelAnchor}" fill="#f59e0b" font-size="10" font-weight="600" font-family="system-ui">cap ${capacityHours}h</text>`;
+            + `<text x="${labelX.toFixed(1)}" y="${LABEL_Y}" text-anchor="${labelAnchor}" fill="#f59e0b" font-size="10" font-weight="600" font-family="system-ui">Cap ${capacityHours}h</text>`;
   }
 
   // Pace-to-date marker — expected hours per person SO FAR (elapsed working days
@@ -165,14 +165,14 @@ export function buildTimesheetSVG(members, capacity = 0) {
     const px = pxNum.toFixed(1);
     const nearRight = pxNum > baseX + PW * 0.75;
     const labelAnchor = nearRight ? 'end' : 'middle';
-    const labelX = nearRight ? Math.min(pxNum + 2, W - 2) : pxNum;
+    const labelX = nearRight ? Math.min(pxNum + 5, W - 2) : pxNum;
     // Both labels live at the top; if the two lines are close enough that the
     // labels would overlap, stack the pace label one line higher instead of
     // dropping it mid-chart (which made the pace line look "shorter").
     const close = cxNum !== null && Math.abs(cxNum - pxNum) < 44;
     const paceLabelY = close ? LABEL_Y - 9 : LABEL_Y;
     paceLine = `<line x1="${px}" y1="${LINE_Y1}" x2="${px}" y2="${LINE_Y2}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="2,2"/>`
-             + `<text x="${labelX.toFixed(1)}" y="${paceLabelY.toFixed(1)}" text-anchor="${labelAnchor}" fill="#94a3b8" font-size="9" font-weight="600" font-family="system-ui">pace ${paceMark}h</text>`;
+             + `<text x="${labelX.toFixed(1)}" y="${paceLabelY.toFixed(1)}" text-anchor="${labelAnchor}" fill="#94a3b8" font-size="9" font-weight="600" font-family="system-ui">Pace ${paceMark}h</text>`;
   }
 
   // Legend: show the largest projects BY HOURS (not alphabetical), so the
@@ -183,7 +183,7 @@ export function buildTimesheetSVG(members, capacity = 0) {
   members.forEach(m => Object.entries(m.byProject || {}).forEach(([k, v]) => {
     projectTotals[k] = (projectTotals[k] || 0) + (v || 0);
   }));
-  const legendItems = Object.keys(projectTotals).sort((a, b) => projectTotals[b] - projectTotals[a]).slice(0, 4);
+  const legendItems = Object.keys(projectTotals).sort((a, b) => projectTotals[b] - projectTotals[a]).slice(0, anyBusy ? 3 : 4);
   let legendSvg = legendItems.map(pk => {
     const color = colorMap[pk];
     const label = pk.length > 8 ? pk.slice(0, 7) + '…' : pk;
@@ -193,7 +193,7 @@ export function buildTimesheetSVG(members, capacity = 0) {
   }).join('');
   // Busy swatch (hatched) when the utilization overlay is active.
   if (anyBusy) {
-    legendSvg += `<rect x="${legendX}" y="${ly - 5}" width="8" height="7" fill="url(#tsBusyHatch)" rx="1"/><text x="${legendX + 11}" y="${ly}" dominant-baseline="central" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">busy</text>`;
+    legendSvg += `<rect x="${legendX}" y="${ly - 5}" width="8" height="7" fill="url(#tsBusyHatch)" rx="1"/><text x="${legendX + 11}" y="${ly}" dominant-baseline="central" fill="var(--text-muted)" font-size="8.5" font-family="system-ui">meetings</text>`;
   }
 
   // Diagonal-hatch pattern marks busy/meeting time, visually distinct from the
