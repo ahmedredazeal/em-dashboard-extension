@@ -315,3 +315,15 @@ Settings compact). The Today's Meetings card needs none of this — own calendar
   each issue's `timeoriginalestimate` is added ONCE PER WORKLOG in `aggregateWorklogs` — so an
   issue with N worklogs / K loggers counts its estimate N/K× → inflated. Fix later: dedupe the
   estimate per unique issue + decide cross-contributor attribution.
+
+**v2.25.0 — Settings UI ported from DevPulse + Jira-email auto-fill.**
+- Adopted DevPulse's grouped-card settings layout in em: `.settings-section` is now a card,
+  sections sit under `.settings-group`/`.settings-group-label` (Integrations, Team, Preferences,
+  Insights & alerts), and docs/repo/changelog are `.settings-links` footer links below Save.
+  Restructure was done by extracting the existing section blocks verbatim (div-depth) and
+  reassembling — every element ID preserved, so settings.js was untouched by the layout change.
+  Deliberately did NOT port white-label-only sections (Dashboard name/branding, Work-week
+  selector, Jira field mapping) — em uses Zeal's hardcoded field IDs.
+- Time Utilization emails now auto-fill from Jira (silent) once Jira creds exist AND
+  getCachedToken() is truthy (Google connected). Blanks-only: never overwrites typed/saved
+  values, safe to run on every Settings open. Manual button retained for on-demand fills.

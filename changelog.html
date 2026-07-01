@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
                                                 <div class="cl-row">
+      <div class="cl-ver minor">v2.25.0</div>
+      <div class="cl-desc"><strong>Grouped Settings UI + auto-fill emails from Jira.</strong> The Settings page now shows sections as cards organized under labeled groups (Integrations, Team, Preferences, Insights &amp; alerts), with Documentation / Repository / Changelog as footer links below Save &mdash; no setting was removed, Time Utilization and all em-only sections are preserved. Member emails for the utilization overlay now fill in automatically once Jira and Google are both connected (blanks only, never overwriting what you typed); the manual Fetch button stays.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver minor">v2.24.0</div>
       <div class="cl-desc"><strong>Out-of-office handling + ALPHA badges.</strong> Time Utilization now splits meeting hours from days off &mdash; an all-day/vacation block no longer inflates the busy bar (it used to add ~24h/day); any essentially-full day (&ge;20h) is excluded from meeting hours and shown as a small &#127796;N badge by the member's name, so a two-day vacation reads as &ldquo;2 off&rdquo;. Added ALPHA badges to sections still being refined (Estimate vs Actual, Reopen rate, Monthly report) so they aren't taken as final. Also logged a backlog fix: Estimate vs Actual over-counts &ldquo;estimated&rdquo; (an issue's estimate is added once per worklog) &mdash; parked until we have a solid story.</div>
     </div>

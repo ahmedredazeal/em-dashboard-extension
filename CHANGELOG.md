@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.25.0 (2026-06-29) - Grouped Settings UI + auto-fill emails from Jira
+
+- Settings page reorganized (ported from DevPulse): each section is now a card, grouped
+  under labels — Integrations (Jira, Sentry, Calendar, Time Utilization), Team (role,
+  squad selection, squad members), Preferences (Appearance), and Insights & alerts
+  (Monthly report, Alert rules, Sentry Trend History). Documentation / Repository /
+  Changelog moved to footer links below Save. No settings feature was removed — Time
+  Utilization and every em-only section are preserved.
+- Member emails for the Time Utilization overlay now fill in automatically once Jira and
+  Google are both connected (blank fields only — anything you've typed is never
+  overwritten). The manual "Fetch emails from Jira" button stays for on-demand fills.
+
 ## v2.24.0 (2026-06-29) - Out-of-office handling + ALPHA badges
 
 - Time Utilization now separates **meeting hours** from **days off**. Free/busy has no

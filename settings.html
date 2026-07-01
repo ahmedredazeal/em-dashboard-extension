@@ -19,18 +19,6 @@
       </div>
     </div>
 
-    <!-- Role -->
-    <div class="settings-section" id="role-section">
-      <h2>Your role</h2>
-      <p class="hint">Determines your default view across the dashboard.</p>
-      <div class="role-pill-toggle">
-        <button class="role-pill" id="role-pill-em"   data-role="em"><svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>Engineering Manager</button>
-        <button class="role-pill" id="role-pill-eng"  data-role="engineer"><svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>Engineer</button>
-      </div>
-      <p class="hint" id="role-hint" style="margin-top:8px;font-size:11px;"></p>
-    </div>
-
-    <!-- Demo / Mock Data Mode -->
     <div class="settings-section" id="demo-mode-section" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:12px 14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div>
@@ -57,11 +45,11 @@
       </div>
     </div>
 
-    <!-- Settings body — disabled overlay when demo mode is on -->
     <div id="settings-main-body">
 
-    <!-- Jira Connection -->
-    <div class="settings-section">
+    <div class="settings-group">
+      <div class="settings-group-label">Integrations</div>
+      <div class="settings-section">
       <h2>Jira connection</h2>
       <p class="hint">
         Your credentials are stored locally and only used to connect to your Jira instance.
@@ -93,9 +81,7 @@
       </div>
       <div id="jira-test-result" class="test-result hidden"></div>
     </div>
-
-    <!-- Sentry Connection -->
-    <div class="settings-section">
+      <div class="settings-section">
       <h2>Sentry connection</h2>
       <p class="hint">
         Connect to Sentry to track error trends and untriaged spikes.
@@ -147,9 +133,56 @@
       </div>
       <div id="sentry-test-result" class="test-result hidden"></div>
     </div>
+      <div class="settings-section" id="calendar-section-settings">
+      <h2>📅 Calendar (Today's meetings)</h2>
+      <p class="hint">Show today's meetings and a countdown in the side panel, with an alert when a meeting is within 30 minutes. Paste your Google Calendar's private iCal address below — read-only, kept on your device (only sent to Google to fetch). Clear the field to turn the card off.</p>
+      <div class="field">
+        <label for="calendar-ics-url">Private iCal/ICS URL</label>
+        <input type="password" id="calendar-ics-url" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" autocomplete="off" spellcheck="false"/>
+        <span class="field-hint">In Google Calendar: <strong>Settings → [your calendar] → Integrate calendar → Secret address in iCal format</strong>. Copy that URL here. Treat it like a password — anyone with it can read your calendar.</span>
+      </div>
+    </div>
+      <div class="settings-section em-only" id="utilization-section-settings">
+      <h2>📊 Time Utilization (Google Calendar)</h2>
+      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart, and (when connected) power the Today's Meetings card with your real meeting titles. Uses Google Calendar with the <code>calendar.readonly</code> scope — team data is still busy-times-only, while your own primary calendar is read for titles. One-time setup: create a Google Cloud <strong>Chrome Extension</strong> OAuth client using the extension ID below (no Web Store URL needed), put its Client ID in <code>manifest.json → oauth2</code>, then Connect. Chrome only; the iCal URL below stays as a fallback.</p>
+      <div class="field">
+        <label>Extension ID (for the OAuth client's “Item ID”)</label>
+        <code id="util-extension-id" style="display:inline-block;padding:4px 8px;background:var(--surface-raised,#1f2937);border-radius:4px;font-size:12px;user-select:all;">…</code>
+        <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → Create OAuth client ID → <strong>Chrome Extension</strong> → paste this in <strong>Item ID</strong>. Copy the generated Client ID into <code>manifest.json → oauth2.client_id</code> and reload the extension.</span>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="util-connect-btn" class="btn-secondary">Connect Google Calendar</button>
+        <button type="button" id="util-disconnect-btn" class="btn-secondary">Disconnect</button>
+        <span id="util-status" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div class="field">
+        <label>Member emails (for the squad busy overlay)</label>
+        <span class="field-hint">Only needed for the time-chart busy overlay (not the Today's Meetings card). These fill in <strong>automatically</strong> when Jira and Google are both connected — pulled from each member’s Jira account. Jira only discloses some emails; use <strong>Fetch emails from Jira</strong> to fill any still-blank ones on demand, and edit any it can’t provide (in the collapsed list below). Your typed values are never overwritten.</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+          <button type="button" id="util-fetch-emails-btn" class="btn-secondary">Fetch emails from Jira</button>
+          <span id="util-emails-status" style="font-size:12px;color:var(--text-muted);"></span>
+        </div>
+        <details style="margin-top:8px;">
+          <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);">Member emails (manual / fallback)</summary>
+          <div id="util-email-map" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+        </details>
+      </div>
+    </div>
+      <div style="display:none" id="util-section-end-marker"></div>
+    </div>
 
-    <!-- Squad Selection -->
-    <div class="settings-section">
+    <div class="settings-group">
+      <div class="settings-group-label">Team</div>
+      <div class="settings-section" id="role-section">
+      <h2>Your role</h2>
+      <p class="hint">Determines your default view across the dashboard.</p>
+      <div class="role-pill-toggle">
+        <button class="role-pill" id="role-pill-em"   data-role="em"><svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>Engineering Manager</button>
+        <button class="role-pill" id="role-pill-eng"  data-role="engineer"><svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:5px;"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>Engineer</button>
+      </div>
+      <p class="hint" id="role-hint" style="margin-top:8px;font-size:11px;"></p>
+    </div>
+      <div class="settings-section">
       <h2>Squad selection</h2>
       <p class="hint">
         Select your squad to focus the dashboard. Multi-squad view is coming in v2.
@@ -186,9 +219,7 @@
         </span>
       </div>
     </div>
-
-    <!-- Squad members (EM only) -->
-    <div class="settings-section em-only" id="squad-members-section">
+      <div class="settings-section em-only" id="squad-members-section">
       <h2>Squad members</h2>
       <p class="hint">
         Curate who appears in the team filter and analytics.
@@ -202,68 +233,11 @@
         <button id="add-member-btn" class="btn-secondary" type="button" style="flex-shrink:0;">Add</button>
       </div>
     </div>
-
-    <!-- Alert rules -->
-    <div class="settings-section" id="calendar-section-settings">
-      <h2>📅 Calendar (Today's meetings)</h2>
-      <p class="hint">Show today's meetings and a countdown in the side panel, with an alert when a meeting is within 30 minutes. Paste your Google Calendar's private iCal address below — read-only, kept on your device (only sent to Google to fetch). Clear the field to turn the card off.</p>
-      <div class="field">
-        <label for="calendar-ics-url">Private iCal/ICS URL</label>
-        <input type="password" id="calendar-ics-url" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics" autocomplete="off" spellcheck="false"/>
-        <span class="field-hint">In Google Calendar: <strong>Settings → [your calendar] → Integrate calendar → Secret address in iCal format</strong>. Copy that URL here. Treat it like a password — anyone with it can read your calendar.</span>
-      </div>
     </div>
 
-    <!-- Time Utilization (Google Calendar free/busy) -->
-    <div class="settings-section em-only" id="utilization-section-settings">
-      <h2>📊 Time Utilization (Google Calendar)</h2>
-      <p class="hint">Overlay each squad member's meeting/busy hours on the Time Logged chart, and (when connected) power the Today's Meetings card with your real meeting titles. Uses Google Calendar with the <code>calendar.readonly</code> scope — team data is still busy-times-only, while your own primary calendar is read for titles. One-time setup: create a Google Cloud <strong>Chrome Extension</strong> OAuth client using the extension ID below (no Web Store URL needed), put its Client ID in <code>manifest.json → oauth2</code>, then Connect. Chrome only; the iCal URL below stays as a fallback.</p>
-      <div class="field">
-        <label>Extension ID (for the OAuth client's “Item ID”)</label>
-        <code id="util-extension-id" style="display:inline-block;padding:4px 8px;background:var(--surface-raised,#1f2937);border-radius:4px;font-size:12px;user-select:all;">…</code>
-        <span class="field-hint">Google Cloud Console → APIs &amp; Services → Credentials → Create OAuth client ID → <strong>Chrome Extension</strong> → paste this in <strong>Item ID</strong>. Copy the generated Client ID into <code>manifest.json → oauth2.client_id</code> and reload the extension.</span>
-      </div>
-      <div class="field" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button type="button" id="util-connect-btn" class="btn-secondary">Connect Google Calendar</button>
-        <button type="button" id="util-disconnect-btn" class="btn-secondary">Disconnect</button>
-        <span id="util-status" style="font-size:12px;color:var(--text-muted);"></span>
-      </div>
-      <div class="field">
-        <label>Member emails (for the squad busy overlay)</label>
-        <span class="field-hint">Only needed for the time-chart busy overlay (not the Today's Meetings card). Click “Fetch from Jira” to fill these from each member’s Jira account; edit any that Jira won’t disclose.</span>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
-          <button type="button" id="util-fetch-emails-btn" class="btn-secondary">Fetch emails from Jira</button>
-          <span id="util-emails-status" style="font-size:12px;color:var(--text-muted);"></span>
-        </div>
-        <details style="margin-top:8px;">
-          <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);">Member emails (manual / fallback)</summary>
-          <div id="util-email-map" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
-        </details>
-      </div>
-    </div>
-
-    <div style="display:none" id="util-section-end-marker"></div>
-
-    <div class="settings-section" id="report-section">
-
-      <h2><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:6px;"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>Monthly report<span style="display:inline-block;margin-left:6px;padding:0 4px;font-size:9px;font-weight:700;letter-spacing:0.5px;color:#0b0f19;background:#fbbf24;border-radius:3px;vertical-align:middle;font-family:system-ui;">ALPHA</span></h2>
-      <p class="hint">A monthly report builds itself from your dashboard data and is kept inside the extension (open it from the report button in the header). It finalizes automatically when the month rolls over.</p>
-      <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
-        <input type="checkbox" id="report-autodownload"/>
-        <span>Also auto-download each finalized month (JSON + HTML) to your Downloads folder</span>
-      </label>
-      <p class="hint" style="margin-top:4px;">History is kept for <strong>12 months</strong>. You'll be warned one month before the oldest is removed, so you can export it first. Manual export is always available in the report view.</p>
-    </div>
-
-    <div class="settings-section" id="alerts-section">
-      <h2>Alert rules</h2>
-      <p class="hint">Enable or disable each rule, tune thresholds, and control which ones trigger desktop notifications (🔔).</p>
-      <div id="alert-rules-list"></div>
-      <button class="btn-secondary" id="reset-alerts-btn" style="margin-top:14px;font-size:11px;">↺ Reset to defaults</button>
-    </div>
-
-    <!-- Appearance -->
-    <div class="settings-section">
+    <div class="settings-group">
+      <div class="settings-group-label">Preferences</div>
+      <div class="settings-section">
       <h2>Appearance</h2>
       <p class="hint">Choose how Zealer Dashboard looks. Browser follows your OS dark mode setting.</p>
 
@@ -312,22 +286,27 @@
         </label>
       </div>
     </div>
-
-    <!-- Save Button -->
-    <div style="margin-bottom:28px;">
-      <button id="save-btn" class="btn-primary" style="padding:9px 24px;font-size:13px;">Save settings →</button>
-      <div id="save-result" class="hidden" style="margin-top:10px;font-size:12px;padding:7px 12px;border-radius:var(--radius);"></div>
     </div>
 
-    <!-- Documentation Link -->
-    <div class="settings-section">
-      <h2>Documentation</h2>
-      <p class="hint">Alert rules, metrics, API endpoints, changelog and full setup guide.</p>
-      <a href="docs.html" target="_blank" class="btn-secondary" style="display:inline-block;text-decoration:none;font-size:13px;">Open documentation →</a>
-    </div>
+    <div class="settings-group">
+      <div class="settings-group-label">Insights & alerts</div>
+      <div class="settings-section" id="report-section">
 
-    <!-- Sentry Trend History -->
-    <div class="card" id="sentry-history-card">
+      <h2><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:6px;"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>Monthly report<span style="display:inline-block;margin-left:6px;padding:0 4px;font-size:9px;font-weight:700;letter-spacing:0.5px;color:#0b0f19;background:#fbbf24;border-radius:3px;vertical-align:middle;font-family:system-ui;">ALPHA</span></h2>
+      <p class="hint">A monthly report builds itself from your dashboard data and is kept inside the extension (open it from the report button in the header). It finalizes automatically when the month rolls over.</p>
+      <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
+        <input type="checkbox" id="report-autodownload"/>
+        <span>Also auto-download each finalized month (JSON + HTML) to your Downloads folder</span>
+      </label>
+      <p class="hint" style="margin-top:4px;">History is kept for <strong>12 months</strong>. You'll be warned one month before the oldest is removed, so you can export it first. Manual export is always available in the report view.</p>
+    </div>
+      <div class="settings-section" id="alerts-section">
+      <h2>Alert rules</h2>
+      <p class="hint">Enable or disable each rule, tune thresholds, and control which ones trigger desktop notifications (🔔).</p>
+      <div id="alert-rules-list"></div>
+      <button class="btn-secondary" id="reset-alerts-btn" style="margin-top:14px;font-size:11px;">↺ Reset to defaults</button>
+    </div>
+      <div class="card" id="sentry-history-card">
       <h2>Sentry Trend History</h2>
 
       <div class="field-group">
@@ -352,8 +331,21 @@
         </p>
       </div>
     </div>
+    </div>
 
-    <!-- Zeal Footer -->
+    <div style="margin-bottom:28px;">
+      <button id="save-btn" class="btn-primary" style="padding:9px 24px;font-size:13px;">Save settings →</button>
+      <div id="save-result" class="hidden" style="margin-top:10px;font-size:12px;padding:7px 12px;border-radius:var(--radius);"></div>
+    </div>
+    </div><!-- /#settings-main-body -->
+
+    <!-- Links (not part of the form — always available) -->
+    <div class="settings-links">
+      <a href="docs.html" target="_blank">📖 Documentation</a>
+      <a href="https://github.com/ahmedredazeal/em-dashboard-extension" target="_blank">🗂 Repository</a>
+      <a href="changelog.html" target="_blank">🗒 Changelog</a>
+    </div>
+
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);
       display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-lighter);">
       Powered by
@@ -362,8 +354,6 @@
       </a>
     </div>
   </div>
-
-    </div><!-- /#settings-main-body -->
   <script src="settings.js" type="module"></script>
 </body>
 </html>

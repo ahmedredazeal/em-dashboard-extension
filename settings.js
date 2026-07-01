@@ -466,30 +466,58 @@ function getTrackedViewIds() {
     // Auto-fill member emails from Jira (resolves each member's accountId → email).
     const emailsStatusEl = document.getElementById('util-emails-status');
     const setEmailsStatus = (txt, ok) => { if (emailsStatusEl) { emailsStatusEl.textContent = txt; emailsStatusEl.style.color = ok ? 'var(--status-on-track)' : 'var(--text-muted)'; } };
-    document.getElementById('util-fetch-emails-btn')?.addEventListener('click', async () => {
+    // Resolve squad emails from Jira (accountId → email). Fills BLANK fields only,
+    // so anything you've typed is never overwritten. Used by the manual button and,
+    // automatically (silent), once Jira + Google are both connected.
+    const emailSel = (name) => `#util-email-map .util-email[data-name="${(window.CSS && CSS.escape) ? CSS.escape(name) : name}"]`;
+    const stillBlankCount = (members) => members.filter(m => {
+      const inp = document.querySelector(emailSel(m.name)); return inp && !inp.value.trim();
+    }).length;
+    async function runJiraEmailFetch({ silent } = {}) {
       const withIds = squadMembers.filter(m => m.accountId);
-      if (withIds.length === 0) { setEmailsStatus('No Jira accountIds on the squad list — add emails manually below.', false); return; }
-      setEmailsStatus('Fetching from Jira…', false);
+      if (withIds.length === 0) { if (!silent) setEmailsStatus('No Jira accountIds on the squad list — add emails manually below.', false); return; }
+      if (silent && stillBlankCount(withIds) === 0) return;   // nothing to auto-fill
+      if (!silent) setEmailsStatus('Fetching from Jira…', false);
       try {
         const resp = await chrome.runtime.sendMessage({ type: 'fetch-jira-emails', accountIds: withIds.map(m => m.accountId) });
         if (!resp || !resp.success) {
-          const why = resp && resp.reason === 'no-jira-creds' ? 'connect Jira first' : (resp && resp.message) || (resp && resp.reason) || 'error';
-          setEmailsStatus('Could not fetch from Jira: ' + why, false);
+          if (!silent) {
+            const why = resp && resp.reason === 'no-jira-creds' ? 'connect Jira first' : (resp && resp.message) || (resp && resp.reason) || 'error';
+            setEmailsStatus('Could not fetch from Jira: ' + why, false);
+          }
           return;
         }
         let filled = 0;
         for (const m of withIds) {
           const email = resp.emails[m.accountId];
           if (!email) continue;
-          const inp = document.querySelector(`#util-email-map .util-email[data-name="${(window.CSS && CSS.escape) ? CSS.escape(m.name) : m.name}"]`);
-          if (inp) { inp.value = email; filled++; }
+          const inp = document.querySelector(emailSel(m.name));
+          if (inp && !inp.value.trim()) { inp.value = email; filled++; }   // blanks only — never overwrite
         }
-        const missing = squadMembers.length - filled;
-        setEmailsStatus(`Filled ${filled} of ${squadMembers.length}.` + (missing > 0 ? ` ${missing} not disclosed by Jira — add manually below.` : '') + ' Click Save to apply.', filled > 0);
+        if (filled > 0 || !silent) {
+          const missing = stillBlankCount(withIds);
+          setEmailsStatus(
+            (silent ? `Auto-filled ${filled} from Jira.` : `Filled ${filled} of ${withIds.length}.`)
+            + (missing > 0 ? ` ${missing} not disclosed by Jira — add manually below.` : '')
+            + ' Click Save to apply.',
+            filled > 0
+          );
+        }
       } catch (e) {
-        setEmailsStatus('Could not fetch from Jira: ' + (e?.message || 'error'), false);
+        if (!silent) setEmailsStatus('Could not fetch from Jira: ' + (e?.message || 'error'), false);
       }
-    });
+    }
+    document.getElementById('util-fetch-emails-btn')?.addEventListener('click', () => runJiraEmailFetch({ silent: false }));
+
+    // Auto-fill quietly once Jira is configured AND Google is connected — fills only
+    // blanks, so it's safe to run on every open.
+    (async () => {
+      const jira = settings.jira || {};
+      if (!(jira.baseUrl && jira.email && jira.token)) return;
+      let connected = false;
+      try { connected = !!(await getCachedToken()); } catch { /* not connected */ }
+      if (connected) runJiraEmailFetch({ silent: true });
+    })();
   })();
 
   const roleHints = {

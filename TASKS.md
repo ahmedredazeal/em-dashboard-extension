@@ -1,6 +1,6 @@
 # TASKS.md — Shared Task List
 
-> Last updated: 2026-06-29 (v2.24.0)
+> Last updated: 2026-06-29 (v2.25.0)
 
 ---
 
@@ -14,6 +14,8 @@
 - **Time Utilization** — v2.24.0 added OOO/vacation handling (full-day busy blocks are
   excluded from meeting hours and shown as a 🌴N days-off badge beside the name) and ALPHA
   badges on the rougher sections. DevPulse port of the whole feature still pending.
+
+- **Settings UI** — v2.25.0 ported DevPulse's grouped-card settings layout into em (Integrations / Team / Preferences / Insights & alerts + footer links), and made the Time Utilization emails auto-fill from Jira once Jira + Google are connected. em-only sections preserved; white-label-only sections (branding, work-week, field mapping) excluded.
 
 _Nothing currently in progress._
 

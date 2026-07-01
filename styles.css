@@ -716,8 +716,37 @@ body.privacy-on [data-privacy-mask]::after {
 }
 
 .settings-section {
-  margin-bottom: var(--gap-section);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
 }
+.settings-group { margin-bottom: 24px; }
+.settings-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-lighter);
+  margin: 0 0 10px;
+  padding-left: 2px;
+}
+.settings-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 18px 0 0;
+  font-size: 12.5px;
+}
+.settings-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-links a:hover { color: var(--primary); }
 
 .settings-section h2 {
   font-size: 15px;
