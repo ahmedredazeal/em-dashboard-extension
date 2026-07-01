@@ -5,7 +5,7 @@
  * (src/gcal-auth.js). Uses the real freebusy.query response captured during the
  * feasibility check so the totals are anchored to real data.
  */
-import { mergeIntervals, busyHours, busyHoursByEmail, attachBusyToMembers } from '../src/utilization.js';
+import { mergeIntervals, busyHours, busyHoursByEmail, attachBusyToMembers, meetingHoursAndDaysOff, attachUtilizationToMembers } from '../src/utilization.js';
 import { buildFreeBusyBody } from '../src/gcal-auth.js';
 import assert from 'node:assert';
 
@@ -76,6 +76,42 @@ test('attachBusyToMembers matches names case/space-insensitively', () => {
   const members = [{ name: ' Ahmed Reda ', total: 20, byProject: {} }];
   const out = attachBusyToMembers(members, { 'ahmed reda': 'A.Reda@GetZeal.io' }, { 'a.reda@getzeal.io': 15.75 });
   assert.strictEqual(out[0].busyHours, 15.75);
+});
+
+// ── OOO / vacation handling (meeting hours vs. days off) ────────────────────
+test('meetingHoursAndDaysOff excludes full-day blocks and counts them as days off', () => {
+  const resp = { calendars: { 'a@x.io': { busy: [
+    // A full-day vacation block (24h) → 1 day off, NOT 24 busy hours
+    { start: '2026-06-24T00:00:00Z', end: '2026-06-25T00:00:00Z' },
+    // Two real meetings the next day → 2.5h meeting time
+    { start: '2026-06-25T09:00:00Z', end: '2026-06-25T10:00:00Z' },
+    { start: '2026-06-25T14:00:00Z', end: '2026-06-25T15:30:00Z' },
+  ] } } };
+  const out = meetingHoursAndDaysOff(resp, { tzOffsetMinutes: 0 });
+  assert.strictEqual(out['a@x.io'].daysOff, 1);
+  assert.strictEqual(out['a@x.io'].meetingHours, 2.5);
+});
+
+test('meetingHoursAndDaysOff: a multi-day vacation counts each day, adds no busy hours', () => {
+  const resp = { calendars: { 'b@x.io': { busy: [
+    { start: '2026-06-22T00:00:00Z', end: '2026-06-24T00:00:00Z' }, // 2 full days
+  ] } } };
+  const out = meetingHoursAndDaysOff(resp, { tzOffsetMinutes: 0 });
+  assert.strictEqual(out['b@x.io'].daysOff, 2);
+  assert.strictEqual(out['b@x.io'].meetingHours, 0);
+});
+
+test('attachUtilizationToMembers sets busyHours (=meeting) + daysOff; unmapped → 0/0', () => {
+  const members = [{ name: 'Alice', total: 10, byProject: {} }, { name: 'Bob', total: 5, byProject: {} }];
+  const out = attachUtilizationToMembers(
+    members,
+    { alice: 'a@x.io' },                                   // Bob unmapped
+    { 'a@x.io': { meetingHours: 2.5, daysOff: 1 } }
+  );
+  assert.strictEqual(out[0].busyHours, 2.5);
+  assert.strictEqual(out[0].daysOff, 1);
+  assert.strictEqual(out[1].busyHours, 0);
+  assert.strictEqual(out[1].daysOff, 0);
 });
 
 console.log(`\nutilization: ${pass} passed, ${fail} failed`);

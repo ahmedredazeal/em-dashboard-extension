@@ -20,11 +20,12 @@ import { incomingVsResolved, openBugSnapshot, reopenRate, byAppName } from './sr
 import { buildBugReportsCard } from './src/render/bug-reports-svg.js';
 import { GITHUB_RELEASES_API, selectUpdate, shouldCheck, isSnoozed, compareVersions } from './src/update-check.js';
 import { buildTimesheetSVG } from './src/render/timesheet-svg.js';
-import { busyHoursByEmail, attachBusyToMembers } from './src/utilization.js';
+import { meetingHoursAndDaysOff, attachUtilizationToMembers } from './src/utilization.js';
 import { buildDonut, buildMiniProgressBar } from './src/render/progress-svg.js';
 import { buildSupportBoardChart } from './src/render/support-board-svg.js';
 import { buildMultiTrendCardHTML } from './src/render/sentry-trend-svg.js';
 import { buildEstimateVsActualCard } from './src/render/estimate-actual-svg.js';
+import { ALPHA_PILL } from './src/render/alpha-badge.js';
 import { buildPersonalBarsSVG } from './src/render/personal-bars-svg.js';
 import { ticketCounts } from './src/ticket-stats.js';
 import { planRender, renderReason, RENDER_DEBOUNCE_MS } from './src/render-scheduler.js';
@@ -387,7 +388,9 @@ async function refreshUtilization(key, emails, timeMin, timeMax) {
   try {
     const resp = await chrome.runtime.sendMessage({ type: 'fetch-freebusy', emails, timeMin, timeMax });
     state.utilizationBusy = (resp && resp.success && resp.resp)
-      ? { key, byEmail: busyHoursByEmail(resp.resp) }
+      // Split into meeting hours vs. days off (excludes all-day/OOO/vacation
+      // blocks so a vacation shows as "N off", not inflated busy hours).
+      ? { key, byEmail: meetingHoursAndDaysOff(resp.resp, { tzOffsetMinutes: -new Date().getTimezoneOffset() }) }
       // needsAuth / error: cache with a timestamp so render can retry after a
       // short cooldown (e.g. once connected, or after a token expiry) without
       // hammering. Connecting in Settings also fires settings-updated → reload.
@@ -1560,8 +1563,8 @@ function renderInsights() {
         const key = `${modeStart}_${modeEnd}`;
         const cache = state.utilizationBusy;
         if (cache?.key === key && !cache.error) {
-          tsMembers = attachBusyToMembers(timesheetMembers, emailByMember, cache.byEmail);
-          utilizationActive = Object.values(cache.byEmail || {}).some(h => h > 0);
+          tsMembers = attachUtilizationToMembers(timesheetMembers, emailByMember, cache.byEmail);
+          utilizationActive = Object.values(cache.byEmail || {}).some(v => (v.meetingHours > 0 || v.daysOff > 0));
         } else {
           // No good data yet. Fetch — unless we errored on this exact range within
           // the last 15s (avoids a tight retry loop while still recovering after
@@ -1611,7 +1614,7 @@ function renderInsights() {
     if (currentMode !== 'sprint' && timesheetMembers === null) {
       estimateVsActualHtml = `
         <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">
-          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
+          <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL${ALPHA_PILL}</div>
           <div style="font-size:var(--fs-caption);color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
           <div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
         </div>`;
@@ -1625,7 +1628,7 @@ function renderInsights() {
         : personalQuarterPeriods(myMember.byDate, modeStart, modeEnd, myMember.estimated);
       const svg = buildPersonalBarsSVG(periods, { showEstimate: hasEst });
       estimateVsActualHtml = buildPersonalChartCard(
-        'ESTIMATE VS ACTUAL',
+        'ESTIMATE VS ACTUAL' + ALPHA_PILL,
         modeRange,
         svg + (hasEst
           ? ''
@@ -1633,7 +1636,7 @@ function renderInsights() {
       );
     } else if (myMember) {
       estimateVsActualHtml = buildPersonalChartCard(
-        'ESTIMATE VS ACTUAL',
+        'ESTIMATE VS ACTUAL' + ALPHA_PILL,
         modeRange,
         `<div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">
           You logged <strong style="color:var(--text);">${myMember.total}h</strong> vs
@@ -1645,7 +1648,7 @@ function renderInsights() {
   } else if (quarterPending) {
     estimateVsActualHtml = `
       <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;">
-        <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL</div>
+        <div style="font-size:var(--fs-label);font-weight:600;color:var(--text-muted);letter-spacing:0.3px;margin-bottom:2px;">ESTIMATE VS ACTUAL${ALPHA_PILL}</div>
         <div style="font-size:var(--fs-caption);color:var(--text-muted);margin-bottom:6px;">${modeRange}</div>
         <div style="font-size:var(--fs-body);color:var(--text-muted);padding:8px 0;">Loading ${currentMode} data… ⏳</div>
       </div>`;

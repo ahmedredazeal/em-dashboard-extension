@@ -17,6 +17,11 @@
     <h1 style="font-size:20px;margin-bottom:24px;">Zealer Dashboard — Changelog</h1>
     
                                                 <div class="cl-row">
+      <div class="cl-ver minor">v2.24.0</div>
+      <div class="cl-desc"><strong>Out-of-office handling + ALPHA badges.</strong> Time Utilization now splits meeting hours from days off &mdash; an all-day/vacation block no longer inflates the busy bar (it used to add ~24h/day); any essentially-full day (&ge;20h) is excluded from meeting hours and shown as a small &#127796;N badge by the member's name, so a two-day vacation reads as &ldquo;2 off&rdquo;. Added ALPHA badges to sections still being refined (Estimate vs Actual, Reopen rate, Monthly report) so they aren't taken as final. Also logged a backlog fix: Estimate vs Actual over-counts &ldquo;estimated&rdquo; (an issue's estimate is added once per worklog) &mdash; parked until we have a solid story.</div>
+    </div>
+
+<div class="cl-row">
       <div class="cl-ver minor">v2.23.0</div>
       <div class="cl-desc"><strong>Auto-fill member emails from Jira.</strong> A new &ldquo;Fetch emails from Jira&rdquo; button in Time Utilization settings resolves each squad member's email from their Jira accountId, so the busy-overlay email map no longer has to be typed by hand. Emails Jira won't disclose are left for manual entry, and the per-member fields now sit in a collapsed section to keep Settings compact.</div>
     </div>

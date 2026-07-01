@@ -1,6 +1,6 @@
 # TASKS.md — Shared Task List
 
-> Last updated: 2026-06-17 (v2.18.0)
+> Last updated: 2026-06-29 (v2.24.0)
 
 ---
 
@@ -11,6 +11,10 @@
   (client-ID + Connect + member→email map), `fetch-freebusy` handler, chart overlay +
   rename, popup wiring, manifest perms. Then port to DevPulse. (docs/DECISIONS.md)
 
+- **Time Utilization** — v2.24.0 added OOO/vacation handling (full-day busy blocks are
+  excluded from meeting hours and shown as a 🌴N days-off badge beside the name) and ALPHA
+  badges on the rougher sections. DevPulse port of the whole feature still pending.
+
 _Nothing currently in progress._
 
 ---
@@ -19,6 +23,7 @@ _Nothing currently in progress._
 
 | Phase | # | Task | Size | Notes |
 |---|---|---|---|---|
+| Metrics | T-EVA-1 🔶 | Estimate vs Actual — fix estimate over-counting | M | `worklog-aggregator.js` accumulates `acc.estimateSeconds += wl.estimateSeconds` ONCE PER WORKLOG, but each worklog carries its issue's whole `timeoriginalestimate` → an issue with N worklogs (or logged by K people) counts its estimate N/K× → inflated "Estimated". FIX: sum each issue's original estimate ONCE (dedupe by issue key) + decide attribution across contributors (the estimate is per-issue, not per-author). Actual (Σ timeSpentSeconds) is correct. Parked per Ahmed until a solid story; section marked ALPHA in v2.24.0. |
 | ~~5~~ | ~~T-P5-1~~ | Engineer sprint progress circle (pts, multi-status donut) | M | Always "me"-scoped; hidden if no assigned sprint stories; colors: Open=slate, In Progress=blue, QA=amber, Done=green; center = pts / ticket count hint |
 | ~~5~~ | ~~T-P5-2~~ | Engineer support board progress circle (count, QA Accepted = done) | M | Count-based donut; QA Accepted is "done" (Closed excluded from API fetch) |
 | ~~5~~ | ~~T-P5-3~~ | Hide both circles when no assignments | S | Check assigneeAccountId in sprint stories AND support board tickets |

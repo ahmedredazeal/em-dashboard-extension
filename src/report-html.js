@@ -147,7 +147,7 @@ export function buildReportHTML(fm, palette = LIGHT_PALETTE, opts = {}) {
 <title>Zealer Monthly Report — ${esc(month)}${scope === 'Me' ? ' (Me)' : ''}</title>
 <style>${css}</style></head>
 <body><div class="wrap">
-  <h1>Monthly Report — ${esc(month)}</h1>
+  <h1>Monthly Report — ${esc(month)}<span style="display:inline-block;margin-left:6px;padding:0 4px;font-size:9px;font-weight:700;letter-spacing:0.5px;color:#0b0f19;background:#fbbf24;border-radius:3px;vertical-align:middle;font-family:system-ui;">ALPHA</span></h1>
   <div class="meta">
     <span class="badge">${esc(scope)}</span>
     ${fm && fm.squad ? `<span class="badge">${esc(fm.squad)}</span>` : ''}

@@ -298,3 +298,20 @@ emails from Jira" button: background 'fetch-jira-emails' → JiraClient.getUserE
 each squad member's accountId → emailAddress via GET /rest/api/3/user. Only emails the
 instance discloses are filled; the rest stay manual (now in a collapsed section to keep
 Settings compact). The Today's Meetings card needs none of this — own calendar only.
+
+**v2.24.0 — OOO/vacation handling + ALPHA badges + est-vs-actual equation logged.**
+- Free/busy exposes only busy blocks with NO out-of-office type, so days off can't be read
+  directly — they're inferred: any local day that is essentially fully busy (>= 20h, via
+  `meetingHoursAndDaysOff` on the per-day coverage) is treated as a day off, excluded from
+  meeting hours, and surfaced as a 🌴N badge beside the name (`attachUtilizationToMembers`
+  sets `busyHours = meetingHours` + `daysOff`). This stops a vacation inflating busy to 60h+.
+  Threshold 20h is safe (real meeting days never approach it). Public holidays only register
+  if on the person's calendar as busy; a team-wide holiday list is a possible later add.
+- ALPHA badge (`src/render/alpha-badge.js`, `ALPHA_PILL`) added to sections still being
+  refined: Estimate vs Actual, Reopen rate, Monthly report (panel + Settings) — so users
+  don't treat them as final.
+- Estimate vs Actual equation (for the record, fix parked as T-EVA-1): per member over the
+  window, Actual = Σ timeSpentSeconds/3600 (correct); Estimated = Σ estimateSeconds/3600 where
+  each issue's `timeoriginalestimate` is added ONCE PER WORKLOG in `aggregateWorklogs` — so an
+  issue with N worklogs / K loggers counts its estimate N/K× → inflated. Fix later: dedupe the
+  estimate per unique issue + decide cross-contributor attribution.

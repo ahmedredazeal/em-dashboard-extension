@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.24.0 (2026-06-29) - Out-of-office handling + ALPHA badges
+
+- Time Utilization now separates **meeting hours** from **days off**. Free/busy has no
+  "out of office" label, so an all-day/vacation block used to count as ~24h busy and
+  inflate the bar. Any day that's essentially fully busy (>= 20h) is now treated as a
+  day off: excluded from the meeting-hours bar and shown as a small 🌴N badge beside the
+  member's name. A two-day vacation reads as "2 off", not +48h.
+- Added ALPHA badges to sections still being refined so they aren't taken as final:
+  Estimate vs Actual, Reopen rate, and the Monthly report (side panel + Settings).
+- Backlogged (T-EVA-1): Estimate vs Actual over-counts "estimated" because each issue's
+  original estimate is added once per worklog; the fix (dedupe per issue + contributor
+  attribution) is parked until we have a solid story. Actual (logged time) is correct.
+
 ## v2.23.0 (2026-06-29) - Auto-fill member emails from Jira
 
 - Added a "Fetch emails from Jira" button in Time Utilization settings: it resolves

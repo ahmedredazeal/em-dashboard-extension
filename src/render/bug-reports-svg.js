@@ -1,3 +1,4 @@
+import { ALPHA_PILL } from './alpha-badge.js';
 /**
  * src/render/bug-reports-svg.js — Zealer Dashboard (T-BR-1)
  *
@@ -190,7 +191,7 @@ export function buildBugReportsCard(trend, snap, scopeLabel = '', quality = null
     buildBugSnapshotSVG(snap),
     snap?.totalOpen ? `<span style="font-size:var(--fs-caption,10px);color:${C.text};font-weight:600;">${snap.totalOpen} open</span>` : ''
   );
-  const panel3 = buildPanel('Reopen rate · 6 sprints', buildReopenPanelBody(reopen));
+  const panel3 = buildPanel('Reopen rate · 6 sprints', buildReopenPanelBody(reopen), ALPHA_PILL);
   const panel4 = buildPanel('Open by app', buildAppPanelBody(apps));
 
   const scopeBadge = scopeLabel
@@ -221,7 +222,7 @@ export function buildBugReportsCard(trend, snap, scopeLabel = '', quality = null
 /** Back-compat: phase-2 quality row is now folded into the grid (panels 3+4). */
 export function buildBugQualityRow(reopen, apps) {
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3,12px);">
-    ${buildPanel('Reopen rate · 6 sprints', buildReopenPanelBody(reopen))}
+    ${buildPanel('Reopen rate · 6 sprints', buildReopenPanelBody(reopen), ALPHA_PILL)}
     ${buildPanel('Open by app', buildAppPanelBody(apps))}
   </div>`;
 }

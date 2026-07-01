@@ -99,6 +99,31 @@ export function busyHoursByEmailPerDay(resp, tzOffsetMinutes = 0) {
 }
 
 /**
+ * Split each person's busy time into meeting hours vs. days off. Free/busy has
+ * no "out of office" label, so a full-day/vacation block just looks like a ~24h
+ * busy block — which would wrongly inflate "busy" (e.g. a 2-day vacation adding
+ * 48h). Heuristic: any local day that is essentially fully busy (>= threshold,
+ * default 20h — implausible as real meetings) is treated as a DAY OFF: excluded
+ * from meeting hours and counted separately. Partial days = real meeting time.
+ * @param {object} resp  freebusy.query response
+ * @param {{fullDayThresholdH?:number, tzOffsetMinutes?:number}} [opts]
+ * @returns {Object<string,{meetingHours:number, daysOff:number}>}
+ */
+export function meetingHoursAndDaysOff(resp, { fullDayThresholdH = 20, tzOffsetMinutes = 0 } = {}) {
+  const perDay = busyHoursByEmailPerDay(resp, tzOffsetMinutes);
+  const out = {};
+  for (const [email, days] of Object.entries(perDay)) {
+    let meeting = 0, off = 0;
+    for (const h of Object.values(days)) {
+      if (h >= fullDayThresholdH) off += 1;      // all-day / OOO / vacation
+      else meeting += h;                          // real meeting time
+    }
+    out[email] = { meetingHours: Math.round(meeting * 100) / 100, daysOff: off };
+  }
+  return out;
+}
+
+/**
  * Attach busy hours to timesheet member rows.
  * @param {Array<{name:string,total:number,byProject:object}>} members
  * @param {Object<string,string>} emailByMember  member name → email
@@ -117,5 +142,27 @@ export function attachBusyToMembers(members, emailByMember, busyByEmail) {
     const email = emailByNameN[norm(m.name)];
     const busy = (email && busyByEmailN[email]) || 0;
     return { ...m, busyHours: Math.round(busy * 100) / 100 };
+  });
+}
+
+/**
+ * Attach meeting hours + days off to timesheet member rows. `byEmail` is the
+ * output of meetingHoursAndDaysOff (email → {meetingHours, daysOff}).
+ * Sets `busyHours` (= meeting hours, what the chart bar shows) and `daysOff`.
+ */
+export function attachUtilizationToMembers(members, emailByMember, byEmail) {
+  const norm = s => String(s ?? '').trim().toLowerCase();
+  const emailByNameN = {};
+  for (const [name, email] of Object.entries(emailByMember || {})) emailByNameN[norm(name)] = norm(email);
+  const byEmailN = {};
+  for (const [email, v] of Object.entries(byEmail || {})) byEmailN[norm(email)] = v;
+  return (members || []).map(m => {
+    const email = emailByNameN[norm(m.name)];
+    const info = (email && byEmailN[email]) || null;
+    return {
+      ...m,
+      busyHours: info ? Math.round((info.meetingHours || 0) * 100) / 100 : 0,
+      daysOff: info ? (info.daysOff || 0) : 0,
+    };
   });
 }

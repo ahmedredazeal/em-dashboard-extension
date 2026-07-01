@@ -109,11 +109,18 @@ export function buildTimesheetSVG(members, capacity = 0) {
       const bwBusy = bw(busy);
       busySvg = `<rect class="ts-busy" data-ts-name="${esc(m.name || '')}" data-ts-busy="${busy}" `
               + `x="${baseX}" y="${(y1 + BAR_H + 0.5).toFixed(1)}" width="${bwBusy.toFixed(1)}" height="3.5" fill="url(#tsBusyHatch)" rx="1">`
-              + `<title>${esc(m.name || '')} — busy: ${busy}h</title></rect>`
+              + `<title>${esc(m.name || '')} — meetings: ${busy}h</title></rect>`
               + `<text x="${(segX + 3).toFixed(1)}" y="${(y1 + BAR_H + 4).toFixed(1)}" dominant-baseline="central" fill="#94a3b8" font-size="8" font-family="system-ui">${busy}h</text>`;
     }
+    // Days off (all-day / OOO / vacation) — a small icon + count beside the name,
+    // kept OUT of the busy hours so a vacation doesn't inflate the bar.
+    const daysOff = m.daysOff || 0;
+    const offSvg = daysOff > 0
+      ? `<text x="2" y="${y1 + BAR_H / 2 + 1}" dominant-baseline="central" font-size="9" font-family="system-ui" fill="#f59e0b">`
+        + `<title>${esc(m.name || '')} — ${daysOff} day${daysOff > 1 ? 's' : ''} off (excluded from meeting hours)</title>🌴${daysOff}</text>`
+      : '';
     rows += `
-      <text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${nameColor}" font-size="9.5" font-family="system-ui">${displayName}</text>
+      ${offSvg}<text x="${NAME_W - 5}" y="${y1 + BAR_H/2 + 1}" text-anchor="end" dominant-baseline="central" fill="${nameColor}" font-size="9.5" font-family="system-ui">${displayName}</text>
       ${segSvg}${busySvg}
       <text x="${(segX + 3).toFixed(1)}" y="${y1 + BAR_H/2 + 1}" dominant-baseline="central" fill="${totalColor}" font-size="9" font-family="system-ui" font-weight="${over ? '600' : 'normal'}">${m.total}h</text>`;
   });

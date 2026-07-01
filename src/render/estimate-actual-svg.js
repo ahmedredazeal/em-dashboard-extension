@@ -22,6 +22,8 @@
  * @param {string} [dateRange] optional date-range label shown under the title
  * @returns {string} HTML
  */
+import { ALPHA_PILL } from './alpha-badge.js';
+
 export function buildEstimateVsActualCard(members, dateRange) {
   const cardStyle = 'padding:10px 12px;background:var(--surface);border:1px solid var(--border,rgba(255,255,255,0.05));border-radius:8px;display:flex;flex-direction:column;width:100%;';
   const maxVal = Math.max(...members.map(m => Math.max(m.total, m.estimated || 0)), 0.1);
@@ -49,7 +51,7 @@ export function buildEstimateVsActualCard(members, dateRange) {
 
   return `<div style="${cardStyle}">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">ESTIMATE VS ACTUAL</span>
+      <span style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.3px;">ESTIMATE VS ACTUAL</span>${ALPHA_PILL}
     </div>
     ${dateRange ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">${dateRange}</div>` : ''}
     <svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg">${rows}${legend}</svg>
