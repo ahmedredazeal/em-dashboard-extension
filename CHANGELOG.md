@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.25.2 (2026-06-29) - Move ALPHA marker to the report button
+
+- Moved the header ALPHA marker off the app title and onto the Monthly report icon
+  button (a small α badge, with the tooltip noting it's in development) — the report is
+  the alpha feature, not the whole title.
+
 ## v2.25.1 (2026-06-29) - Chart + header polish
 
 - Added a small ALPHA badge in the side-panel header (smaller than the chart-card ones)
